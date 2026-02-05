@@ -157,6 +157,18 @@ export interface ScaffoldConfig {
     defaultTheme?: 'light' | 'dark';
   };
 
+  /** CORS configuration */
+  cors?: {
+    /** Allowed origins (default: ['*']) */
+    origins?: string[];
+    /** Allowed HTTP methods (default: GET, POST, PUT, DELETE, OPTIONS) */
+    methods?: string[];
+    /** Allowed headers (default: Content-Type, X-Admin-Key, Authorization) */
+    headers?: string[];
+    /** Max age for preflight cache in seconds (default: 86400) */
+    maxAge?: number;
+  };
+
   /** Feature flags */
   features?: {
     /** Enable telemetry plugin */
@@ -481,7 +493,7 @@ export interface AdminContext {
 export type RouteHandler = (
   request: Request,
   env: Record<string, unknown>,
-  ctx: ExecutionContext
+  ctx?: ExecutionContext
 ) => Promise<Response | null> | Response | null;
 
 /**

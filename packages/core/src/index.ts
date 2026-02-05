@@ -73,5 +73,5 @@ export { auth, storage, errors, validation } from './utils/index.js';
 // Re-export version
 export { VERSION } from './version.js';
 
-// TODO: Re-export main server class (Day 20-21)
-// export { ScaffoldServer } from './server/scaffold-server.js';
+// Re-export main server class
+export { ScaffoldServer, type ScaffoldServerOptions } from './server/index.js';
