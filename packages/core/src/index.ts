@@ -23,6 +23,9 @@ export type {
   ToolContext,
   ToolResult,
   ToolContent,
+  TextContent,
+  ImageContent,
+  EmbeddedResource,
   JSONSchema,
 
   // Resources
@@ -53,6 +56,8 @@ export type {
 
   // Auth
   AuthResult,
+  AuthResultValid,
+  AuthResultInvalid,
 
   // Storage utilities
   AtomicUpdateOptions,

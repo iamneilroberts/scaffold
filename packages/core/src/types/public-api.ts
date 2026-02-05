@@ -250,15 +250,40 @@ export interface ToolResult {
 }
 
 /**
- * Tool content (MCP format)
+ * Text content from a tool
  * @public
  */
-export interface ToolContent {
-  type: 'text' | 'image' | 'resource';
-  text?: string;
-  data?: string;
-  mimeType?: string;
+export interface TextContent {
+  type: 'text';
+  text: string;
 }
+
+/**
+ * Image content from a tool
+ * @public
+ */
+export interface ImageContent {
+  type: 'image';
+  data: string;
+  mimeType: string;
+}
+
+/**
+ * Embedded resource reference from a tool
+ * @public
+ */
+export interface EmbeddedResource {
+  type: 'resource';
+  uri: string;
+  mimeType?: string;
+  text?: string;
+}
+
+/**
+ * Tool content (MCP format) - discriminated union
+ * @public
+ */
+export type ToolContent = TextContent | ImageContent | EmbeddedResource;
 
 /**
  * JSON Schema definition
@@ -536,21 +561,36 @@ export interface ExecutionContext {
 // ============================================================================
 
 /**
- * Auth validation result
+ * Successful auth validation result
  * @public
  */
-export interface AuthResult {
-  /** Whether auth key is valid */
-  valid: boolean;
-  /** User ID (if valid) */
-  userId?: string;
-  /** Admin status (if valid) */
-  isAdmin?: boolean;
-  /** Debug mode enabled (if valid) */
+export interface AuthResultValid {
+  /** Auth key is valid */
+  valid: true;
+  /** User ID */
+  userId: string;
+  /** Admin status */
+  isAdmin: boolean;
+  /** Debug mode enabled */
   debugMode?: boolean;
-  /** Error message (if invalid) */
+}
+
+/**
+ * Failed auth validation result
+ * @public
+ */
+export interface AuthResultInvalid {
+  /** Auth key is invalid */
+  valid: false;
+  /** Error message */
   error?: string;
 }
+
+/**
+ * Auth validation result - discriminated union
+ * @public
+ */
+export type AuthResult = AuthResultValid | AuthResultInvalid;
 
 /**
  * Auth index entry stored in KV

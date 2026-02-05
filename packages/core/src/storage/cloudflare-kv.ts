@@ -155,9 +155,15 @@ export class CloudflareKVAdapter extends BaseStorageAdapter {
       return null;
     }
 
+    // Return null if version metadata is missing - don't assume a default version
+    // This prevents treating unversioned or tampered entries as valid versioned data
+    if (!result.metadata?.version) {
+      return null;
+    }
+
     return {
       value: result.value as T,
-      version: result.metadata?.version ?? '1',
+      version: result.metadata.version,
     };
   }
 

@@ -209,6 +209,29 @@ describe('CloudflareKVAdapter', () => {
       expect(v2!.version).toBe('2');
       expect(parseInt(v2!.version, 10)).not.toBeNaN();
     });
+
+    it('should return null when version metadata is missing', async () => {
+      // Directly store data without version metadata (simulating tampering or legacy data)
+      mockKV._store.set('key', {
+        value: JSON.stringify({ data: 'test' }),
+        metadata: undefined, // No metadata
+      });
+
+      // getWithVersion should return null since version is unknown
+      const result = await adapter.getWithVersion('key');
+      expect(result).toBeNull();
+    });
+
+    it('should return null when version metadata exists but version field is missing', async () => {
+      // Store data with metadata but no version field
+      mockKV._store.set('key', {
+        value: JSON.stringify({ data: 'test' }),
+        metadata: { customField: 'value' }, // No version field
+      });
+
+      const result = await adapter.getWithVersion('key');
+      expect(result).toBeNull();
+    });
   });
 
   describe('list operations', () => {
