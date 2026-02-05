@@ -92,7 +92,8 @@ export async function handlePromptsGet(
   // Validate required arguments
   if (prompt.arguments) {
     for (const arg of prompt.arguments) {
-      if (arg.required && !params.arguments?.[arg.name]) {
+      // Use == null to check for undefined/null while allowing empty strings
+      if (arg.required && params.arguments?.[arg.name] == null) {
         return invalidParams(request.id, {
           message: `Missing required argument: ${arg.name}`,
         });

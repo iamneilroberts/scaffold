@@ -290,4 +290,68 @@ describe('AdminHandler with custom admin path', () => {
     const html = await response.text();
     expect(html).toContain('admin-layout');
   });
+
+  it('should normalize trailing slash in admin path', async () => {
+    // Config with trailing slash
+    const config = createTestConfig({
+      admin: { path: '/admin/' },
+    });
+    const storage = new InMemoryAdapter();
+    const handler = new AdminHandler({ config, storage });
+
+    // Auth should work - trailing slash should be stripped
+    const request = new Request('http://localhost/admin/auth', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ authKey: 'admin-key' }),
+    });
+
+    const response = await handler.handle(request, {});
+
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.success).toBe(true);
+  });
+});
+
+describe('AdminHandler cookie security', () => {
+  it('should set Secure flag on auth cookie', async () => {
+    const storage = new InMemoryAdapter();
+    const config = createTestConfig();
+    const handler = new AdminHandler({ config, storage });
+
+    const request = new Request('http://localhost/admin/auth', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ authKey: 'admin-key' }),
+    });
+
+    const response = await handler.handle(request, {});
+    const cookie = response.headers.get('Set-Cookie');
+
+    expect(cookie).toContain('Secure');
+    expect(cookie).toContain('HttpOnly');
+    expect(cookie).toContain('SameSite=Strict');
+  });
+
+  it('should scope cookie to admin path', async () => {
+    const storage = new InMemoryAdapter();
+    const config = createTestConfig({
+      admin: { path: '/custom-admin' },
+    });
+    const handler = new AdminHandler({ config, storage });
+
+    const request = new Request('http://localhost/custom-admin/auth', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ authKey: 'admin-key' }),
+    });
+
+    const response = await handler.handle(request, {});
+    const cookie = response.headers.get('Set-Cookie');
+
+    // Cookie should be scoped to admin path, not root
+    expect(cookie).toContain('Path=/custom-admin');
+    expect(cookie).not.toContain('Path=/;');
+  });
 });

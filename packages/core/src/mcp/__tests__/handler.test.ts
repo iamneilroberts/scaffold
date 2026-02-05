@@ -560,6 +560,21 @@ describe('MCPHandler', () => {
 
       expect(body.error.code).toBe(JSON_RPC_ERROR_CODES.INVALID_PARAMS);
     });
+
+    it('should accept empty string as valid required argument', async () => {
+      const request = createJsonRpcRequest('prompts/get', {
+        name: 'test-prompt',
+        arguments: { input: '' }, // empty string is valid
+      });
+
+      const response = await handler.handle(request, {});
+      const body = await parseResponse(response);
+
+      // Should succeed, not return an error
+      expect(body.result).toBeDefined();
+      expect(body.result.messages).toHaveLength(1);
+      expect(body.result.messages[0].content.text).toBe('You said: ');
+    });
   });
 
   describe('logging/setLevel', () => {

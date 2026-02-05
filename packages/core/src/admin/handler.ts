@@ -58,7 +58,8 @@ export class AdminHandler {
   constructor(options: AdminHandlerOptions) {
     this.config = options.config;
     this.storage = options.storage;
-    this.adminPath = options.config.admin.path;
+    // Normalize admin path - strip trailing slash to ensure consistent path matching
+    this.adminPath = options.config.admin.path.replace(/\/+$/, '');
 
     // Build tabs list
     this.tabs = [
@@ -108,10 +109,10 @@ export class AdminHandler {
         200,
         this.config.admin.csp
       );
-      // Clear the auth cookie
+      // Clear the auth cookie (must match Set-Cookie attributes)
       response.headers.set(
         'Set-Cookie',
-        'scaffold_admin_key=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0'
+        `scaffold_admin_key=; Path=${this.adminPath}; HttpOnly; SameSite=Strict; Secure; Max-Age=0`
       );
       return response;
     }
@@ -163,11 +164,11 @@ export class AdminHandler {
         return secureJsonResponse({ error: 'Admin access required' }, 403);
       }
 
-      // Set auth cookie
+      // Set auth cookie with security attributes
       const response = secureJsonResponse({ success: true });
       response.headers.set(
         'Set-Cookie',
-        `scaffold_admin_key=${encodeURIComponent(authKey)}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${60 * 60 * 24}` // 24 hours
+        `scaffold_admin_key=${encodeURIComponent(authKey)}; Path=${this.adminPath}; HttpOnly; SameSite=Strict; Secure; Max-Age=${60 * 60 * 24}` // 24 hours
       );
 
       return response;
