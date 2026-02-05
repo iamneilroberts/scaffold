@@ -106,9 +106,10 @@ export class CloudflareKVAdapter extends BaseStorageAdapter {
     const currentVersion = current ? parseInt(current.version, 10) : 0;
     const newVersion = String(currentVersion + 1);
 
+    // User metadata spread first, then version - ensures version cannot be overridden
     const metadata: VersionMetadata = {
-      version: newVersion,
       ...options?.metadata,
+      version: newVersion,
     };
 
     await this.kv.put(prefixedKey, JSON.stringify(value), {
@@ -188,9 +189,10 @@ export class CloudflareKVAdapter extends BaseStorageAdapter {
     const currentVersion = current ? parseInt(current.version, 10) : 0;
     const newVersion = String(currentVersion + 1);
 
+    // User metadata spread first, then version - ensures version cannot be overridden
     const metadata: VersionMetadata = {
-      version: newVersion,
       ...options?.metadata,
+      version: newVersion,
     };
 
     await this.kv.put(prefixedKey, JSON.stringify(value), {
