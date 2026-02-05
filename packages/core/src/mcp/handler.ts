@@ -113,6 +113,20 @@ export class MCPHandler {
   }
 
   /**
+   * Check if request is a notification (no id field per JSON-RPC 2.0)
+   */
+  private isNotification(request: JsonRpcRequest): boolean {
+    return request.id === undefined;
+  }
+
+  /**
+   * No-response for notifications per JSON-RPC 2.0
+   */
+  private noContentResponse(): Response {
+    return new Response(null, { status: 204 });
+  }
+
+  /**
    * Route request to appropriate handler
    */
   private async route(
@@ -120,9 +134,16 @@ export class MCPHandler {
     httpRequest: Request,
     env: Record<string, unknown>
   ): Promise<Response> {
+    // Per JSON-RPC 2.0: notifications (no id) must not receive a response
+    const isNotification = this.isNotification(rpcRequest);
+
     switch (rpcRequest.method) {
       // Lifecycle
       case 'initialize':
+        // Initialize should always have an id (it's a request, not notification)
+        if (isNotification) {
+          return this.noContentResponse();
+        }
         return handleInitialize(
           rpcRequest,
           this.config,
@@ -131,20 +152,22 @@ export class MCPHandler {
           this.prompts.size > 0
         );
 
-      case 'initialized': {
-        const result = handleInitialized(rpcRequest);
-        // Notifications don't get a response
-        if (result === null) {
-          return new Response(null, { status: 204 });
-        }
-        return result;
-      }
+      case 'initialized':
+        // This is a notification by design - never respond
+        handleInitialized(rpcRequest);
+        return this.noContentResponse();
 
       // Tools
       case 'tools/list':
+        if (isNotification) {
+          return this.noContentResponse();
+        }
         return handleToolsList(rpcRequest, this.tools);
 
       case 'tools/call':
+        if (isNotification) {
+          return this.noContentResponse();
+        }
         return handleToolsCall(
           rpcRequest,
           httpRequest,
@@ -156,9 +179,15 @@ export class MCPHandler {
 
       // Resources
       case 'resources/list':
+        if (isNotification) {
+          return this.noContentResponse();
+        }
         return handleResourcesList(rpcRequest, this.resources);
 
       case 'resources/read':
+        if (isNotification) {
+          return this.noContentResponse();
+        }
         return handleResourcesRead(
           rpcRequest,
           httpRequest,
@@ -170,9 +199,15 @@ export class MCPHandler {
 
       // Prompts
       case 'prompts/list':
+        if (isNotification) {
+          return this.noContentResponse();
+        }
         return handlePromptsList(rpcRequest, this.prompts);
 
       case 'prompts/get':
+        if (isNotification) {
+          return this.noContentResponse();
+        }
         return handlePromptsGet(
           rpcRequest,
           httpRequest,
@@ -182,11 +217,14 @@ export class MCPHandler {
           env
         );
 
-      // Logging
+      // Logging - can be a notification (side effect: set log level)
       case 'logging/setLevel':
-        return this.handleLoggingSetLevel(rpcRequest);
+        return this.handleLoggingSetLevel(rpcRequest, isNotification);
 
       default:
+        if (isNotification) {
+          return this.noContentResponse();
+        }
         return methodNotFound(rpcRequest.id, rpcRequest.method);
     }
   }
@@ -194,13 +232,17 @@ export class MCPHandler {
   /**
    * Handle logging/setLevel request
    */
-  private handleLoggingSetLevel(request: JsonRpcRequest): Response {
+  private handleLoggingSetLevel(request: JsonRpcRequest, isNotification: boolean): Response {
     const params = request.params as LoggingSetLevelParams | undefined;
 
     if (params?.level) {
       this.logLevel = params.level;
     }
 
+    // Return 204 for notifications, otherwise return result
+    if (isNotification) {
+      return this.noContentResponse();
+    }
     return this.jsonResponse(request.id, {});
   }
 

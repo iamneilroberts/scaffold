@@ -12,12 +12,23 @@ import type { JSONSchema, ValidationError, ValidationResult } from '../types/pub
 export function validateInput(input: unknown, schema: JSONSchema): ValidationResult {
   const errors: ValidationError[] = [];
 
-  if (schema.type === 'object' && typeof input !== 'object') {
-    errors.push({ path: '', message: `Expected object, got ${typeof input}` });
-    return { valid: false, errors };
+  // Validate object type - reject null and arrays explicitly
+  if (schema.type === 'object') {
+    if (input === null) {
+      errors.push({ path: '', message: 'Expected object, got null' });
+      return { valid: false, errors };
+    }
+    if (Array.isArray(input)) {
+      errors.push({ path: '', message: 'Expected object, got array' });
+      return { valid: false, errors };
+    }
+    if (typeof input !== 'object') {
+      errors.push({ path: '', message: `Expected object, got ${typeof input}` });
+      return { valid: false, errors };
+    }
   }
 
-  if (schema.type === 'object' && input !== null && schema.properties) {
+  if (schema.type === 'object' && schema.properties) {
     const obj = input as Record<string, unknown>;
 
     // Check required fields

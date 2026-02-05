@@ -128,7 +128,7 @@ export const usersTab: AdminTab = {
           <tr>
             <td><code>${escapeHtml(user.id)}</code></td>
             <td>${escapeHtml(user.profile?.name ?? 'Unknown')}</td>
-            <td>${formatDate(user.profile?.lastSeen)}</td>
+            <td>${escapeHtml(formatDate(user.profile?.lastSeen))}</td>
             <td>${adminBadge} ${indexBadge}</td>
           </tr>
         `;

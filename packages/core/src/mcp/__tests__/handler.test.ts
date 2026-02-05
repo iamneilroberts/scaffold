@@ -47,6 +47,24 @@ function createJsonRpcRequest(method: string, params?: unknown, id: string | num
   });
 }
 
+/**
+ * Create a JSON-RPC notification (no id field)
+ */
+function createJsonRpcNotification(method: string, params?: unknown) {
+  return new Request('http://localhost/mcp', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer admin-key',
+    },
+    body: JSON.stringify({
+      jsonrpc: '2.0',
+      method,
+      params,
+    }),
+  });
+}
+
 async function parseResponse(response: Response) {
   return response.json();
 }
@@ -593,6 +611,68 @@ describe('MCPHandler', () => {
       handler.registerPrompt(prompt);
 
       expect(handler.getPrompts().get('test-prompt')).toBe(prompt);
+    });
+  });
+
+  describe('JSON-RPC notifications', () => {
+    it('should return 204 for notifications (no id)', async () => {
+      // Per JSON-RPC 2.0: notifications must not receive a response
+      const request = createJsonRpcNotification('tools/list');
+
+      const response = await handler.handle(request, {});
+
+      expect(response.status).toBe(204);
+      expect(await response.text()).toBe('');
+    });
+
+    it('should return 204 for initialize notification', async () => {
+      const request = createJsonRpcNotification('initialize', {
+        protocolVersion: '2024-11-05',
+        capabilities: {},
+        clientInfo: { name: 'test-client', version: '1.0.0' },
+      });
+
+      const response = await handler.handle(request, {});
+
+      expect(response.status).toBe(204);
+    });
+
+    it('should return 204 for tools/call notification', async () => {
+      handler.registerTool({
+        name: 'test:echo',
+        description: 'Echo test',
+        inputSchema: { type: 'object', properties: { msg: { type: 'string' } } },
+        handler: async (args) => ({ content: [{ type: 'text', text: args.msg as string }] }),
+      });
+
+      const request = createJsonRpcNotification('tools/call', {
+        name: 'test:echo',
+        arguments: { msg: 'hello' },
+      });
+
+      const response = await handler.handle(request, {});
+
+      expect(response.status).toBe(204);
+    });
+
+    it('should return 204 for logging/setLevel notification and still apply the level', async () => {
+      const request = createJsonRpcNotification('logging/setLevel', {
+        level: 'warning',
+      });
+
+      const response = await handler.handle(request, {});
+
+      expect(response.status).toBe(204);
+      // The level should still be set even though no response is returned
+      expect(handler.getLogLevel()).toBe('warning');
+    });
+
+    it('should return 204 for unknown method notification', async () => {
+      const request = createJsonRpcNotification('unknown/method', {});
+
+      const response = await handler.handle(request, {});
+
+      expect(response.status).toBe(204);
     });
   });
 });
