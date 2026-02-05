@@ -66,6 +66,45 @@ interface VersionMetadata {
  * Implements StorageAdapter using Cloudflare Workers KV.
  * Uses metadata to store version numbers for optimistic locking.
  *
+ * ## Consistency Model
+ *
+ * **Important:** Cloudflare KV is an eventually consistent key-value store.
+ * This adapter provides "best-effort" optimistic locking via `putIfMatch()`,
+ * but the underlying read-then-write pattern is NOT atomic.
+ *
+ * ### Limitations
+ *
+ * - **Race conditions:** Concurrent writes to the same key may result in lost
+ *   updates, even when using `putIfMatch()`. The window between reading the
+ *   current version and writing the new value is not protected.
+ *
+ * - **Propagation delay:** KV writes may take up to 60 seconds to propagate
+ *   globally. Reads from different regions may see stale data.
+ *
+ * - **No transactions:** There is no way to atomically update multiple keys.
+ *
+ * ### When to Use This Adapter
+ *
+ * CloudflareKVAdapter is suitable for:
+ * - Low-contention data (e.g., user preferences, session data)
+ * - Data where occasional stale reads are acceptable
+ * - Read-heavy workloads with infrequent writes
+ * - Caching and configuration storage
+ *
+ * ### When to Use Alternatives
+ *
+ * For scenarios requiring strong consistency, consider:
+ *
+ * - **Durable Objects:** Cloudflare's strongly consistent, single-threaded
+ *   storage primitive. Ideal for counters, collaborative state, or any
+ *   data requiring serializable transactions.
+ *
+ * - **D1 (SQLite):** Cloudflare's serverless SQL database with transactional
+ *   guarantees. Better for relational data and complex queries.
+ *
+ * - **External databases:** PostgreSQL, MySQL, or other databases accessed
+ *   via Hyperdrive or direct connection for full ACID guarantees.
+ *
  * @example
  * ```typescript
  * // In a Cloudflare Worker
@@ -77,6 +116,9 @@ interface VersionMetadata {
  *   }
  * }
  * ```
+ *
+ * @see https://developers.cloudflare.com/kv/concepts/how-kv-works/
+ * @see https://developers.cloudflare.com/durable-objects/
  *
  * @internal
  */
@@ -167,6 +209,31 @@ export class CloudflareKVAdapter extends BaseStorageAdapter {
     };
   }
 
+  /**
+   * Conditionally update a value if the version matches.
+   *
+   * **Warning: Not Atomic**
+   *
+   * This method implements optimistic locking using a read-then-write pattern.
+   * Due to Cloudflare KV's eventual consistency model, there is a race condition
+   * window between reading the current version and writing the new value.
+   *
+   * Concurrent calls to `putIfMatch()` on the same key may BOTH succeed if they
+   * read the same version before either write completes. This can result in:
+   * - Lost updates (one write overwrites the other)
+   * - Incorrect version progression
+   *
+   * **Recommendations:**
+   * - Use retry loops with exponential backoff for contended keys
+   * - Accept that this provides "best-effort" concurrency control
+   * - For true atomicity, use Durable Objects or a transactional database
+   *
+   * @param key - Storage key
+   * @param value - New value to store
+   * @param expectedVersion - Version that must match current version ('0' or '' for new keys)
+   * @param options - Optional storage options (metadata, TTL)
+   * @returns true if update succeeded, false if version mismatch
+   */
   async putIfMatch<T = unknown>(
     key: string,
     value: T,
@@ -188,9 +255,9 @@ export class CloudflareKVAdapter extends BaseStorageAdapter {
       }
     }
 
-    // Note: This is not truly atomic - there's a race condition window
-    // between the get and put. For true atomicity, use Durable Objects.
-    // For most use cases, optimistic locking with retries is sufficient.
+    // WARNING: Race condition window exists here.
+    // Another request could have updated the key between our read and this write.
+    // For true atomicity, use Durable Objects.
     const prefixedKey = this.prefixKey(key);
     const currentVersion = current ? parseInt(current.version, 10) : 0;
     const newVersion = String(currentVersion + 1);

@@ -18,6 +18,19 @@
  * Implement this interface to use different storage backends
  * (Cloudflare KV, Deno KV, in-memory, etc.)
  *
+ * ## Consistency Considerations
+ *
+ * The `putIfMatch()` method provides optimistic locking semantics, but the
+ * actual consistency guarantees depend on the underlying storage backend:
+ *
+ * - **InMemoryAdapter:** Strong consistency (single process)
+ * - **CloudflareKVAdapter:** Eventually consistent - race conditions possible
+ * - **Custom adapters:** Depends on implementation
+ *
+ * For use cases requiring strong consistency (counters, inventory, collaborative
+ * editing), use a storage backend with transactional guarantees such as Durable
+ * Objects, D1, or an external database.
+ *
  * @public
  */
 export interface StorageAdapter {
@@ -50,6 +63,15 @@ export interface StorageAdapter {
 
   /**
    * Put value only if version matches (optimistic locking)
+   *
+   * **Note:** Atomicity depends on the storage backend. Eventually consistent
+   * stores (like Cloudflare KV) may have race conditions between read and write.
+   * For guaranteed atomicity, use a transactional storage backend.
+   *
+   * @param key - Storage key
+   * @param value - Value to store
+   * @param expectedVersion - Expected current version ('0' or '' for new keys)
+   * @param options - Optional storage options
    * @returns true if write succeeded, false if version mismatch
    */
   putIfMatch<T = unknown>(
