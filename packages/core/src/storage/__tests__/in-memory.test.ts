@@ -48,6 +48,33 @@ describe('InMemoryAdapter', () => {
       expect(await adapter.get('array')).toEqual([1, 2, 3]);
       expect(await adapter.get('null')).toBeNull();
     });
+
+    it('should return cloned values to prevent mutation of stored data', async () => {
+      const original = { foo: 'bar', nested: { count: 1 } };
+      await adapter.put('key', original);
+
+      // Get the value and mutate it
+      const retrieved = await adapter.get<typeof original>('key');
+      retrieved!.foo = 'mutated';
+      retrieved!.nested.count = 999;
+
+      // Original stored value should be unchanged
+      const fresh = await adapter.get<typeof original>('key');
+      expect(fresh).toEqual({ foo: 'bar', nested: { count: 1 } });
+    });
+
+    it('should return cloned values from getWithVersion', async () => {
+      const original = { data: [1, 2, 3] };
+      await adapter.put('key', original);
+
+      // Get the versioned value and mutate it
+      const retrieved = await adapter.getWithVersion<typeof original>('key');
+      retrieved!.value.data.push(4);
+
+      // Original stored value should be unchanged
+      const fresh = await adapter.getWithVersion<typeof original>('key');
+      expect(fresh!.value.data).toEqual([1, 2, 3]);
+    });
   });
 
   describe('key prefix', () => {

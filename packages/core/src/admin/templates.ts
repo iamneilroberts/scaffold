@@ -297,21 +297,9 @@ pre {
 
 /**
  * Admin JavaScript for client-side interactions
+ * Note: Auth key is stored in HttpOnly cookie only - no client-side storage
  */
 export const adminScript = `
-// Store auth key in session storage
-function getAuthKey() {
-  return sessionStorage.getItem('scaffold_admin_key') || '';
-}
-
-function setAuthKey(key) {
-  sessionStorage.setItem('scaffold_admin_key', key);
-}
-
-function clearAuthKey() {
-  sessionStorage.removeItem('scaffold_admin_key');
-}
-
 // Handle login form
 document.addEventListener('DOMContentLoaded', () => {
   const loginForm = document.getElementById('login-form');
@@ -327,7 +315,7 @@ document.addEventListener('DOMContentLoaded', () => {
       });
 
       if (response.ok) {
-        setAuthKey(authKey);
+        // Cookie is set by server - just reload to use it
         window.location.reload();
       } else {
         document.getElementById('error-message').textContent = 'Invalid auth key';
@@ -335,11 +323,13 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // Handle logout
+  // Handle logout - calls server to clear cookie
   const logoutBtn = document.getElementById('logout-btn');
   if (logoutBtn) {
-    logoutBtn.addEventListener('click', () => {
-      clearAuthKey();
+    logoutBtn.addEventListener('click', async () => {
+      // Get base admin path from current URL (strip query params)
+      const adminPath = window.location.pathname.split('?')[0];
+      await fetch(adminPath + '/logout', { method: 'POST' });
       window.location.reload();
     });
   }

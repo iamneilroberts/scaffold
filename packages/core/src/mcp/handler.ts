@@ -14,7 +14,8 @@ import type {
   ScaffoldPrompt,
 } from '../types/public-api.js';
 import type { JsonRpcRequest, LoggingSetLevelParams } from './types.js';
-import { parseError, invalidRequest, methodNotFound } from './errors.js';
+import { parseError, invalidRequest, methodNotFound, authRequired, authFailed, invalidParams } from './errors.js';
+import { validateKey, extractAuthKey } from '../auth/validator.js';
 import { handleInitialize, handleInitialized } from './lifecycle.js';
 import { handleToolsList, handleToolsCall } from './tools.js';
 import { handleResourcesList, handleResourcesRead } from './resources.js';
@@ -217,9 +218,12 @@ export class MCPHandler {
           env
         );
 
-      // Logging - can be a notification (side effect: set log level)
+      // Logging - requires admin auth
       case 'logging/setLevel':
-        return this.handleLoggingSetLevel(rpcRequest, isNotification);
+        if (isNotification) {
+          return this.noContentResponse();
+        }
+        return this.handleLoggingSetLevel(rpcRequest, httpRequest, env);
 
       default:
         if (isNotification) {
@@ -230,19 +234,50 @@ export class MCPHandler {
   }
 
   /**
-   * Handle logging/setLevel request
+   * Valid log levels per MCP spec
    */
-  private handleLoggingSetLevel(request: JsonRpcRequest, isNotification: boolean): Response {
+  private static readonly VALID_LOG_LEVELS: LogLevel[] = [
+    'debug', 'info', 'notice', 'warning', 'error', 'critical', 'alert', 'emergency'
+  ];
+
+  /**
+   * Handle logging/setLevel request - requires admin authentication
+   */
+  private async handleLoggingSetLevel(
+    request: JsonRpcRequest,
+    httpRequest: Request,
+    env: Record<string, unknown>
+  ): Promise<Response> {
+    // Require admin authentication
+    const authKey = extractAuthKey(httpRequest, request);
+    if (!authKey) {
+      return authRequired(request.id);
+    }
+
+    const authResult = await validateKey(authKey, this.config, this.storage, env);
+    if (!authResult.valid) {
+      return authFailed(request.id, authResult.error);
+    }
+
+    if (!authResult.isAdmin) {
+      return authFailed(request.id, 'Admin access required');
+    }
+
     const params = request.params as LoggingSetLevelParams | undefined;
 
-    if (params?.level) {
-      this.logLevel = params.level;
+    // Validate level is provided and is a valid value
+    if (!params?.level) {
+      return invalidParams(request.id, { message: 'level is required' });
     }
 
-    // Return 204 for notifications, otherwise return result
-    if (isNotification) {
-      return this.noContentResponse();
+    if (!MCPHandler.VALID_LOG_LEVELS.includes(params.level)) {
+      return invalidParams(request.id, {
+        message: `Invalid log level. Must be one of: ${MCPHandler.VALID_LOG_LEVELS.join(', ')}`
+      });
     }
+
+    this.logLevel = params.level;
+
     return this.jsonResponse(request.id, {});
   }
 

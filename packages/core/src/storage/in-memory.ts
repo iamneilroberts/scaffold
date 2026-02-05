@@ -74,7 +74,9 @@ export class InMemoryAdapter extends BaseStorageAdapter {
 
   async get<T = unknown>(key: string): Promise<T | null> {
     const entry = this.getEntry<T>(key);
-    return entry?.value ?? null;
+    if (!entry) return null;
+    // Return deep clone to prevent caller mutations from affecting stored data
+    return structuredClone(entry.value);
   }
 
   async put<T = unknown>(
@@ -140,8 +142,9 @@ export class InMemoryAdapter extends BaseStorageAdapter {
       return null;
     }
 
+    // Return deep clone to prevent caller mutations from affecting stored data
     return {
-      value: entry.value,
+      value: structuredClone(entry.value),
       version: String(entry.version),
     };
   }

@@ -138,10 +138,12 @@ export async function handleToolsCall(
 
     return jsonResponse(request.id, mcpResult);
   } catch (error) {
-    // Handle tool execution errors
-    const message = error instanceof Error ? error.message : 'Unknown error';
+    // Handle tool execution errors - only expose details in debug mode
+    const message = ctx.debugMode && error instanceof Error
+      ? error.message
+      : 'Tool execution failed';
 
-    // In debug mode, include more details
+    // In debug mode, include stack trace
     const details = ctx.debugMode && error instanceof Error
       ? { stack: error.stack }
       : undefined;

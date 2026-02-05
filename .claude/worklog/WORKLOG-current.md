@@ -6,42 +6,53 @@ External code review of @scaffold/core using Codex, fix critical issues, create 
 
 ## Work Done
 
-- Ran 5 Codex external reviews covering entire codebase:
-  1. Core types and public API
-  2. MCP handler and protocol implementation
-  3. Auth system (validator, rate-limiter, key-hash)
-  4. Storage adapters
-  5. Server and admin dashboard
+### Session 1 (Earlier)
+- Ran 5 Codex external reviews covering entire codebase
 - Created 24 GitHub issues from review findings
 - Fixed critical vulnerability #1 (metadata version override)
 - Added CloudflareKVAdapter test suite (14 tests)
 - Created and merged PR #25
 
+### Session 2 (Current)
+- Fixed #5: Schema validation bypass - added explicit null/array rejection
+- Fixed #7: Admin XSS - escaped lastSeen output in Users tab
+- Fixed #6: JSON-RPC notifications - return 204 No Content per spec
+- Fixed #18: Cookie security - Secure flag, scoped path
+- Fixed #20: Trailing slash - normalized admin path
+- Fixed #23: Empty string args - null/undefined check vs truthiness
+- Added 20 new tests total
+
 ## Decisions Made
 
 - Issues prioritized by severity (Critical > High > Medium > Low)
 - Created docs/ISSUES-REVIEW-2026-02-05.md for future session reference
-- Quick wins identified: #5, #7, #20, #23
 
 ## Files Changed
 
-- `packages/core/src/storage/cloudflare-kv.ts` - Fixed spread order for version protection
-- `packages/core/src/storage/__tests__/cloudflare-kv.test.ts` - New test file (14 tests)
-- `docs/ISSUES-REVIEW-2026-02-05.md` - Issue tracking document
+- `packages/core/src/utils/validation.ts` - Reject null/arrays in object validation
+- `packages/core/src/utils/__tests__/validation.test.ts` - New test file (11 tests)
+- `packages/core/src/mcp/handler.ts` - Notification handling (204 for no-id requests)
+- `packages/core/src/mcp/__tests__/handler.test.ts` - 6 new tests
+- `packages/core/src/admin/tabs/users.ts` - escapeHtml on lastSeen output
+- `packages/core/src/admin/handler.ts` - Cookie security, path normalization
+- `packages/core/src/admin/__tests__/handler.test.ts` - 3 new tests
+- `packages/core/src/mcp/prompts.ts` - Empty string validation fix
 
 ## Outcomes
 
-- 1 critical vulnerability fixed and merged
-- 23 issues documented for future work
-- All 217 tests passing
-- Repository pushed to https://github.com/iamneilroberts/scaffold
+- 7 issues fixed (1 critical + 3 high + 3 medium)
+- 17 issues remaining (6 high, 10 medium, 1 low)
+- All 237 tests passing
+- Commits: a41dcec, 2293c09
 
 ## Next Actions
 
-Start with quick wins:
-1. `gh issue view 5` - Schema validation bypass
-2. `gh issue view 7` - Admin XSS fix
-3. `gh issue view 6` - JSON-RPC notification handling
-4. `gh issue view 18` - Cookie security
+Remaining high-severity issues:
+1. #2 - Storage: Optimistic locking not atomic on KV (architectural)
+2. #3 - Auth: Fallback scan rate limiting easily bypassed
+3. #4 - Auth: Plaintext auth keys stored in user records
+4. #8 - Admin: CSP uses unsafe-inline (larger refactor)
+5. #9 - Types: getConfig() exposes secrets to plugins
+6. #10 - Types: Admin tabs allow raw HTML/JS injection
 
 Reference: `docs/ISSUES-REVIEW-2026-02-05.md` for full issue list and priorities.

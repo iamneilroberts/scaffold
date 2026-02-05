@@ -123,7 +123,10 @@ export async function handlePromptsGet(
 
     return jsonResponse(request.id, result);
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Unknown error';
+    // Only expose error details in debug mode to prevent information leakage
+    const message = ctx.debugMode && error instanceof Error
+      ? error.message
+      : 'Internal error';
     return internalError(request.id, message);
   }
 }

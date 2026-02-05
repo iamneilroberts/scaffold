@@ -314,6 +314,29 @@ describe('AdminHandler with custom admin path', () => {
   });
 });
 
+describe('AdminHandler logout', () => {
+  it('should clear auth cookie on logout', async () => {
+    const storage = new InMemoryAdapter();
+    const config = createTestConfig();
+    const handler = new AdminHandler({ config, storage });
+
+    const request = new Request('http://localhost/admin/logout', {
+      method: 'POST',
+    });
+
+    const response = await handler.handle(request, {});
+
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.success).toBe(true);
+
+    // Cookie should be cleared (Max-Age=0)
+    const cookie = response.headers.get('Set-Cookie');
+    expect(cookie).toContain('scaffold_admin_key=');
+    expect(cookie).toContain('Max-Age=0');
+  });
+});
+
 describe('AdminHandler cookie security', () => {
   it('should set Secure flag on auth cookie', async () => {
     const storage = new InMemoryAdapter();

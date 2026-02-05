@@ -88,6 +88,11 @@ export class AdminHandler {
       return this.handleAuth(request, env);
     }
 
+    // Logout route - clears auth cookie
+    if (subPath === '/logout' && request.method === 'POST') {
+      return this.handleLogout();
+    }
+
     // All other routes require authentication via cookie or header
     const authKey = this.extractAuthKey(request);
 
@@ -175,6 +180,19 @@ export class AdminHandler {
     } catch {
       return secureJsonResponse({ error: 'Invalid request body' }, 400);
     }
+  }
+
+  /**
+   * Handle logout POST request - clears auth cookie
+   */
+  private handleLogout(): Response {
+    const response = secureJsonResponse({ success: true });
+    // Clear auth cookie by setting Max-Age=0
+    response.headers.set(
+      'Set-Cookie',
+      `scaffold_admin_key=; Path=${this.adminPath}; HttpOnly; SameSite=Strict; Secure; Max-Age=0`
+    );
+    return response;
   }
 
   /**

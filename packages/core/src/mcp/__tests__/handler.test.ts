@@ -578,7 +578,7 @@ describe('MCPHandler', () => {
   });
 
   describe('logging/setLevel', () => {
-    it('should set log level', async () => {
+    it('should set log level with admin auth', async () => {
       const request = createJsonRpcRequest('logging/setLevel', {
         level: 'debug',
       });
@@ -588,6 +588,54 @@ describe('MCPHandler', () => {
 
       expect(body.result).toEqual({});
       expect(handler.getLogLevel()).toBe('debug');
+    });
+
+    it('should require admin authentication', async () => {
+      const request = new Request('http://localhost/mcp', {
+        method: 'POST',
+        body: JSON.stringify({
+          jsonrpc: '2.0',
+          id: 1,
+          method: 'logging/setLevel',
+          params: { level: 'debug' },
+        }),
+      });
+
+      const response = await handler.handle(request, {});
+      const body = await parseResponse(response);
+
+      expect(body.error.code).toBe(JSON_RPC_ERROR_CODES.AUTH_REQUIRED);
+    });
+
+    it('should reject non-admin users', async () => {
+      const request = new Request('http://localhost/mcp', {
+        method: 'POST',
+        headers: {
+          'Authorization': 'Bearer user-key-1', // Valid key but not admin
+        },
+        body: JSON.stringify({
+          jsonrpc: '2.0',
+          id: 1,
+          method: 'logging/setLevel',
+          params: { level: 'debug' },
+        }),
+      });
+
+      const response = await handler.handle(request, {});
+      const body = await parseResponse(response);
+
+      expect(body.error.code).toBe(JSON_RPC_ERROR_CODES.AUTH_FAILED);
+    });
+
+    it('should validate log level values', async () => {
+      const request = createJsonRpcRequest('logging/setLevel', {
+        level: 'invalid-level',
+      });
+
+      const response = await handler.handle(request, {});
+      const body = await parseResponse(response);
+
+      expect(body.error.code).toBe(JSON_RPC_ERROR_CODES.INVALID_PARAMS);
     });
   });
 
@@ -670,7 +718,7 @@ describe('MCPHandler', () => {
       expect(response.status).toBe(204);
     });
 
-    it('should return 204 for logging/setLevel notification and still apply the level', async () => {
+    it('should return 204 for logging/setLevel notification without applying level (requires auth)', async () => {
       const request = createJsonRpcNotification('logging/setLevel', {
         level: 'warning',
       });
@@ -678,8 +726,8 @@ describe('MCPHandler', () => {
       const response = await handler.handle(request, {});
 
       expect(response.status).toBe(204);
-      // The level should still be set even though no response is returned
-      expect(handler.getLogLevel()).toBe('warning');
+      // Level should NOT be set because notifications don't carry auth
+      expect(handler.getLogLevel()).toBe('info'); // default level
     });
 
     it('should return 204 for unknown method notification', async () => {
