@@ -4,7 +4,8 @@
   "private": true,
   "description": "Security-first, plugin-based MCP framework with stable public API",
   "workspaces": [
-    "packages/*"
+    "packages/*",
+    "examples/*"
   ],
   "scripts": {
     "build": "turbo run build",
