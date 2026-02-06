@@ -8,14 +8,18 @@
  */
 
 import type { AuthIndexEntry, StorageAdapter } from '../types/public-api.js';
-import { hashKeyAsync, getAuthIndexKey } from './key-hash.js';
+import { hashKeyAsync, getAuthIndexKey, getAuthIndexKeyFromHash } from './key-hash.js';
 
 /**
  * User data structure for auth scanning
+ *
+ * **Security note:** Auth keys are stored as hashes, not plaintext.
+ * This ensures storage compromise doesn't leak raw keys.
  */
 export interface UserData {
   id: string;
-  authKey: string;
+  /** Hashed auth key (use hashKeyAsync before storing) */
+  authKeyHash: string;
   isAdmin?: boolean;
   debugMode?: boolean;
 }
@@ -96,10 +100,10 @@ export async function lookupAuthIndex(
  * with rate limiting.
  *
  * The scan looks for user records in the format:
- * - Key pattern: `users/{userId}` or `_users/{userId}`
- * - Value contains: `authKey` field
+ * - Key pattern: `users/{userId}`
+ * - Value contains: `authKeyHash` field (hashed, not plaintext)
  *
- * @param authKey - The auth key to find
+ * @param authKey - The auth key to find (will be hashed for comparison)
  * @param storage - Storage adapter
  * @param budget - Maximum keys to scan (prevents runaway scans)
  * @returns Scan result with user (if found) and keys scanned count
@@ -128,13 +132,12 @@ export async function scanForUser(
       keysScanned++;
 
       const userData = await storage.get<UserData>(key);
-      if (!userData || !userData.authKey) {
+      if (!userData || !userData.authKeyHash) {
         continue;
       }
 
-      // Compare hashes to avoid timing attacks
-      const storedHash = await hashKeyAsync(userData.authKey);
-      if (storedHash === authKeyHash) {
+      // Compare hashes directly (stored hash vs computed hash)
+      if (userData.authKeyHash === authKeyHash) {
         return {
           user: userData,
           keysScanned,
@@ -159,7 +162,7 @@ export async function scanForUser(
 /**
  * Rebuild auth index for all users
  *
- * Scans all user records and builds index entries.
+ * Scans all user records and builds index entries from stored hashes.
  * Use for initial setup or index corruption recovery.
  *
  * @param storage - Storage adapter
@@ -185,7 +188,7 @@ export async function rebuildAuthIndex(
     countCursor = result.cursor;
   } while (countCursor);
 
-  // Second pass: build index entries
+  // Second pass: build index entries from stored hashes
   do {
     const listResult = await storage.list('users/', {
       limit: 100,
@@ -194,14 +197,19 @@ export async function rebuildAuthIndex(
 
     for (const key of listResult.keys) {
       const userData = await storage.get<UserData>(key);
-      if (!userData || !userData.authKey) {
+      if (!userData || !userData.authKeyHash) {
         continue;
       }
 
-      await buildAuthIndex(userData.id, userData.authKey, storage, {
-        isAdmin: userData.isAdmin,
+      // Build index entry directly from stored hash
+      const indexKey = getAuthIndexKeyFromHash(userData.authKeyHash);
+      const entry: AuthIndexEntry = {
+        userId: userData.id,
+        isAdmin: userData.isAdmin ?? false,
         debugMode: userData.debugMode,
-      });
+        createdAt: new Date().toISOString(),
+      };
+      await storage.put(indexKey, entry);
 
       indexed++;
       onProgress?.(indexed, total);

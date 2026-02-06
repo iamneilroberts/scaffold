@@ -88,6 +88,19 @@ export async function getAuthIndexKey(authKey: string): Promise<string> {
 }
 
 /**
+ * Generate an auth index key from a pre-computed hash
+ *
+ * Use this when you already have the hash (e.g., from a user record
+ * that stores authKeyHash instead of the raw key).
+ *
+ * @param hash - The pre-computed SHA-256 hash
+ * @returns The index key path
+ */
+export function getAuthIndexKeyFromHash(hash: string): string {
+  return `_auth-index/${hash}`;
+}
+
+/**
  * Verify that two auth keys match
  *
  * Uses constant-time comparison to prevent timing attacks.

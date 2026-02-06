@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { validateKey, extractAuthKey, createTestAuthConfig } from '../validator.js';
 import { getDefaultLimiter } from '../rate-limiter.js';
+import { hashKeyAsync } from '../key-hash.js';
 import { InMemoryAdapter } from '../../storage/in-memory.js';
 import type { ScaffoldConfig } from '../../types/public-api.js';
 
@@ -144,15 +145,15 @@ describe('validateKey', () => {
 
   describe('Layer 4: Fallback scan', () => {
     beforeEach(async () => {
-      // Populate some user records
+      // Populate some user records with hashed auth keys
       await adapter.put('users/user-1', {
         id: 'user-1',
-        authKey: 'auth-key-1',
+        authKeyHash: await hashKeyAsync('auth-key-1'),
         isAdmin: false,
       });
       await adapter.put('users/user-2', {
         id: 'user-2',
-        authKey: 'auth-key-2',
+        authKeyHash: await hashKeyAsync('auth-key-2'),
         isAdmin: true,
       });
     });
@@ -207,11 +208,11 @@ describe('validateKey', () => {
     });
 
     it('should respect scan budget', async () => {
-      // Add many users to exceed budget
+      // Add many users to exceed budget (with hashed keys)
       for (let i = 0; i < 10; i++) {
         await adapter.put(`users/extra-user-${i}`, {
           id: `extra-user-${i}`,
-          authKey: `extra-auth-key-${i}`,
+          authKeyHash: await hashKeyAsync(`extra-auth-key-${i}`),
         });
       }
 
