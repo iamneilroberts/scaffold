@@ -11,7 +11,7 @@
  */
 
 import type { AuthResult, ScaffoldConfig, StorageAdapter } from '../types/public-api.js';
-import { constantTimeEqual, hashKeySync } from './key-hash.js';
+import { constantTimeEqual, hashKeySync, hashKeyAsync } from './key-hash.js';
 import { checkRateLimit } from './rate-limiter.js';
 import { lookupAuthIndex, scanForUser, buildAuthIndex } from './index-builder.js';
 
@@ -54,7 +54,8 @@ export async function validateKey(
   if (config.auth.validKeys && config.auth.validKeys.length > 0) {
     for (const validKey of config.auth.validKeys) {
       if (constantTimeEqual(authKey, validKey)) {
-        const userId = hashKeySync(authKey);
+        // Use SHA-256 for userId to avoid collisions (DJB2 is only 32-bit)
+        const userId = await hashKeyAsync(authKey);
         return {
           valid: true,
           userId,

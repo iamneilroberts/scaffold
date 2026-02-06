@@ -4,6 +4,16 @@
  * Provides collision-resistant hashing for auth keys.
  * Uses Web Crypto API (available in Workers and modern Node.js).
  *
+ * ## Security Note: Key Entropy
+ *
+ * Auth keys are hashed with SHA-256 without salt. This is secure **only if
+ * keys are cryptographically random** (e.g., `crypto.randomUUID()` or 32+
+ * random characters). Do NOT use user-chosen passwords as auth keys - they
+ * would be vulnerable to offline brute-force if storage is compromised.
+ *
+ * For user authentication with passwords, use a proper password hashing
+ * library (bcrypt, scrypt, argon2) instead of this module.
+ *
  * @internal
  */
 
