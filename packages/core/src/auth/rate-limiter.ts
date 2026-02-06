@@ -41,6 +41,11 @@ export class RateLimiter {
    * @returns true if request is allowed, false if rate limited
    */
   check(key: string, maxPerWindow: number): boolean {
+    // Guard against non-positive limits
+    if (maxPerWindow <= 0) {
+      return false;
+    }
+
     const now = Date.now();
 
     // Lazy cleanup - only when enough time has passed
