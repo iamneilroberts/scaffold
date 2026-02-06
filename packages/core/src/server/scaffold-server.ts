@@ -317,47 +317,48 @@ export class ScaffoldServer {
     const url = new URL(request.url);
 
     // 1. CORS preflight (always first)
-    const corsResponse = this.handleCORS(request);
-    if (corsResponse) return corsResponse;
+    if (request.method === 'OPTIONS') {
+      return this.handleCORSPreflight(request);
+    }
 
-    // 2. Health check endpoint
+    // 2. Route to handler
+    let response: Response;
+
     if (url.pathname === '/health' && request.method === 'GET') {
-      return this.handleHealth();
-    }
+      response = this.handleHealth();
+    } else {
+      // 3. User-registered routes (in registration order)
+      const userResponse = await this.handleUserRoutes(request, url, env, ctx);
 
-    // 3. User-registered routes (in registration order)
-    const userResponse = await this.handleUserRoutes(request, url, env, ctx);
-    if (userResponse) return userResponse;
-
-    // 4. Admin dashboard
-    if (url.pathname.startsWith(this.config.admin.path)) {
-      return this.adminHandler.handle(request, env);
-    }
-
-    // 5. MCP protocol (JSON-RPC POST requests)
-    if (request.method === 'POST') {
-      const contentType = request.headers.get('Content-Type') ?? '';
-      if (contentType.includes('application/json')) {
-        return this.mcpHandler.handle(request, env);
+      if (userResponse) {
+        response = userResponse;
+      } else if (url.pathname.startsWith(this.config.admin.path)) {
+        // 4. Admin dashboard
+        response = await this.adminHandler.handle(request, env);
+      } else if (
+        request.method === 'POST' &&
+        (request.headers.get('Content-Type') ?? '').includes('application/json')
+      ) {
+        // 5. MCP protocol (JSON-RPC POST requests)
+        response = await this.mcpHandler.handle(request, env);
+      } else if (this.fallbackHandler) {
+        // 6. Fallback handler
+        const fallbackResponse = await this.fallbackHandler(request, env, ctx);
+        response = fallbackResponse ?? new Response('Not Found', { status: 404 });
+      } else {
+        // 7. Default 404
+        response = new Response('Not Found', { status: 404 });
       }
     }
 
-    // 6. Fallback handler
-    if (this.fallbackHandler) {
-      const fallbackResponse = await this.fallbackHandler(request, env, ctx);
-      if (fallbackResponse) return fallbackResponse;
-    }
-
-    // 7. Default 404
-    return new Response('Not Found', { status: 404 });
+    // Add CORS headers to all responses (not just preflight)
+    return this.addCORSHeaders(request, response);
   }
 
   /**
-   * Handle CORS preflight requests
+   * Handle CORS preflight (OPTIONS) requests
    */
-  private handleCORS(request: Request): Response | null {
-    if (request.method !== 'OPTIONS') return null;
-
+  private handleCORSPreflight(request: Request): Response {
     const origin = request.headers.get('Origin') ?? '*';
     const allowedOrigins = this.config.cors?.origins ?? ['*'];
 
@@ -380,6 +381,30 @@ export class ScaffoldServer {
         'Access-Control-Max-Age': String(this.config.cors?.maxAge ?? 86400),
       },
     });
+  }
+
+  /**
+   * Add CORS headers to an actual (non-preflight) response
+   */
+  private addCORSHeaders(request: Request, response: Response): Response {
+    const origin = request.headers.get('Origin');
+    if (!origin) return response; // No Origin header = not a CORS request
+
+    const allowedOrigins = this.config.cors?.origins ?? ['*'];
+    const isAllowed = allowedOrigins.includes('*') ||
+      allowedOrigins.includes(origin);
+
+    if (!isAllowed) return response;
+
+    const corsOrigin = allowedOrigins.includes('*') ? '*' : origin;
+
+    // Clone response to add headers (Response headers may be immutable)
+    const newResponse = new Response(response.body, response);
+    newResponse.headers.set('Access-Control-Allow-Origin', corsOrigin);
+    if (corsOrigin !== '*') {
+      newResponse.headers.set('Vary', 'Origin');
+    }
+    return newResponse;
   }
 
   /**

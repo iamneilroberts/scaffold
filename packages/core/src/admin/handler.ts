@@ -87,6 +87,10 @@ export class AdminHandler {
       return this.handleAuth(request, env);
     }
 
+    if (subPath === '/logout' && request.method === 'POST') {
+      return this.handleLogout();
+    }
+
     // All other routes require authentication via cookie or header
     const authKey = this.extractAuthKey(request);
 
@@ -111,7 +115,7 @@ export class AdminHandler {
       // Clear the auth cookie
       response.headers.set(
         'Set-Cookie',
-        'scaffold_admin_key=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0'
+        'scaffold_admin_key=; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=0'
       );
       return response;
     }
@@ -163,17 +167,29 @@ export class AdminHandler {
         return secureJsonResponse({ error: 'Admin access required' }, 403);
       }
 
-      // Set auth cookie
+      // Set auth cookie — HttpOnly + Secure + SameSite=Strict
       const response = secureJsonResponse({ success: true });
       response.headers.set(
         'Set-Cookie',
-        `scaffold_admin_key=${encodeURIComponent(authKey)}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${60 * 60 * 24}` // 24 hours
+        `scaffold_admin_key=${encodeURIComponent(authKey)}; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=${60 * 60 * 24}` // 24 hours
       );
 
       return response;
     } catch {
       return secureJsonResponse({ error: 'Invalid request body' }, 400);
     }
+  }
+
+  /**
+   * Handle logout POST request — clears the auth cookie
+   */
+  private handleLogout(): Response {
+    const response = secureJsonResponse({ success: true });
+    response.headers.set(
+      'Set-Cookie',
+      'scaffold_admin_key=; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=0'
+    );
+    return response;
   }
 
   /**

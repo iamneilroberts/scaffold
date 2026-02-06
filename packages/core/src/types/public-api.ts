@@ -220,7 +220,7 @@ export interface ScaffoldTool {
  * @public
  */
 export interface ToolContext {
-  /** User's auth key (hashed) */
+  /** SHA-256 hash of the user's auth key (never contains the raw key) */
   authKey: string;
   /** User ID */
   userId: string;
