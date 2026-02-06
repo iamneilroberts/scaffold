@@ -15,6 +15,9 @@ import { constantTimeEqual, hashKeySync } from './key-hash.js';
 import { checkRateLimit } from './rate-limiter.js';
 import { lookupAuthIndex, scanForUser, buildAuthIndex } from './index-builder.js';
 
+// Track whether we've warned about fallback scan (warn once per isolate)
+let fallbackScanWarned = false;
+
 /**
  * Validate an auth key through multiple layers
  *
@@ -79,6 +82,17 @@ export async function validateKey(
   // Layer 4: Fallback scan (expensive, rate-limited)
   // Only enabled if configured, and protected by rate limiting
   if (config.auth.enableFallbackScan) {
+    // Warn once about security limitations
+    if (!fallbackScanWarned) {
+      fallbackScanWarned = true;
+      console.warn(
+        '[scaffold] Warning: enableFallbackScan is enabled. ' +
+        'Rate limiting is per-isolate only, not distributed. ' +
+        'This may be vulnerable to resource exhaustion in production. ' +
+        'Consider using enableKeyIndex instead.'
+      );
+    }
+
     // Rate limit by the hash of the auth key to prevent abuse
     const rateLimitKey = `auth-scan:${hashKeySync(authKey)}`;
     const canScan = checkRateLimit(rateLimitKey, config.auth.fallbackScanRateLimit);
@@ -173,4 +187,12 @@ export function createTestAuthConfig(): ScaffoldConfig['auth'] {
     fallbackScanRateLimit: 5,
     fallbackScanBudget: 100,
   };
+}
+
+/**
+ * Reset the fallback scan warning flag (for testing)
+ * @internal
+ */
+export function resetFallbackScanWarning(): void {
+  fallbackScanWarned = false;
 }

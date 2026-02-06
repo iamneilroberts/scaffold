@@ -161,9 +161,18 @@ export interface ScaffoldConfig {
     validKeys?: string[];
     /** Enable KV-based auth index for O(1) lookup */
     enableKeyIndex: boolean;
-    /** Enable fallback scan (expensive, rate-limited) */
+    /**
+     * Enable fallback scan when key not found in index
+     *
+     * **Security warning:** Fallback scan is expensive (KV list + hash per record)
+     * and the rate limiting is per-isolate, not distributed. This makes it
+     * vulnerable to resource exhaustion attacks in production. Recommended to
+     * keep disabled (`false`) unless you specifically need migration support.
+     *
+     * @default false (recommended for production)
+     */
     enableFallbackScan: boolean;
-    /** Max fallback scans per minute per key */
+    /** Max fallback scans per minute per key (per-isolate, not distributed) */
     fallbackScanRateLimit: number;
     /** Max keys to scan during fallback */
     fallbackScanBudget: number;
