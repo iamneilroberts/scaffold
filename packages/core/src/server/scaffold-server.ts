@@ -8,6 +8,7 @@
 
 import type {
   ScaffoldConfig,
+  PublicScaffoldConfig,
   StorageAdapter,
   ScaffoldTool,
   ScaffoldResource,
@@ -461,9 +462,37 @@ export class ScaffoldServer {
 
   /**
    * Get server configuration (read-only copy)
+   *
+   * **Security note:** This exposes auth secrets. Prefer `getPublicConfig()`
+   * unless you specifically need `auth.adminKey` or `auth.validKeys`.
    */
   getConfig(): Readonly<ScaffoldConfig> {
     return Object.freeze({ ...this.config });
+  }
+
+  /**
+   * Get server configuration with sensitive fields redacted
+   *
+   * Use this instead of `getConfig()` when you don't need auth secrets.
+   * This follows the principle of least privilege.
+   */
+  getPublicConfig(): Readonly<PublicScaffoldConfig> {
+    return Object.freeze({
+      app: this.config.app,
+      mcp: this.config.mcp,
+      admin: this.config.admin,
+      cors: this.config.cors,
+      features: this.config.features,
+      storage: this.config.storage,
+      auth: {
+        adminKey: this.config.auth.adminKey ? '[REDACTED]' as const : undefined,
+        validKeysCount: this.config.auth.validKeys?.length ?? 0,
+        enableKeyIndex: this.config.auth.enableKeyIndex,
+        enableFallbackScan: this.config.auth.enableFallbackScan,
+        fallbackScanRateLimit: this.config.auth.fallbackScanRateLimit,
+        fallbackScanBudget: this.config.auth.fallbackScanBudget,
+      },
+    });
   }
 
   /**
@@ -482,6 +511,7 @@ export class ScaffoldServer {
     registerPrompt: (prompt: ScaffoldPrompt) => void;
     registerAdminTab: (tab: AdminTab) => void;
     getConfig: () => Readonly<ScaffoldConfig>;
+    getPublicConfig: () => Readonly<PublicScaffoldConfig>;
     getStorage: () => StorageAdapter;
   } {
     return {
@@ -490,6 +520,7 @@ export class ScaffoldServer {
       registerPrompt: this.registerPrompt.bind(this),
       registerAdminTab: this.registerAdminTab.bind(this),
       getConfig: this.getConfig.bind(this),
+      getPublicConfig: this.getPublicConfig.bind(this),
       getStorage: this.getStorage.bind(this),
     };
   }

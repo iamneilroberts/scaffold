@@ -335,6 +335,61 @@ describe('ScaffoldServer', () => {
       expect(Object.isFrozen(retrievedConfig)).toBe(true);
     });
 
+    it('should expose secrets in getConfig()', () => {
+      const retrievedConfig = server.getConfig();
+
+      expect(retrievedConfig.auth.adminKey).toBe('admin-key');
+      expect(retrievedConfig.auth.validKeys).toEqual(['user-key']);
+    });
+
+    it('should return frozen public config', () => {
+      const publicConfig = server.getPublicConfig();
+
+      expect(publicConfig.app.name).toBe('Test App');
+      expect(Object.isFrozen(publicConfig)).toBe(true);
+    });
+
+    it('should redact adminKey in getPublicConfig()', () => {
+      const publicConfig = server.getPublicConfig();
+
+      expect(publicConfig.auth.adminKey).toBe('[REDACTED]');
+    });
+
+    it('should return validKeysCount instead of keys in getPublicConfig()', () => {
+      const publicConfig = server.getPublicConfig();
+
+      expect(publicConfig.auth.validKeysCount).toBe(1);
+      expect((publicConfig.auth as Record<string, unknown>).validKeys).toBeUndefined();
+    });
+
+    it('should preserve non-sensitive auth settings in getPublicConfig()', () => {
+      const publicConfig = server.getPublicConfig();
+
+      expect(publicConfig.auth.enableKeyIndex).toBe(false);
+      expect(publicConfig.auth.enableFallbackScan).toBe(false);
+      expect(publicConfig.auth.fallbackScanRateLimit).toBe(5);
+      expect(publicConfig.auth.fallbackScanBudget).toBe(100);
+    });
+
+    it('should return undefined adminKey when not configured', () => {
+      const noAdminConfig = createTestConfig({
+        auth: {
+          adminKey: undefined,
+          validKeys: [],
+          enableKeyIndex: false,
+          enableFallbackScan: false,
+          fallbackScanRateLimit: 5,
+          fallbackScanBudget: 100,
+        },
+      });
+      const noAdminServer = new ScaffoldServer({ config: noAdminConfig, storage });
+
+      const publicConfig = noAdminServer.getPublicConfig();
+
+      expect(publicConfig.auth.adminKey).toBeUndefined();
+      expect(publicConfig.auth.validKeysCount).toBe(0);
+    });
+
     it('should return storage adapter', () => {
       const retrievedStorage = server.getStorage();
 

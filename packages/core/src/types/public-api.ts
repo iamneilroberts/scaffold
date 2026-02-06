@@ -214,6 +214,32 @@ export interface ScaffoldConfig {
   };
 }
 
+/**
+ * Redacted configuration for plugins that don't need secrets
+ *
+ * Use `getPublicConfig()` instead of `getConfig()` when your plugin
+ * doesn't need access to auth keys. This follows the principle of
+ * least privilege and makes code audits easier.
+ *
+ * @public
+ */
+export interface PublicScaffoldConfig extends Omit<ScaffoldConfig, 'auth'> {
+  auth: {
+    /** Always '[REDACTED]' if configured, undefined otherwise */
+    adminKey: '[REDACTED]' | undefined;
+    /** Number of valid keys configured (not the keys themselves) */
+    validKeysCount: number;
+    /** Whether KV-based auth index is enabled */
+    enableKeyIndex: boolean;
+    /** Whether fallback scan is enabled */
+    enableFallbackScan: boolean;
+    /** Max fallback scans per minute per key */
+    fallbackScanRateLimit: number;
+    /** Max keys to scan during fallback */
+    fallbackScanBudget: number;
+  };
+}
+
 // ============================================================================
 // Tool System
 // ============================================================================
@@ -438,6 +464,13 @@ export interface ScaffoldPlugin {
 
 /**
  * Server interface for plugin registration
+ *
+ * ## Trust Model
+ *
+ * Plugins are considered trusted code, similar to npm dependencies.
+ * They have full access to the server configuration and can execute
+ * arbitrary code. Only install plugins from sources you trust.
+ *
  * @public
  */
 export interface ScaffoldServerInterface {
@@ -445,7 +478,23 @@ export interface ScaffoldServerInterface {
   registerResource(resource: ScaffoldResource): void;
   registerPrompt(prompt: ScaffoldPrompt): void;
   registerAdminTab(tab: AdminTab): void;
+
+  /**
+   * Get full server configuration including secrets
+   *
+   * **Security note:** This exposes `auth.adminKey` and `auth.validKeys`.
+   * Only use this if your plugin needs to validate or manage auth keys.
+   * Prefer `getPublicConfig()` for read-only access to non-sensitive settings.
+   */
   getConfig(): Readonly<ScaffoldConfig>;
+
+  /**
+   * Get server configuration with sensitive fields redacted
+   *
+   * Prefer this over `getConfig()` unless you specifically need auth secrets.
+   * This follows the principle of least privilege and makes security audits easier.
+   */
+  getPublicConfig(): Readonly<PublicScaffoldConfig>;
 }
 
 // ============================================================================
@@ -454,6 +503,24 @@ export interface ScaffoldServerInterface {
 
 /**
  * Admin dashboard tab
+ *
+ * ## Trust Model
+ *
+ * Admin tabs are for **trusted plugin code only**. The `render()` function
+ * returns raw HTML/JS/CSS that is injected directly into the admin dashboard
+ * without sanitization. This is intentional - it allows plugins full control
+ * over their UI.
+ *
+ * **Security implications:**
+ * - Only install plugins from sources you trust
+ * - Plugin code runs with the same privileges as core Scaffold code
+ * - A malicious plugin could steal admin credentials or modify data
+ *
+ * **If rendering user-generated content:**
+ * - Always escape HTML entities (use a library like `he` or `escape-html`)
+ * - Never interpolate user input directly into HTML strings
+ * - Consider using a safe templating system
+ *
  * @public
  */
 export interface AdminTab {
@@ -478,14 +545,27 @@ export interface AdminTab {
 
 /**
  * Admin tab content
+ *
+ * **Security note:** These fields are rendered directly without sanitization.
+ * This interface is for trusted plugin code only. If you include any
+ * user-generated or external content, you must sanitize it yourself:
+ *
+ * ```typescript
+ * import escapeHtml from 'escape-html';
+ *
+ * return {
+ *   html: `<div>User said: ${escapeHtml(userInput)}</div>`,
+ * };
+ * ```
+ *
  * @public
  */
 export interface AdminTabContent {
-  /** HTML content */
+  /** HTML content (trusted - not sanitized) */
   html: string;
-  /** Optional client-side JavaScript */
+  /** Optional client-side JavaScript (trusted - not sanitized) */
   script?: string;
-  /** Optional CSS styles */
+  /** Optional CSS styles (trusted - not sanitized) */
   styles?: string;
 }
 
