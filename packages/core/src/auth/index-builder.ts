@@ -8,7 +8,7 @@
  */
 
 import type { AuthIndexEntry, StorageAdapter } from '../types/public-api.js';
-import { hashKeyAsync, getAuthIndexKey, getAuthIndexKeyFromHash } from './key-hash.js';
+import { hashKeyAsync, getAuthIndexKey, getAuthIndexKeyFromHash, constantTimeEqual } from './key-hash.js';
 
 /**
  * User data structure for auth scanning
@@ -136,8 +136,8 @@ export async function scanForUser(
         continue;
       }
 
-      // Compare hashes directly (stored hash vs computed hash)
-      if (userData.authKeyHash === authKeyHash) {
+      // Compare hashes using constant-time comparison to prevent timing attacks
+      if (constantTimeEqual(userData.authKeyHash, authKeyHash)) {
         return {
           user: userData,
           keysScanned,

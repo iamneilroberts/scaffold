@@ -13,7 +13,7 @@ import type { ToolContext } from '../../types/public-api.js';
 
 function createTestContext(overrides?: Partial<ToolContext>): ToolContext {
   return {
-    authKey: 'test-auth-key',
+    authKeyHash: 'test-auth-key-hash',
     userId: 'test-user-123',
     isAdmin: false,
     storage: new InMemoryAdapter(),

@@ -25,6 +25,7 @@ import {
   toolExecutionError,
 } from './errors.js';
 import { validateKey, extractAuthKey } from '../auth/validator.js';
+import { hashKeyAsync } from '../auth/key-hash.js';
 import { validateInput } from '../utils/validation.js';
 
 /**
@@ -104,9 +105,10 @@ export async function handleToolsCall(
     return invalidParams(request.id, validationResult.errors);
   }
 
-  // Build tool context
+  // Build tool context - hash the key so raw credentials are never exposed to tools
+  const authKeyHash = await hashKeyAsync(authKey);
   const ctx: ToolContext = {
-    authKey,
+    authKeyHash,
     userId: authResult.userId!,
     isAdmin: authResult.isAdmin ?? false,
     storage,

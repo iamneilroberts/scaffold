@@ -133,33 +133,39 @@ export class ScaffoldServer {
    */
   async initPlugins(): Promise<void> {
     for (const plugin of this.plugins) {
-      if (plugin.onRegister) {
-        await plugin.onRegister(this.getServerInterface());
-      }
+      try {
+        if (plugin.onRegister) {
+          await plugin.onRegister(this.getServerInterface());
+        }
 
-      // Register plugin tools
-      for (const tool of plugin.tools ?? []) {
-        this.registerTool(tool);
-      }
+        // Register plugin tools
+        for (const tool of plugin.tools ?? []) {
+          this.registerTool(tool);
+        }
 
-      // Register plugin resources
-      for (const resource of plugin.resources ?? []) {
-        this.registerResource(resource);
-      }
+        // Register plugin resources
+        for (const resource of plugin.resources ?? []) {
+          this.registerResource(resource);
+        }
 
-      // Register plugin prompts
-      for (const prompt of plugin.prompts ?? []) {
-        this.registerPrompt(prompt);
-      }
+        // Register plugin prompts
+        for (const prompt of plugin.prompts ?? []) {
+          this.registerPrompt(prompt);
+        }
 
-      // Register plugin routes
-      if (plugin.routes) {
-        this.routes(plugin.routes);
-      }
+        // Register plugin routes
+        if (plugin.routes) {
+          this.routes(plugin.routes);
+        }
 
-      // Register plugin admin tabs
-      for (const tab of plugin.adminTabs ?? []) {
-        this.registerAdminTab(tab);
+        // Register plugin admin tabs
+        for (const tab of plugin.adminTabs ?? []) {
+          this.registerAdminTab(tab);
+        }
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Unknown error';
+        console.error(`[scaffold] Plugin "${plugin.name}" failed to initialize: ${message}`);
+        // Continue loading remaining plugins - don't let one broken plugin crash the server
       }
     }
   }
@@ -359,8 +365,26 @@ export class ScaffoldServer {
   private handleCORS(request: Request): Response | null {
     if (request.method !== 'OPTIONS') return null;
 
-    const origin = request.headers.get('Origin') ?? '*';
+    const origin = request.headers.get('Origin');
     const allowedOrigins = this.config.cors?.origins ?? ['*'];
+
+    // No Origin header - reject unless wildcard is configured
+    if (!origin) {
+      if (allowedOrigins.includes('*')) {
+        return new Response(null, {
+          status: 204,
+          headers: {
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': this.config.cors?.methods?.join(', ') ??
+              'GET, POST, PUT, DELETE, OPTIONS',
+            'Access-Control-Allow-Headers': this.config.cors?.headers?.join(', ') ??
+              'Content-Type, X-Admin-Key, Authorization',
+            'Access-Control-Max-Age': String(this.config.cors?.maxAge ?? 86400),
+          },
+        });
+      }
+      return new Response(null, { status: 403 });
+    }
 
     // Check if origin is allowed
     const isAllowed = allowedOrigins.includes('*') ||

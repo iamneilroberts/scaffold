@@ -24,6 +24,7 @@ import {
   internalError,
 } from './errors.js';
 import { validateKey, extractAuthKey } from '../auth/validator.js';
+import { hashKeyAsync } from '../auth/key-hash.js';
 
 /**
  * Handle resources/list request
@@ -90,9 +91,10 @@ export async function handleResourcesRead(
     return resourceNotFound(request.id, params.uri);
   }
 
-  // Build context for handler
+  // Build context for handler - hash the key so raw credentials are never exposed
+  const authKeyHash = await hashKeyAsync(authKey);
   const ctx: ToolContext = {
-    authKey,
+    authKeyHash,
     userId: authResult.userId!,
     isAdmin: authResult.isAdmin ?? false,
     storage,

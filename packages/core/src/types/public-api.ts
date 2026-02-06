@@ -277,8 +277,8 @@ export interface ScaffoldTool {
  * @public
  */
 export interface ToolContext {
-  /** User's auth key (hashed) */
-  authKey: string;
+  /** SHA-256 hash of the user's auth key (never the raw key) */
+  authKeyHash: string;
   /** User ID */
   userId: string;
   /** Whether user has admin privileges */

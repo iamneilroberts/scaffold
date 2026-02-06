@@ -38,21 +38,44 @@ External code review of @scaffold/core using Codex, fix critical issues, create 
 - `packages/core/src/admin/__tests__/handler.test.ts` - 3 new tests
 - `packages/core/src/mcp/prompts.ts` - Empty string validation fix
 
+### Session 3 (Current)
+- Fixed #9, #10: Added `getPublicConfig()` for least-privilege config access + trust model docs
+- Fixed #3: Added security warnings for fallback scan rate limiting limitations
+- Fixed #4: Store hashed auth keys in user records (was plaintext)
+- Fixed #15: Use SHA-256 for userId derivation (was 32-bit DJB2)
+- Fixed #24 (partial): Cache-Control header, rate limiter edge case
+- Closed #8, #13, #14 as out of scope for MVP with documentation
+- Added 6 new tests for getPublicConfig()
+
+## Decisions Made
+
+- Issues prioritized by severity (Critical > High > Medium > Low)
+- Created docs/ISSUES-REVIEW-2026-02-05.md for future session reference
+- Plugin trust model: plugins are trusted code like npm dependencies
+- Auth keys must be cryptographically random (not user passwords)
+- CSP refactor (#8) deferred - admin requires auth, risk is limited
+
 ## Outcomes
 
-- 7 issues fixed (1 critical + 3 high + 3 medium)
-- 17 issues remaining (6 high, 10 medium, 1 low)
-- All 237 tests passing
-- Commits: a41dcec, 2293c09
+- **All 24 issues resolved** (16 fixed, 8 closed as out of scope/documented)
+- All 251 tests passing
+- 5 commits pushed: ecf9c46, 954e5d1, 4266703, 0384804, 7abc107
 
-## Next Actions
+## Key Security Improvements
 
-Remaining high-severity issues:
-1. #2 - Storage: Optimistic locking not atomic on KV (architectural)
-2. #3 - Auth: Fallback scan rate limiting easily bypassed
-3. #4 - Auth: Plaintext auth keys stored in user records
-4. #8 - Admin: CSP uses unsafe-inline (larger refactor)
-5. #9 - Types: getConfig() exposes secrets to plugins
-6. #10 - Types: Admin tabs allow raw HTML/JS injection
+1. `getPublicConfig()` - plugins can access config without seeing secrets
+2. User records store hashed keys, not plaintext
+3. SHA-256 for userId derivation (collision-resistant)
+4. Fallback scan warns about per-isolate rate limiting
+5. Admin responses have Cache-Control: no-store
+6. Trust model documented for plugins and admin tabs
 
-Reference: `docs/ISSUES-REVIEW-2026-02-05.md` for full issue list and priorities.
+## Files Changed (Session 3)
+
+- `packages/core/src/types/public-api.ts` - PublicScaffoldConfig, trust model docs
+- `packages/core/src/server/scaffold-server.ts` - getPublicConfig() implementation
+- `packages/core/src/auth/validator.ts` - SHA-256 userId, fallback scan warning
+- `packages/core/src/auth/index-builder.ts` - authKeyHash instead of authKey
+- `packages/core/src/auth/key-hash.ts` - getAuthIndexKeyFromHash(), entropy docs
+- `packages/core/src/auth/rate-limiter.ts` - maxPerWindow=0 edge case
+- `packages/core/src/admin/security.ts` - Cache-Control: no-store
