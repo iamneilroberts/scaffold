@@ -264,7 +264,7 @@ interface StorageVersionedValue<T> {
 #### InMemoryAdapter
 
 ```typescript
-import { InMemoryAdapter } from '@scaffold/core/storage';
+import { InMemoryAdapter } from '@scaffold/core';
 
 const storage = new InMemoryAdapter(options?: { keyPrefix?: string });
 ```
@@ -272,7 +272,7 @@ const storage = new InMemoryAdapter(options?: { keyPrefix?: string });
 #### CloudflareKVAdapter
 
 ```typescript
-import { CloudflareKVAdapter } from '@scaffold/core/storage';
+import { CloudflareKVAdapter } from '@scaffold/core';
 
 const storage = new CloudflareKVAdapter(
   kvNamespace: KVNamespace,

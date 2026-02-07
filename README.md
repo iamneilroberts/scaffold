@@ -63,13 +63,32 @@ Three working apps you can deploy or use as starting points:
 
 Each has tools, a Worker entry point, and tests against `InMemoryAdapter`.
 
-## Quick start
+## Try the examples locally
+
+`@scaffold/core` isn't published to npm yet. To try Scaffold, clone the monorepo and run one of the examples:
 
 ```bash
-npm install @scaffold/core
+git clone https://github.com/iamneilroberts/scaffold.git
+cd scaffold
+npm install
+npm run build
 ```
 
-See [Getting Started](docs/getting-started.md) for the full walkthrough (about 5 minutes to a running server).
+Then run any example's tests:
+
+```bash
+cd examples/notes-app
+npm test
+```
+
+Or start a local dev server (requires [Wrangler](https://developers.cloudflare.com/workers/wrangler/)):
+
+```bash
+cd examples/notes-app
+npx wrangler dev
+```
+
+Each example has its own README with details.
 
 ## Docs
 

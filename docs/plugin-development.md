@@ -465,7 +465,7 @@ export type { MyCustomTool, MyCustomResource } from './types';
 
 ```typescript
 import { describe, it, expect } from 'vitest';
-import { InMemoryAdapter } from '@scaffold/core/storage';
+import { InMemoryAdapter } from '@scaffold/core';
 import { myPlugin } from './plugin';
 
 describe('myPlugin', () => {

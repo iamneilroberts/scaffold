@@ -24,7 +24,7 @@ interface StorageAdapter {
 For testing and local development. Data is lost when the process exits.
 
 ```typescript
-import { InMemoryAdapter } from '@scaffold/core/storage';
+import { InMemoryAdapter } from '@scaffold/core';
 
 const storage = new InMemoryAdapter();
 
@@ -60,7 +60,7 @@ await storage.get('key');          // Reads 'myapp:key'
 For production on Cloudflare Workers. Uses Cloudflare KV for persistence.
 
 ```typescript
-import { CloudflareKVAdapter } from '@scaffold/core/storage';
+import { CloudflareKVAdapter } from '@scaffold/core';
 
 interface Env {
   MY_KV: KVNamespace;

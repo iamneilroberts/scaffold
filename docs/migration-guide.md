@@ -358,7 +358,7 @@ async function rollbackFromBackup(
 
 ```typescript
 import { describe, it, expect, beforeEach } from 'vitest';
-import { InMemoryAdapter } from '@scaffold/core/storage';
+import { InMemoryAdapter } from '@scaffold/core';
 
 describe('User Migration', () => {
   let storage: InMemoryAdapter;

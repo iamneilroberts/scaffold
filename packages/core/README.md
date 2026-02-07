@@ -108,11 +108,11 @@ Storage adapters provide a unified interface for key-value storage:
 
 ```typescript
 // In-memory (for testing)
-import { InMemoryAdapter } from '@scaffold/core/storage';
+import { InMemoryAdapter } from '@scaffold/core';
 const storage = new InMemoryAdapter();
 
 // Cloudflare KV (for production)
-import { CloudflareKVAdapter } from '@scaffold/core/storage';
+import { CloudflareKVAdapter } from '@scaffold/core';
 const storage = new CloudflareKVAdapter(env.MY_KV_NAMESPACE);
 ```
 

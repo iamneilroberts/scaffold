@@ -5,10 +5,12 @@ Build your first MCP server in 5 minutes.
 ## Prerequisites
 
 - Node.js 18+
-- npm or pnpm
+- npm
 - A Cloudflare account (for deployment)
 
 ## 1. Create a New Project
+
+> **Note:** `@scaffold/core` is not yet published to npm. For now, work inside the monorepo — see [Try it locally](#try-the-examples-locally) in the README for how to clone and build. The instructions below show the target developer experience for when the package is published.
 
 ```bash
 mkdir my-mcp-app && cd my-mcp-app
@@ -41,8 +43,7 @@ Create `tsconfig.json`:
 Create `src/index.ts`:
 
 ```typescript
-import { ScaffoldServer, type ScaffoldConfig, type ScaffoldTool } from '@scaffold/core';
-import { InMemoryAdapter } from '@scaffold/core/storage';
+import { ScaffoldServer, InMemoryAdapter, type ScaffoldConfig, type ScaffoldTool } from '@scaffold/core';
 
 // Define configuration
 const config: ScaffoldConfig = {
@@ -202,8 +203,7 @@ preview_id = "your-preview-kv-namespace-id"
 Update `src/index.ts`:
 
 ```typescript
-import { ScaffoldServer, type ScaffoldConfig } from '@scaffold/core';
-import { CloudflareKVAdapter } from '@scaffold/core/storage';
+import { ScaffoldServer, CloudflareKVAdapter, type ScaffoldConfig } from '@scaffold/core';
 
 interface Env {
   DATA: KVNamespace;
