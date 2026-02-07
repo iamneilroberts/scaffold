@@ -1,130 +1,45 @@
 # Getting Started with Scaffold
 
-Build your first MCP server in 5 minutes.
+Build your first MCP server in about 5 minutes.
 
 ## Prerequisites
 
 - Node.js 18+
 - npm
-- A Cloudflare account (for deployment)
 
-## 1. Create a New Project
+No Cloudflare account is needed for local development.
 
-> **Note:** `@scaffold/core` is not yet published to npm. For now, work inside the monorepo — see [Try it locally](#try-the-examples-locally) in the README for how to clone and build. The instructions below show the target developer experience for when the package is published.
+## 1. Clone and Build
+
+`@scaffold/core` isn't published to npm yet, so you'll work inside the monorepo:
 
 ```bash
-mkdir my-mcp-app && cd my-mcp-app
-npm init -y
-npm install @scaffold/core
-npm install -D typescript wrangler @cloudflare/workers-types
+git clone https://github.com/iamneilroberts/scaffold.git
+cd scaffold
+npm install
+npm run build
 ```
 
-## 2. Configure TypeScript
+## 2. Run an Example
 
-Create `tsconfig.json`:
+The fastest way to see Scaffold working is to run the notes-app example:
 
-```json
-{
-  "compilerOptions": {
-    "target": "ES2022",
-    "module": "ESNext",
-    "moduleResolution": "bundler",
-    "strict": true,
-    "esModuleInterop": true,
-    "skipLibCheck": true,
-    "types": ["@cloudflare/workers-types"]
-  },
-  "include": ["src"]
-}
+```bash
+cd examples/notes-app
+npm test
 ```
 
-## 3. Create Your Server
+You should see all tests pass. These run against `InMemoryAdapter` — no external services needed.
 
-Create `src/index.ts`:
-
-```typescript
-import { ScaffoldServer, InMemoryAdapter, type ScaffoldConfig, type ScaffoldTool } from '@scaffold/core';
-
-// Define configuration
-const config: ScaffoldConfig = {
-  app: {
-    name: 'my-mcp-app',
-    description: 'My first MCP application',
-    version: '0.1.0',
-  },
-  mcp: {
-    serverName: 'my-mcp-app',
-    protocolVersion: '2024-11-05',
-  },
-  auth: {
-    adminKey: 'dev-admin-key', // Use env var in production!
-    enableKeyIndex: false,
-    enableFallbackScan: true,
-    fallbackScanRateLimit: 5,
-    fallbackScanBudget: 100,
-  },
-  admin: {
-    path: '/admin',
-  },
-};
-
-// Define a custom tool
-const greetTool: ScaffoldTool = {
-  name: 'myapp:greet',
-  description: 'Greet a user by name',
-  inputSchema: {
-    type: 'object',
-    properties: {
-      name: {
-        type: 'string',
-        description: 'The name to greet',
-      },
-    },
-    required: ['name'],
-  },
-  handler: async (input: { name: string }, ctx) => {
-    return {
-      content: [{
-        type: 'text',
-        text: `Hello, ${input.name}! Welcome to my MCP app.`,
-      }],
-    };
-  },
-};
-
-// Create the server
-const server = new ScaffoldServer({
-  config,
-  storage: new InMemoryAdapter(),
-  tools: [greetTool],
-});
-
-// Export for Cloudflare Workers
-export default server;
-```
-
-## 4. Configure Wrangler
-
-Create `wrangler.toml`:
-
-```toml
-name = "my-mcp-app"
-main = "src/index.ts"
-compatibility_date = "2024-01-01"
-
-[dev]
-port = 8787
-```
-
-## 5. Run Locally
+To start a local dev server:
 
 ```bash
 npx wrangler dev
 ```
 
-Your MCP server is now running at `http://localhost:8787`.
+Wrangler uses local storage automatically — the placeholder KV IDs in `wrangler.toml` are fine for local dev. Your server is now running at `http://localhost:8787`.
 
-## 6. Test Your Server
+## 3. Test Your Server
 
 ### Health Check
 
@@ -136,38 +51,8 @@ Response:
 ```json
 {
   "status": "ok",
-  "version": "0.1.0",
-  "timestamp": "2024-02-04T12:00:00.000Z"
-}
-```
-
-### Call a Tool (MCP JSON-RPC)
-
-```bash
-curl -X POST http://localhost:8787 \
-  -H "Content-Type: application/json" \
-  -d '{
-    "jsonrpc": "2.0",
-    "id": 1,
-    "method": "tools/call",
-    "params": {
-      "name": "myapp:greet",
-      "arguments": { "name": "World" }
-    }
-  }'
-```
-
-Response:
-```json
-{
-  "jsonrpc": "2.0",
-  "id": 1,
-  "result": {
-    "content": [{
-      "type": "text",
-      "text": "Hello, World! Welcome to my MCP app."
-    }]
-  }
+  "version": "0.0.1",
+  "timestamp": "2026-02-05T12:00:00.000Z"
 }
 ```
 
@@ -179,20 +64,77 @@ curl -X POST http://localhost:8787 \
   -d '{"jsonrpc": "2.0", "id": 1, "method": "tools/list"}'
 ```
 
+### Call a Tool
+
+Tool calls require authentication. Pass the admin key (from `wrangler.toml`) via the `Authorization` header:
+
+```bash
+curl -X POST http://localhost:8787 \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer change-me-in-production" \
+  -d '{
+    "jsonrpc": "2.0",
+    "id": 2,
+    "method": "tools/call",
+    "params": {
+      "name": "notes:save",
+      "arguments": { "id": "hello", "title": "Hello", "content": "My first note" }
+    }
+  }'
+```
+
 ### Admin Dashboard
 
-Open `http://localhost:8787/admin` in your browser. Enter `dev-admin-key` when prompted.
+Open `http://localhost:8787/admin` in your browser. Enter `change-me-in-production` when prompted.
 
-## 7. Add Persistent Storage
+## 4. Create Your Own Tool
 
-For production, use Cloudflare KV instead of in-memory storage.
+Go back to the repo root and create a new example:
 
-Update `wrangler.toml`:
+```bash
+cd ../..
+cp -r examples/notes-app examples/my-app
+```
+
+Edit `examples/my-app/src/tools.ts` to define your own tools. A tool is a plain object:
+
+```typescript
+import type { ScaffoldTool, ToolContext, ToolResult } from '@scaffold/core';
+
+const greetTool: ScaffoldTool = {
+  name: 'myapp:greet',
+  description: 'Greet a user by name',
+  inputSchema: {
+    type: 'object',
+    properties: {
+      name: { type: 'string', description: 'The name to greet' },
+    },
+    required: ['name'],
+  },
+  handler: async (input: unknown, ctx: ToolContext): Promise<ToolResult> => {
+    const { name } = input as { name: string };
+    return {
+      content: [{ type: 'text', text: `Hello, ${name}!` }],
+    };
+  },
+};
+
+export const myTools: ScaffoldTool[] = [greetTool];
+```
+
+Update `examples/my-app/src/index.ts` to import your tools, then `npx wrangler dev` to test.
+
+## 5. Add Persistent Storage
+
+For production, use Cloudflare KV. Update `wrangler.toml`:
 
 ```toml
-name = "my-mcp-app"
+name = "my-app"
 main = "src/index.ts"
-compatibility_date = "2024-01-01"
+compatibility_date = "2024-09-23"
+
+[vars]
+ADMIN_KEY = "change-me-in-production"
 
 [[kv_namespaces]]
 binding = "DATA"
@@ -200,75 +142,30 @@ id = "your-kv-namespace-id"
 preview_id = "your-preview-kv-namespace-id"
 ```
 
-Update `src/index.ts`:
-
-```typescript
-import { ScaffoldServer, CloudflareKVAdapter, type ScaffoldConfig } from '@scaffold/core';
-
-interface Env {
-  DATA: KVNamespace;
-  ADMIN_KEY: string;
-}
-
-const config: ScaffoldConfig = {
-  // ... same as before, but:
-  auth: {
-    // Read from environment
-    adminKey: undefined, // Set via env
-    enableKeyIndex: false,
-    enableFallbackScan: true,
-    fallbackScanRateLimit: 5,
-    fallbackScanBudget: 100,
-  },
-  // ...
-};
-
-export default {
-  async fetch(request: Request, env: Env, ctx: ExecutionContext) {
-    const serverConfig = {
-      ...config,
-      auth: { ...config.auth, adminKey: env.ADMIN_KEY },
-    };
-
-    const server = new ScaffoldServer({
-      config: serverConfig,
-      storage: new CloudflareKVAdapter(env.DATA),
-      tools: [greetTool],
-    });
-
-    return server.fetch(request, env, ctx);
-  },
-};
-```
-
-## 8. Deploy to Cloudflare
+Create the KV namespace and deploy:
 
 ```bash
-# Create KV namespace
+# Create KV namespace (requires Cloudflare account)
 npx wrangler kv:namespace create DATA
 
-# Set secrets
+# Update wrangler.toml with the IDs from the output above
+
+# Set a real admin key as a secret
 npx wrangler secret put ADMIN_KEY
 
 # Deploy
 npx wrangler deploy
 ```
 
-## Next Steps
-
-- [Public API Reference](./public-api.md) - Complete API documentation
-- [Storage Adapters](./storage-adapters.md) - Implement custom storage backends
-- [Security Guide](./security-guide.md) - Auth, rate limiting, and XSS prevention
-
-## Connect to Claude Desktop
+## 6. Connect to Claude Desktop
 
 Add your deployed server to Claude Desktop's MCP configuration:
 
 ```json
 {
   "mcpServers": {
-    "my-mcp-app": {
-      "url": "https://my-mcp-app.your-subdomain.workers.dev",
+    "my-app": {
+      "url": "https://my-app.your-subdomain.workers.dev",
       "headers": {
         "Authorization": "Bearer your-auth-key"
       }
@@ -277,4 +174,12 @@ Add your deployed server to Claude Desktop's MCP configuration:
 }
 ```
 
-Claude can now use your custom tools!
+Claude can now use your custom tools. Any MCP-compatible client (Claude Desktop, ChatGPT, etc.) can connect the same way.
+
+## Next Steps
+
+- [Storage Patterns](./storage-patterns.md) — key design, indexes, anti-patterns
+- [Public API Reference](./public-api.md) — complete API documentation
+- [Security Guide](./security-guide.md) — auth, rate limiting, and XSS prevention
+- [Plugin Development](./plugin-development.md) — building reusable tool packages
+- [Deployment](./deployment.md) — full Cloudflare Workers setup

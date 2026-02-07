@@ -29,12 +29,14 @@ npm test
 
 ## Run locally
 
+No Cloudflare account needed — `wrangler dev` uses local storage automatically.
+
 ```bash
 cd examples/travel-planner
 npx wrangler dev
 ```
 
-This starts a local server at `http://localhost:8787`. The `ADMIN_KEY` is set to `change-me-in-production` in `wrangler.toml`.
+This starts a local server at `http://localhost:8787`. KV data is persisted locally in `.wrangler/state/`. The `ADMIN_KEY` is set to `change-me-in-production` in `wrangler.toml`.
 
 ## Deploy to Cloudflare
 
