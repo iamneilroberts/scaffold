@@ -31,18 +31,16 @@
     "typescript": "^5.4.0",
     "vitest": "^1.6.0"
   },
-  "peerDependencies": {
-    "preact": "^10.0.0",
-    "esbuild": "^0.21.0"
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/iamneilroberts/scaffold.git",
+    "directory": "packages/core"
   },
-  "peerDependenciesMeta": {
-    "preact": {
-      "optional": true
-    },
-    "esbuild": {
-      "optional": true
-    }
+  "bugs": {
+    "url": "https://github.com/iamneilroberts/scaffold/issues"
   },
+  "homepage": "https://github.com/iamneilroberts/scaffold#readme",
+  "author": "Neil Roberts",
   "engines": {
     "node": ">=18.0.0"
   },

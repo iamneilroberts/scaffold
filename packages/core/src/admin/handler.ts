@@ -187,7 +187,6 @@ export class AdminHandler {
    */
   private handleLogout(): Response {
     const response = secureJsonResponse({ success: true });
-    // Clear auth cookie by setting Max-Age=0
     response.headers.set(
       'Set-Cookie',
       `scaffold_admin_key=; Path=${this.adminPath}; HttpOnly; SameSite=Strict; Secure; Max-Age=0`

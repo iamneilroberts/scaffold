@@ -80,3 +80,7 @@ export { VERSION } from './version.js';
 
 // Re-export main server class
 export { ScaffoldServer, type ScaffoldServerOptions } from './server/index.js';
+
+// Re-export storage adapters (for examples and consumer apps)
+export { InMemoryAdapter } from './storage/in-memory.js';
+export { CloudflareKVAdapter, type KVNamespace } from './storage/cloudflare-kv.js';
