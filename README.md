@@ -1,10 +1,16 @@
 # Scaffold
 
-A framework for building MCP servers that need to store data.
+Build niche AI tools that run inside the chatbot you already pay for.
 
-If you've built an MCP server for Claude (or any LLM), you've probably hit the same wall: the protocol itself is straightforward, but the moment your tools need to **read and write persistent data**, you're on your own. You end up hand-rolling auth, figuring out KV key patterns, worrying about what happens when two AI sessions write at the same time, and realizing your admin page has an XSS vulnerability because you built it with string concatenation at 2am.
+Most people already subscribe to Claude, ChatGPT, or another frontier model. That subscription gives you a powerful general-purpose AI — but on its own it can't remember things between sessions, store your data, or do anything specific to your domain. Scaffold changes that.
 
-Scaffold handles the infrastructure so you can focus on your tools.
+**Scaffold is a connector, not a wrapper.** It uses [MCP](https://modelcontextprotocol.io/) (Model Context Protocol) to plug custom tools directly into your existing chat client. You don't replace your AI — you extend it. When Anthropic ships a better Claude or OpenAI upgrades GPT, your tools get smarter for free. You're always running on the best model your subscription provides.
+
+**One remote MCP server does the work.** A single Cloudflare Worker hosts your tools — a focused, subject-matter expert backed by frontier model capability. A travel planner that remembers your trips. A note-taking system that works across devices. A local guide that knows your neighborhood. The LLM handles the conversation; your tools handle the data.
+
+**A dead simple KV store holds everything.** All your data, prompts, templates, and config live on a key-value store organized around your project's needs. It's fast enough for most use cases, handles multiple users, and doesn't carry the overhead of a relational database. Start with local storage for development, then migrate to Cloudflare KV for persistent storage that works across platforms, devices, and sessions.
+
+The goal is to make it easy for anyone to spin up their own niche-focused tools — DIY apps that live inside the chat interface millions of people already use every day.
 
 ```typescript
 import { ScaffoldServer, CloudflareKVAdapter } from '@scaffold/core';
@@ -37,17 +43,17 @@ export default new ScaffoldServer({
 });
 ```
 
-That's a complete MCP server. `ctx.storage` is a full storage adapter with get/put/delete/list. `ctx.userId` is already authenticated. Deploy to Cloudflare Workers and connect it to Claude Desktop.
+That's a complete MCP server. `ctx.storage` is a full storage adapter with get/put/delete/list. `ctx.userId` is already authenticated. Deploy to Cloudflare Workers and connect it to Claude Desktop, ChatGPT, or any MCP-compatible client.
 
-## What you get
+## What's under the hood
 
-**Storage that works.** Scaffold gives you a storage abstraction over Cloudflare KV with documented patterns for per-user data (`user:{id}:notes:{noteId}`), shared data (`shared:templates:{name}`), secondary indexes, and even geohash-based location queries. Swap in `InMemoryAdapter` for tests. The interface is the same.
+**Storage that fits your project.** A storage abstraction over Cloudflare KV with documented patterns for per-user data (`{userId}/notes/{noteId}`), shared data (`shared/templates/{name}`), secondary indexes, and geohash-based location queries. Swap in `InMemoryAdapter` for local development and tests. The interface is the same.
 
-**Concurrent writes that don't corrupt data.** Two Claude sessions editing the same note? Scaffold has optimistic locking built in — `getWithVersion` / `putIfMatch` — so conflicting writes fail explicitly instead of silently overwriting each other.
+**Multi-user without the headaches.** Multiple people (or multiple AI sessions) can use the same server. Optimistic locking (`getWithVersion` / `putIfMatch`) means conflicting writes fail explicitly instead of silently overwriting each other.
 
-**Auth that isn't a security hole.** Keys are SHA-256 hashed before storage. Comparison is constant-time (no timing attacks). The fallback auth scan is rate-limited and budget-capped. Admin sessions use HttpOnly + Secure + SameSite cookies. This isn't novel — it's just the stuff that's easy to skip when you're focused on getting tools working.
+**Auth that isn't a security hole.** Keys are SHA-256 hashed. Comparison is constant-time. The fallback auth scan is rate-limited and budget-capped. Admin sessions use HttpOnly + Secure + SameSite cookies.
 
-**An admin dashboard that isn't a liability.** Server-rendered HTML with CSP headers, not `<h1>${userInput}</h1>`. Tab system, tool inspector, storage browser.
+**An admin dashboard.** Server-rendered HTML with CSP headers. Tab system, tool inspector, storage browser.
 
 **A plugin system.** Bundle tools, resources, prompts, and routes into a plugin. Register it once. Ship it as an npm package if you want.
 
