@@ -4,7 +4,7 @@ Build niche AI tools that run inside the chatbot you already pay for.
 
 Most people already subscribe to Claude, ChatGPT, or another frontier model. That subscription gives you a powerful general-purpose AI — but on its own it can't remember things between sessions, store your data, or do anything specific to your domain. Scaffold changes that.
 
-**Scaffold is a connector, not a wrapper.** It uses [MCP](https://modelcontextprotocol.io/) (Model Context Protocol) to plug custom tools directly into your existing chat client. You don't replace your AI — you extend it. When Anthropic ships a better Claude or OpenAI upgrades GPT, your tools get smarter for free. You're always running on the best model your subscription provides.
+**Scaffold is a connector, not a wrapper.** It uses [MCP](https://modelcontextprotocol.io/) (Model Context Protocol) — an open standard that lets AI chat clients call external tools — to plug custom tools directly into your existing chat client. You don't replace your AI — you extend it. When Anthropic ships a better Claude or OpenAI upgrades GPT, your tools get smarter for free. You're always running on the best model your subscription provides.
 
 **One remote MCP server does the work.** A single Cloudflare Worker hosts your tools — a focused, subject-matter expert backed by frontier model capability. A travel planner that remembers your trips. A note-taking system that works across devices. A local guide that knows your neighborhood. The LLM handles the conversation; your tools handle the data.
 
@@ -27,6 +27,7 @@ const saveTool: ScaffoldTool = {
     },
     required: ['title', 'content'],
   },
+  // ctx provides authenticated user info, storage, and environment
   handler: async (input, ctx) => {
     await ctx.storage.put(`${ctx.userId}/notes/${Date.now()}`, {
       title: input.title,
