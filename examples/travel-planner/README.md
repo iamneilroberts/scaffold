@@ -38,6 +38,24 @@ npx wrangler dev
 
 This starts a local server at `http://localhost:8787`. KV data is persisted locally in `.wrangler/state/`. The `ADMIN_KEY` is set to `change-me-in-production` in `wrangler.toml`.
 
+Test it:
+
+```bash
+# Health check
+curl http://localhost:8787/health
+
+# List tools (no auth required)
+curl -X POST http://localhost:8787 \
+  -H "Content-Type: application/json" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
+
+# Create a trip (auth required — use the ADMIN_KEY from wrangler.toml)
+curl -X POST http://localhost:8787 \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer change-me-in-production" \
+  -d '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"trip:create","arguments":{"name":"Italy 2026","description":"Two weeks in Tuscany and the Amalfi Coast"}}}'
+```
+
 ## Deploy to Cloudflare
 
 1. Create a KV namespace: `npx wrangler kv:namespace create DATA`

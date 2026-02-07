@@ -87,16 +87,20 @@ curl -X POST http://localhost:8787 \
 
 Open `http://localhost:8787/admin` in your browser. Enter `change-me-in-production` when prompted.
 
-## 4. Create Your Own Tool
+## 4. Create Your Own App
 
-Go back to the repo root and create a new example:
+The easiest way to start is by copying an existing example. Run these from the repo root:
 
 ```bash
-cd ../..
 cp -r examples/notes-app examples/my-app
 ```
 
-Edit `examples/my-app/src/tools.ts` to define your own tools. A tool is a plain object:
+Update the names so your app doesn't collide with the original:
+
+- In `examples/my-app/package.json`, change `"name"` to `"@scaffold/example-my-app"`
+- In `examples/my-app/wrangler.toml`, change `name` to `"scaffold-my-app"`
+
+Now edit `examples/my-app/src/tools.ts` to define your own tools. A tool is a plain object:
 
 ```typescript
 import type { ScaffoldTool, ToolContext, ToolResult } from '@scaffold/core';
@@ -122,7 +126,12 @@ const greetTool: ScaffoldTool = {
 export const myTools: ScaffoldTool[] = [greetTool];
 ```
 
-Update `examples/my-app/src/index.ts` to import your tools, then `npx wrangler dev` to test.
+Update `examples/my-app/src/index.ts` to import your tools, then run the dev server:
+
+```bash
+cd examples/my-app
+npx wrangler dev
+```
 
 ## 5. Add Persistent Storage
 
