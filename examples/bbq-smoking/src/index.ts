@@ -28,8 +28,35 @@ const config: ScaffoldConfig = {
   },
 };
 
+/**
+ * If the URL contains a ?token= query param, inject it as a Bearer token header.
+ * This allows Claude web custom connectors (which don't support custom headers)
+ * to authenticate by embedding the token in the URL.
+ */
+function injectTokenFromURL(request: Request): Request {
+  const url = new URL(request.url);
+  const token = url.searchParams.get('token');
+  if (!token) return request;
+
+  // Strip token from URL so it doesn't leak into logs/downstream
+  url.searchParams.delete('token');
+
+  const headers = new Headers(request.headers);
+  if (!headers.has('Authorization')) {
+    headers.set('Authorization', `Bearer ${token}`);
+  }
+
+  return new Request(url.toString(), {
+    method: request.method,
+    headers,
+    body: request.body,
+  });
+}
+
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+    const authedRequest = injectTokenFromURL(request);
+
     const runtimeConfig = {
       ...config,
       auth: { ...config.auth, adminKey: env.ADMIN_KEY },
@@ -42,6 +69,6 @@ export default {
       tools: bbqTools,
     });
 
-    return server.fetch(request, env as unknown as Record<string, unknown>, ctx);
+    return server.fetch(authedRequest, env as unknown as Record<string, unknown>, ctx);
   },
 };
