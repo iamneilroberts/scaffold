@@ -133,3 +133,5 @@ function direction(recent: number, prior: number): 'improving' | 'declining' | '
   if (diff < -0.1) return 'declining';
   return 'stable';
 }
+
+export const progress = { logProgress, getProgress };

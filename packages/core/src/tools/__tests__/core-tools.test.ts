@@ -8,6 +8,8 @@ import {
   listKeysTool,
   echoTool,
 } from '../core-tools.js';
+import { knowledgeTool } from '../knowledge-tool.js';
+import { progressTool } from '../progress-tool.js';
 import { InMemoryAdapter } from '../../storage/in-memory.js';
 import type { ToolContext } from '../../types/public-api.js';
 
@@ -26,29 +28,33 @@ function createTestContext(overrides?: Partial<ToolContext>): ToolContext {
 
 describe('coreTools', () => {
   it('should export all core tools', () => {
-    expect(coreTools).toHaveLength(5);
+    expect(coreTools).toHaveLength(7);
     expect(coreTools.map(t => t.name)).toEqual([
-      'scaffold:get_context',
-      'scaffold:health_check',
-      'scaffold:debug_info',
-      'scaffold:list_keys',
-      'scaffold:echo',
+      'scaffold-get_context',
+      'scaffold-health_check',
+      'scaffold-debug_info',
+      'scaffold-list_keys',
+      'scaffold-echo',
+      'scaffold-knowledge',
+      'scaffold-progress',
     ]);
   });
 
   it('should create a map of core tools', () => {
     const map = createCoreToolsMap();
 
-    expect(map.size).toBe(5);
-    expect(map.get('scaffold:get_context')).toBe(getContextTool);
-    expect(map.get('scaffold:health_check')).toBe(healthCheckTool);
-    expect(map.get('scaffold:debug_info')).toBe(debugInfoTool);
-    expect(map.get('scaffold:list_keys')).toBe(listKeysTool);
-    expect(map.get('scaffold:echo')).toBe(echoTool);
+    expect(map.size).toBe(7);
+    expect(map.get('scaffold-get_context')).toBe(getContextTool);
+    expect(map.get('scaffold-health_check')).toBe(healthCheckTool);
+    expect(map.get('scaffold-debug_info')).toBe(debugInfoTool);
+    expect(map.get('scaffold-list_keys')).toBe(listKeysTool);
+    expect(map.get('scaffold-echo')).toBe(echoTool);
+    expect(map.has('scaffold-knowledge')).toBe(true);
+    expect(map.has('scaffold-progress')).toBe(true);
   });
 });
 
-describe('scaffold:get_context', () => {
+describe('scaffold-get_context', () => {
   it('should return context without profile', async () => {
     const ctx = createTestContext();
 
@@ -108,7 +114,7 @@ describe('scaffold:get_context', () => {
   });
 });
 
-describe('scaffold:health_check', () => {
+describe('scaffold-health_check', () => {
   it('should pass all checks with working storage', async () => {
     const ctx = createTestContext();
 
@@ -153,7 +159,7 @@ describe('scaffold:health_check', () => {
   });
 });
 
-describe('scaffold:debug_info', () => {
+describe('scaffold-debug_info', () => {
   it('should return debug info for admin', async () => {
     const ctx = createTestContext({
       isAdmin: true,
@@ -184,7 +190,7 @@ describe('scaffold:debug_info', () => {
   });
 });
 
-describe('scaffold:list_keys', () => {
+describe('scaffold-list_keys', () => {
   let storage: InMemoryAdapter;
 
   beforeEach(async () => {
@@ -246,7 +252,7 @@ describe('scaffold:list_keys', () => {
   });
 });
 
-describe('scaffold:echo', () => {
+describe('scaffold-echo', () => {
   it('should echo back the message', async () => {
     const ctx = createTestContext();
 
@@ -285,9 +291,9 @@ describe('tool schemas', () => {
     }
   });
 
-  it('tools should use scaffold: namespace', () => {
+  it('tools should use scaffold- namespace', () => {
     for (const tool of coreTools) {
-      expect(tool.name).toMatch(/^scaffold:/);
+      expect(tool.name).toMatch(/^scaffold-/);
     }
   });
 });

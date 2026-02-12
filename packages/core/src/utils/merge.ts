@@ -68,3 +68,5 @@ export async function mergeAndPut<T extends Record<string, unknown>>(
   await storage.put(key, merged, options?.putOptions);
   return { merged: merged as T, created: false, fieldsUpdated };
 }
+
+export const merge = { mergeAndPut };

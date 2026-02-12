@@ -80,7 +80,15 @@ export type {
 } from './types/public-api.js';
 
 // Re-export utility namespaces
-export { auth, storage, errors, validation } from './utils/index.js';
+export { auth, storage, errors, validation, knowledge, progress, merge } from './utils/index.js';
+
+// Direct utility exports (convenience)
+export { loadKnowledge, listKnowledgeTopics } from './utils/knowledge.js';
+export { logProgress, getProgress } from './utils/progress.js';
+export { mergeAndPut } from './utils/merge.js';
+
+export type { MergeOptions, MergeResult } from './utils/merge.js';
+export type { TrendInfo, ProgressResult } from './utils/progress.js';
 
 // Re-export version
 export { VERSION } from './version.js';

@@ -7,6 +7,8 @@
  */
 
 import type { ScaffoldTool, ToolContext, ToolResult } from '../types/public-api.js';
+import { knowledgeTool } from './knowledge-tool.js';
+import { progressTool } from './progress-tool.js';
 
 /**
  * User profile stored in KV
@@ -26,7 +28,7 @@ interface UserProfile {
  * - User ID and permissions
  */
 export const getContextTool: ScaffoldTool = {
-  name: 'scaffold:get_context',
+  name: 'scaffold-get_context',
   description: 'Get startup context including user profile and permissions',
   inputSchema: {
     type: 'object',
@@ -72,7 +74,7 @@ export const getContextTool: ScaffoldTool = {
  * - Storage read/write/delete
  */
 export const healthCheckTool: ScaffoldTool = {
-  name: 'scaffold:health_check',
+  name: 'scaffold-health_check',
   description: 'Check system health and storage connectivity',
   inputSchema: {
     type: 'object',
@@ -154,7 +156,7 @@ export const healthCheckTool: ScaffoldTool = {
  * Only accessible to admin users.
  */
 export const debugInfoTool: ScaffoldTool = {
-  name: 'scaffold:debug_info',
+  name: 'scaffold-debug_info',
   description: 'Get debug information about the current request (admin only)',
   inputSchema: {
     type: 'object',
@@ -209,7 +211,7 @@ export const debugInfoTool: ScaffoldTool = {
  * Useful for debugging and admin operations.
  */
 export const listKeysTool: ScaffoldTool = {
-  name: 'scaffold:list_keys',
+  name: 'scaffold-list_keys',
   description: 'List storage keys with a given prefix (admin only)',
   inputSchema: {
     type: 'object',
@@ -285,7 +287,7 @@ export const listKeysTool: ScaffoldTool = {
  * Simply echoes back the input. Useful for testing and debugging.
  */
 export const echoTool: ScaffoldTool = {
-  name: 'scaffold:echo',
+  name: 'scaffold-echo',
   description: 'Echo back the input (useful for testing)',
   inputSchema: {
     type: 'object',
@@ -320,6 +322,8 @@ export const coreTools: ScaffoldTool[] = [
   debugInfoTool,
   listKeysTool,
   echoTool,
+  knowledgeTool,
+  progressTool,
 ];
 
 /**

@@ -28,3 +28,5 @@ export async function listKnowledgeTopics(
   const result = await storage.list(KNOWLEDGE_PREFIX);
   return result.keys.map(key => key.slice(KNOWLEDGE_PREFIX.length));
 }
+
+export const knowledge = { loadKnowledge, listKnowledgeTopics };
