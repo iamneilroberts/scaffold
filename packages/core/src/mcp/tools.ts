@@ -23,6 +23,7 @@ import {
   toolNotFound,
   invalidParams,
   toolExecutionError,
+  toolValidationFailed,
 } from './errors.js';
 import { validateKey, extractAuthKey } from '../auth/validator.js';
 import { hashKeyAsync } from '../auth/key-hash.js';
@@ -81,11 +82,11 @@ export async function handleToolsCall(
 
   // Extract and validate auth
   const authKey = extractAuthKey(httpRequest, request);
-  if (!authKey) {
+  if (!authKey && config.auth.requireAuth !== false) {
     return authRequired(request.id);
   }
 
-  const authResult = await validateKey(authKey, config, storage, env);
+  const authResult = await validateKey(authKey ?? '', config, storage, env);
   if (!authResult.valid) {
     return authFailed(request.id, authResult.error);
   }
@@ -106,7 +107,7 @@ export async function handleToolsCall(
   }
 
   // Build tool context - hash the key so raw credentials are never exposed to tools
-  const authKeyHash = await hashKeyAsync(authKey);
+  const authKeyHash = await hashKeyAsync(authKey ?? '');
   const ctx: ToolContext = {
     authKeyHash,
     userId: authResult.userId!,
@@ -127,9 +128,41 @@ export async function handleToolsCall(
     // Execute the tool handler
     const result = await tool.handler(params.arguments ?? {}, ctx);
 
+    // Quality gate — run after handler, before response
+    let gateResult: import('../types/public-api.js').QualityGateResult | undefined;
+    if (tool.validate) {
+      gateResult = await tool.validate(params.arguments ?? {}, result, ctx);
+
+      const failedErrors = gateResult.checks.filter(c => !c.passed && c.severity === 'error');
+      if (failedErrors.length > 0) {
+        return toolValidationFailed(request.id, failedErrors);
+      }
+
+      // Attach warnings to metadata
+      const warnings = gateResult.checks.filter(c => !c.passed && c.severity === 'warning');
+      if (warnings.length > 0) {
+        result.metadata = { ...result.metadata, qualityWarnings: warnings };
+      }
+    }
+
     // Run afterExecute hook if defined
     if (tool.afterExecute) {
       await tool.afterExecute(result, ctx);
+    }
+
+    // Auto-log progress when validate exists
+    if (tool.validate && gateResult) {
+      const now = new Date().toISOString();
+      const progressKey = `${ctx.userId}/_progress/${tool.name}/${now}`;
+      try {
+        await ctx.storage.put(progressKey, {
+          toolName: tool.name,
+          timestamp: now,
+          checks: gateResult.checks,
+        }, { ttl: 90 * 86400 });
+      } catch {
+        // Progress logging is best-effort — don't fail the tool call
+      }
     }
 
     // Return result in MCP format
@@ -140,16 +173,12 @@ export async function handleToolsCall(
 
     return jsonResponse(request.id, mcpResult);
   } catch (error) {
-    // Handle tool execution errors - only expose details in debug mode
     const message = ctx.debugMode && error instanceof Error
       ? error.message
       : 'Tool execution failed';
-
-    // In debug mode, include stack trace
     const details = ctx.debugMode && error instanceof Error
       ? { stack: error.stack }
       : undefined;
-
     return toolExecutionError(request.id, message, details);
   }
 }

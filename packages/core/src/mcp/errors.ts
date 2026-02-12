@@ -217,3 +217,19 @@ export function toolExecutionError(
     details
   );
 }
+
+/**
+ * Tool quality gate failed
+ */
+export function toolValidationFailed(
+  id: string | number | null,
+  checks: { name: string; message?: string }[]
+): Response {
+  const failedNames = checks.map(c => c.name).join(', ');
+  return errorResponse(
+    id,
+    JSON_RPC_ERROR_CODES.TOOL_VALIDATION_FAILED,
+    `Quality gate failed: ${failedNames}`,
+    { checks }
+  );
+}
