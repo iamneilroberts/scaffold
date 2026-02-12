@@ -70,6 +70,13 @@ export type {
   // Validation
   ValidationResult,
   ValidationError,
+
+  // Quality Gates
+  QualityCheck,
+  QualityGateResult,
+
+  // Progress Tracking
+  ProgressEntry,
 } from './types/public-api.js';
 
 // Re-export utility namespaces

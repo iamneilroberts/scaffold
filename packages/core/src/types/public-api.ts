@@ -176,6 +176,13 @@ export interface ScaffoldConfig {
     fallbackScanRateLimit: number;
     /** Max keys to scan during fallback */
     fallbackScanBudget: number;
+    /**
+     * Whether auth is required for MCP tool/resource/prompt calls.
+     * When false, unauthenticated requests get userId 'anonymous'.
+     * Admin dashboard always requires auth regardless of this setting.
+     * Default: true (auth required).
+     */
+    requireAuth?: boolean;
   };
 
   /** Admin dashboard configuration */
@@ -270,6 +277,8 @@ export interface ScaffoldTool {
   beforeExecute?: (input: unknown, ctx: ToolContext) => Promise<void>;
   /** Optional: run after handler */
   afterExecute?: (result: ToolResult, ctx: ToolContext) => Promise<void>;
+  /** Quality gate — runs after handler, before response is sent. See QualityGateResult. */
+  validate?: (input: unknown, result: ToolResult, ctx: ToolContext) => Promise<QualityGateResult>;
 }
 
 /**
@@ -802,4 +811,57 @@ export interface ValidationError {
   path: string;
   /** Error message */
   message: string;
+}
+
+// ============================================================================
+// Quality Gates
+// ============================================================================
+
+/**
+ * Result of a quality gate check on a single criterion
+ * @public
+ */
+export interface QualityCheck {
+  /** Check name (e.g., 'has_temp_logs', 'reached_target') */
+  name: string;
+  /** Whether this check passed */
+  passed: boolean;
+  /** Explanation when check fails */
+  message?: string;
+  /** 'error' blocks the response; 'warning' annotates it */
+  severity: 'error' | 'warning';
+}
+
+/**
+ * Result of running all quality gate checks for a tool
+ * @public
+ */
+export interface QualityGateResult {
+  /** Whether all error-severity checks passed */
+  passed: boolean;
+  /** Individual check results */
+  checks: QualityCheck[];
+}
+
+// ============================================================================
+// Progress Tracking
+// ============================================================================
+
+/**
+ * A single progress entry logged per tool call
+ * @public
+ */
+export interface ProgressEntry {
+  /** Tool that produced this entry */
+  toolName: string;
+  /** ISO timestamp */
+  timestamp: string;
+  /** Quality gate check results (auto-populated when validate exists) */
+  checks?: QualityCheck[];
+  /** App-defined numeric scores */
+  scores?: Record<string, number>;
+  /** Tags for filtering */
+  tags?: string[];
+  /** Freeform metadata */
+  meta?: Record<string, unknown>;
 }
