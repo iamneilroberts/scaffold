@@ -1,9 +1,10 @@
 import type { ScaffoldTool, ToolContext, ToolResult } from '@scaffold/core';
+import { mergeAndPut } from '@scaffold/core';
 import type { Recipe } from '../types.js';
 import { recipeKey, recipesPrefix, generateId } from '../keys.js';
 
 export const saveRecipeTool: ScaffoldTool = {
-  name: 'bbq:save_recipe',
+  name: 'bbq-save_recipe',
   description: 'Save a BBQ smoking recipe for future reference. Include steps, wood type, temps, and tips.',
   inputSchema: {
     type: 'object',
@@ -57,7 +58,7 @@ export const saveRecipeTool: ScaffoldTool = {
 };
 
 export const getRecipeTool: ScaffoldTool = {
-  name: 'bbq:get_recipe',
+  name: 'bbq-get_recipe',
   description: 'Get full recipe details including steps and tips.',
   inputSchema: {
     type: 'object',
@@ -84,7 +85,7 @@ export const getRecipeTool: ScaffoldTool = {
 };
 
 export const listRecipesTool: ScaffoldTool = {
-  name: 'bbq:list_recipes',
+  name: 'bbq-list_recipes',
   description: 'List all saved BBQ recipes.',
   inputSchema: {
     type: 'object',
@@ -95,7 +96,7 @@ export const listRecipesTool: ScaffoldTool = {
     const result = await ctx.storage.list(prefix);
 
     if (result.keys.length === 0) {
-      return { content: [{ type: 'text', text: 'No recipes saved yet. Use bbq:save_recipe to save one!' }] };
+      return { content: [{ type: 'text', text: 'No recipes saved yet. Use bbq-save_recipe to save one!' }] };
     }
 
     const recipes: Recipe[] = [];
@@ -110,5 +111,52 @@ export const listRecipesTool: ScaffoldTool = {
       .join('\n');
 
     return { content: [{ type: 'text', text: summary }] };
+  },
+};
+
+export const updateRecipeTool: ScaffoldTool = {
+  name: 'bbq-update_recipe',
+  description: 'Update an existing recipe. Only provide the fields you want to change — everything else is preserved.',
+  inputSchema: {
+    type: 'object',
+    properties: {
+      recipeId: { type: 'string', description: 'Recipe ID to update' },
+      name: { type: 'string', description: 'Updated recipe name' },
+      meat: { type: 'string', description: 'Updated meat type' },
+      smokerTempF: { type: 'number', description: 'Updated smoker temp' },
+      targetInternalF: { type: 'number', description: 'Updated target internal temp' },
+      woodType: { type: 'string', description: 'Updated wood type' },
+      estimatedMinutesPerLb: { type: 'number', description: 'Updated time per lb' },
+      rub: { type: 'string', description: 'Updated rub/seasoning' },
+      steps: { type: 'array', items: { type: 'string' }, description: 'Updated steps (replaces all steps)' },
+      tips: { type: 'array', items: { type: 'string' }, description: 'Additional tips (merged with existing)' },
+    },
+    required: ['recipeId'],
+  },
+  handler: async (input: unknown, ctx: ToolContext): Promise<ToolResult> => {
+    const { recipeId, ...updates } = input as { recipeId: string } & Partial<Recipe>;
+
+    const key = recipeKey(ctx.userId, recipeId);
+    const existing = await ctx.storage.get<Recipe>(key);
+    if (!existing) {
+      return { content: [{ type: 'text', text: `Recipe "${recipeId}" not found.` }], isError: true };
+    }
+
+    const { merged, fieldsUpdated } = await mergeAndPut<Recipe & Record<string, unknown>>(
+      ctx.storage,
+      key,
+      { ...updates, updatedAt: new Date().toISOString() },
+      {
+        preserveFields: ['id', 'createdAt'],
+        arrayStrategy: 'union',
+      }
+    );
+
+    return {
+      content: [{
+        type: 'text',
+        text: `Updated recipe "${merged.name}" — changed: ${fieldsUpdated.filter(f => f !== 'updatedAt').join(', ') || 'nothing'}`,
+      }],
+    };
   },
 };

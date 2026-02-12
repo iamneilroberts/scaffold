@@ -3,7 +3,7 @@ import type { Cook, CookLog } from '../types.js';
 import { cookKey, cooksPrefix, logsPrefix, generateId } from '../keys.js';
 
 export const createCookTool: ScaffoldTool = {
-  name: 'bbq:start_cook',
+  name: 'bbq-start_cook',
   description: `Start a new BBQ cook/smoke session. Tracks meat type, weight, temps, and wood choice.
 Common combos: brisket (250°F, post oak, target 203°F), pork butt (225°F, hickory/cherry, target 195°F),
 ribs (275°F, cherry/apple, target 190-203°F), chicken (325°F, apple/pecan, target 165°F).`,
@@ -50,14 +50,14 @@ ribs (275°F, cherry/apple, target 190-203°F), chicken (325°F, apple/pecan, ta
     return {
       content: [{
         type: 'text',
-        text: `🔥 Started cooking ${params.meat} (${id}) — ${params.weightLbs} lbs at ${params.smokerTempF}°F${params.woodType ? ` with ${params.woodType}` : ''}. Rough estimate: ${hours}h${mins > 0 ? ` ${mins}m` : ''}. Use bbq:add_log to track progress.`,
+        text: `🔥 Started cooking ${params.meat} (${id}) — ${params.weightLbs} lbs at ${params.smokerTempF}°F${params.woodType ? ` with ${params.woodType}` : ''}. Rough estimate: ${hours}h${mins > 0 ? ` ${mins}m` : ''}. Use bbq-add_log to track progress.`,
       }],
     };
   },
 };
 
 export const getCookTool: ScaffoldTool = {
-  name: 'bbq:get_cook',
+  name: 'bbq-get_cook',
   description: 'Get full details of a cook session including all log entries (temp checks, wraps, spritzes, etc.).',
   inputSchema: {
     type: 'object',
@@ -92,7 +92,7 @@ export const getCookTool: ScaffoldTool = {
 };
 
 export const listCooksTool: ScaffoldTool = {
-  name: 'bbq:list_cooks',
+  name: 'bbq-list_cooks',
   description: 'List all cook sessions for the current user. Shows active and completed cooks.',
   inputSchema: {
     type: 'object',
@@ -108,7 +108,7 @@ export const listCooksTool: ScaffoldTool = {
     });
 
     if (cookKeys.length === 0) {
-      return { content: [{ type: 'text', text: 'No cook sessions found. Use bbq:start_cook to begin one!' }] };
+      return { content: [{ type: 'text', text: 'No cook sessions found. Use bbq-start_cook to begin one!' }] };
     }
 
     const cooks: Cook[] = [];
@@ -130,7 +130,7 @@ export const listCooksTool: ScaffoldTool = {
 };
 
 export const completeCookTool: ScaffoldTool = {
-  name: 'bbq:complete_cook',
+  name: 'bbq-complete_cook',
   description: 'Mark a cook session as completed. Add final notes about how it turned out.',
   inputSchema: {
     type: 'object',
@@ -164,6 +164,23 @@ export const completeCookTool: ScaffoldTool = {
         type: 'text',
         text: `✅ ${cook.meat} cook completed!${duration ? ` Total time: ${duration} hours.` : ''}${notes ? ` Notes: ${notes}` : ''}`,
       }],
+    };
+  },
+  validate: async (input, _result, ctx) => {
+    const { cookId } = input as { cookId: string };
+    const logList = await ctx.storage.list(logsPrefix(ctx.userId, cookId));
+    const logCount = logList.keys.filter(k => k.includes('/logs/')).length;
+
+    return {
+      passed: true, // warnings only — never block
+      checks: [
+        {
+          name: 'has_temp_logs',
+          passed: logCount >= 2,
+          message: 'Cook completed with fewer than 2 temp logs — data may be incomplete for future reference',
+          severity: 'warning' as const,
+        },
+      ],
     };
   },
 };

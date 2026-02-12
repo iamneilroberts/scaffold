@@ -1,4 +1,5 @@
 import type { ScaffoldTool, ToolContext, ToolResult } from '@scaffold/core';
+import { loadKnowledge } from '@scaffold/core';
 
 interface SmokingGuide {
   meat: string;
@@ -121,7 +122,7 @@ function formatGuide(guide: SmokingGuide): string {
 }
 
 export const smokingGuideTool: ScaffoldTool = {
-  name: 'bbq:smoking_guide',
+  name: 'bbq-smoking_guide',
   description: `Look up BBQ smoking guidelines for a specific meat. Returns temps, times, wood pairings, wrapping guidance, and pro tips. Available meats: brisket, pork butt, ribs, chicken, turkey, salmon. Call with no arguments to get all guides.`,
   inputSchema: {
     type: 'object',
@@ -129,9 +130,18 @@ export const smokingGuideTool: ScaffoldTool = {
       meat: { type: 'string', description: 'Meat type to look up (optional — omit for all guides)' },
     },
   },
-  handler: async (input: unknown, _ctx: ToolContext): Promise<ToolResult> => {
+  handler: async (input: unknown, ctx: ToolContext): Promise<ToolResult> => {
     const { meat } = (input as { meat?: string }) || {};
 
+    // Try knowledge base first (for custom/admin-provided guides)
+    if (meat) {
+      const knowledge = await loadKnowledge(ctx.storage, [meat.toLowerCase().trim()]);
+      if (knowledge) {
+        return { content: [{ type: 'text', text: knowledge }] };
+      }
+    }
+
+    // Fallback to hardcoded guides
     if (!meat) {
       const all = GUIDES.map(formatGuide).join('\n---\n\n');
       return { content: [{ type: 'text', text: all }] };
