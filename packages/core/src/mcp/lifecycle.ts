@@ -80,10 +80,10 @@ export function handleInitialize(
   }
 
   // Check protocol version compatibility
-  // We're lenient - accept any 2024-xx-xx version for forward compatibility
-  if (!params.protocolVersion.startsWith('2024-')) {
+  // Accept 2024-xx-xx and 2025-xx-xx versions for forward compatibility
+  if (!params.protocolVersion.match(/^20(24|25)-/)) {
     return invalidParams(request.id, {
-      message: `Unsupported protocol version: ${params.protocolVersion}. Expected 2024-xx-xx format.`,
+      message: `Unsupported protocol version: ${params.protocolVersion}. Expected 2024-xx-xx or 2025-xx-xx format.`,
     });
   }
 
