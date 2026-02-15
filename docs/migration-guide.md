@@ -15,7 +15,7 @@ Scaffold follows **Semantic Versioning 2.0.0**:
 ### In Code
 
 ```typescript
-import { VERSION } from '@scaffold/core';
+import { VERSION } from '@voygent/scaffold-core';
 console.log(VERSION); // "0.1.0"
 
 // Or via server
@@ -50,13 +50,13 @@ Before upgrading, review the changelog for:
 
 ```bash
 # Check current version
-npm list @scaffold/core
+npm list @voygent/scaffold-core
 
 # Update to latest
-npm update @scaffold/core
+npm update @voygent/scaffold-core
 
 # Or update to specific version
-npm install @scaffold/core@1.2.0
+npm install @voygent/scaffold-core@1.2.0
 ```
 
 ### 3. Run Type Check
@@ -255,7 +255,7 @@ console.log('Migration status:', migrationStatus);
 When auth configuration changes, rebuild the auth index:
 
 ```typescript
-import { buildAuthIndex } from '@scaffold/core/auth';
+import { buildAuthIndex } from '@voygent/scaffold-core/auth';
 
 async function rebuildAuthIndex(
   storage: StorageAdapter,
@@ -327,8 +327,8 @@ npx wrangler rollback --version <deployment-id>
 ### npm Version Rollback
 
 ```bash
-# Downgrade @scaffold/core
-npm install @scaffold/core@0.0.9
+# Downgrade @voygent/scaffold-core
+npm install @voygent/scaffold-core@0.0.9
 
 # Redeploy
 npm run deploy
@@ -358,7 +358,7 @@ async function rollbackFromBackup(
 
 ```typescript
 import { describe, it, expect, beforeEach } from 'vitest';
-import { InMemoryAdapter } from '@scaffold/core';
+import { InMemoryAdapter } from '@voygent/scaffold-core';
 
 describe('User Migration', () => {
   let storage: InMemoryAdapter;

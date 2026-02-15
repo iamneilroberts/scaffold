@@ -24,7 +24,7 @@ interface StorageAdapter {
 For testing and local development. Data is lost when the process exits.
 
 ```typescript
-import { InMemoryAdapter } from '@scaffold/core';
+import { InMemoryAdapter } from '@voygent/scaffold-core';
 
 const storage = new InMemoryAdapter();
 
@@ -60,7 +60,7 @@ await storage.get('key');          // Reads 'myapp:key'
 For production on Cloudflare Workers. Uses Cloudflare KV for persistence.
 
 ```typescript
-import { CloudflareKVAdapter } from '@scaffold/core';
+import { CloudflareKVAdapter } from '@voygent/scaffold-core';
 
 interface Env {
   MY_KV: KVNamespace;
@@ -116,7 +116,7 @@ if (!success) {
 The `storage.atomicUpdate` helper handles retries automatically:
 
 ```typescript
-import { storage } from '@scaffold/core';
+import { storage } from '@voygent/scaffold-core';
 
 interface Counter {
   count: number;
@@ -151,7 +151,7 @@ import type {
   StorageListOptions,
   StorageListResult,
   StorageVersionedValue,
-} from '@scaffold/core';
+} from '@voygent/scaffold-core';
 
 // Import the base class from the storage module
 abstract class BaseStorageAdapter {
@@ -352,7 +352,7 @@ export class DenoKVAdapter extends BaseStorageAdapter {
 Use the `storage.batchGet` and `storage.batchPut` helpers for efficient multi-key operations:
 
 ```typescript
-import { storage } from '@scaffold/core';
+import { storage } from '@voygent/scaffold-core';
 
 // Fetch multiple keys in parallel
 const results = await storage.batchGet<User>(adapter, [
@@ -412,7 +412,7 @@ do {
 ### Error Handling
 
 ```typescript
-import { errors } from '@scaffold/core';
+import { errors } from '@voygent/scaffold-core';
 
 try {
   await storage.put('key', value);

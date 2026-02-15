@@ -1,6 +1,6 @@
 # Code Review Issues - 2026-02-05
 
-External code review performed using Codex (OpenAI CLI agent) on @scaffold/core.
+External code review performed using Codex (OpenAI CLI agent) on @voygent/scaffold-core.
 
 **Repository:** https://github.com/iamneilroberts/scaffold
 

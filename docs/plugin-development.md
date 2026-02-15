@@ -31,7 +31,7 @@ interface ScaffoldPlugin {
 ### Minimal Example
 
 ```typescript
-import type { ScaffoldPlugin } from '@scaffold/core';
+import type { ScaffoldPlugin } from '@voygent/scaffold-core';
 
 export const helloPlugin: ScaffoldPlugin = {
   name: '@myorg/scaffold-plugin-hello',
@@ -60,7 +60,7 @@ export const helloPlugin: ScaffoldPlugin = {
 ### Using the Plugin
 
 ```typescript
-import { ScaffoldServer } from '@scaffold/core';
+import { ScaffoldServer } from '@voygent/scaffold-core';
 import { helloPlugin } from '@myorg/scaffold-plugin-hello';
 
 const server = new ScaffoldServer({
@@ -135,7 +135,7 @@ const connectionPlugin: ScaffoldPlugin = {
 Tools are the primary way plugins extend Scaffold functionality.
 
 ```typescript
-import type { ScaffoldPlugin, ScaffoldTool, errors } from '@scaffold/core';
+import type { ScaffoldPlugin, ScaffoldTool, errors } from '@voygent/scaffold-core';
 
 const weatherTool: ScaffoldTool = {
   name: 'weather:current',
@@ -296,7 +296,7 @@ export const webhooksPlugin: ScaffoldPlugin = {
 See [Admin Dashboard Guide](./admin-dashboard.md) for detailed admin tab development.
 
 ```typescript
-import { escapeHtml } from '@scaffold/core/admin';
+import { escapeHtml } from '@voygent/scaffold-core/admin';
 
 const statsTab: AdminTab = {
   id: 'stats',
@@ -436,10 +436,10 @@ scaffold-plugin-myfeature/
   "files": ["dist"],
   "keywords": ["scaffold", "mcp", "plugin"],
   "peerDependencies": {
-    "@scaffold/core": "^0.1.0"
+    "@voygent/scaffold-core": "^0.1.0"
   },
   "devDependencies": {
-    "@scaffold/core": "^0.1.0",
+    "@voygent/scaffold-core": "^0.1.0",
     "typescript": "^5.0.0"
   },
   "scripts": {
@@ -465,7 +465,7 @@ export type { MyCustomTool, MyCustomResource } from './types';
 
 ```typescript
 import { describe, it, expect } from 'vitest';
-import { InMemoryAdapter } from '@scaffold/core';
+import { InMemoryAdapter } from '@voygent/scaffold-core';
 import { myPlugin } from './plugin';
 
 describe('myPlugin', () => {
@@ -506,4 +506,4 @@ describe('myPlugin', () => {
 5. **Version your plugin** - Follow semver strictly
 6. **Test thoroughly** - Unit test tools, resources, and hooks
 7. **Keep dependencies minimal** - Avoid bloating bundle size
-8. **Use peer dependencies** - For @scaffold/core
+8. **Use peer dependencies** - For @voygent/scaffold-core

@@ -152,7 +152,7 @@ When rate limited, users receive:
 Use the `RateLimiter` class for custom rate limiting:
 
 ```typescript
-import { RateLimiter } from '@scaffold/core/auth';
+import { RateLimiter } from '@voygent/scaffold-core/auth';
 
 // Create a limiter with 1-minute windows
 const limiter = new RateLimiter(60000);
@@ -242,7 +242,7 @@ All admin responses include:
 Always escape user-provided content before rendering:
 
 ```typescript
-import { escapeHtml, escapeJs } from '@scaffold/core/admin';
+import { escapeHtml, escapeJs } from '@voygent/scaffold-core/admin';
 
 // In admin tab render function
 function render(ctx: AdminContext): AdminTabContent {
@@ -388,7 +388,7 @@ const tool: ScaffoldTool = {
 Never expose sensitive information in errors. Use `sanitizeDetails`:
 
 ```typescript
-import { errors } from '@scaffold/core';
+import { errors } from '@voygent/scaffold-core';
 
 // Internal error with sensitive data
 const internalError = {
@@ -411,7 +411,7 @@ const sanitized = errors.sanitizeDetails(internalError);
 Prevent concurrent write conflicts with version-based updates:
 
 ```typescript
-import { storage } from '@scaffold/core';
+import { storage } from '@voygent/scaffold-core';
 
 // Atomic increment with automatic retry
 const result = await storage.atomicUpdate(

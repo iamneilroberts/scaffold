@@ -1,6 +1,6 @@
 # Public API Reference
 
-This document describes the stable public API for `@scaffold/core`. Only types and functions documented here are guaranteed to be stable across minor versions.
+This document describes the stable public API for `@voygent/scaffold-core`. Only types and functions documented here are guaranteed to be stable across minor versions.
 
 ## Table of Contents
 
@@ -265,7 +265,7 @@ interface StorageVersionedValue<T> {
 #### InMemoryAdapter
 
 ```typescript
-import { InMemoryAdapter } from '@scaffold/core';
+import { InMemoryAdapter } from '@voygent/scaffold-core';
 
 const storage = new InMemoryAdapter(options?: { keyPrefix?: string });
 ```
@@ -273,7 +273,7 @@ const storage = new InMemoryAdapter(options?: { keyPrefix?: string });
 #### CloudflareKVAdapter
 
 ```typescript
-import { CloudflareKVAdapter } from '@scaffold/core';
+import { CloudflareKVAdapter } from '@voygent/scaffold-core';
 
 const storage = new CloudflareKVAdapter(
   kvNamespace: KVNamespace,
@@ -608,10 +608,10 @@ interface AuthResult {
 
 ## Utilities
 
-Import from `@scaffold/core`:
+Import from `@voygent/scaffold-core`:
 
 ```typescript
-import { auth, storage, errors, validation } from '@scaffold/core';
+import { auth, storage, errors, validation } from '@voygent/scaffold-core';
 ```
 
 ### storage.atomicUpdate
@@ -747,9 +747,9 @@ interface ValidationError {
 ## Version
 
 ```typescript
-import { VERSION } from '@scaffold/core';
+import { VERSION } from '@voygent/scaffold-core';
 // or
 ScaffoldServer.VERSION
 ```
 
-Returns the current `@scaffold/core` version string.
+Returns the current `@voygent/scaffold-core` version string.

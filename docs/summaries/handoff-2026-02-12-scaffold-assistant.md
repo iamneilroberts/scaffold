@@ -13,7 +13,7 @@
 ## Decisions Made This Session
 
 - **Skill not CLI**: Claude Code itself is the scaffolding tool — STATUS: confirmed
-- **Standalone projects**: Generated apps use `@scaffold/core` from npm, not monorepo — STATUS: confirmed
+- **Standalone projects**: Generated apps use `@voygent/scaffold-core` from npm, not monorepo — STATUS: confirmed
 - **Structured interview**: 6 fixed questions (domain, entities, actions, relationships, knowledge, quality) — STATUS: confirmed
 - **Hybrid knowledge**: Skill proposes topics, user chooses research vs. provide per-topic — STATUS: confirmed
 - **Claude-only for v1**: Generate connector URL for Claude Web. ChatGPT deferred — STATUS: confirmed
@@ -36,7 +36,7 @@
 3. **Then**: Execute the implementation plan (subagent-driven or parallel session)
 
 Implementation order is specified in the design doc:
-1. Publish `@scaffold/core` to npm (prerequisite)
+1. Publish `@voygent/scaffold-core` to npm (prerequisite)
 2. Build the scaffold-assistant skill (main deliverable)
 3. Write the building-domain-experts guide
 

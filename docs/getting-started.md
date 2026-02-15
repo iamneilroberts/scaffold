@@ -9,9 +9,19 @@ Build your first MCP server in about 5 minutes.
 
 No Cloudflare account is needed for local development.
 
-## 1. Clone and Build
+## 1. Install
 
-`@scaffold/core` isn't published to npm yet, so you'll work inside the monorepo:
+### Standalone project (recommended)
+
+```bash
+mkdir my-expert && cd my-expert
+npm init -y
+npm install @voygent/scaffold-core
+```
+
+### Inside the monorepo
+
+If you want to contribute or run the examples:
 
 ```bash
 git clone https://github.com/iamneilroberts/scaffold.git
@@ -105,7 +115,7 @@ Update the names so your app doesn't collide with the original:
 Now edit `examples/my-app/src/tools.ts` to define your own tools. A tool is a plain object:
 
 ```typescript
-import type { ScaffoldTool, ToolContext, ToolResult } from '@scaffold/core';
+import type { ScaffoldTool, ToolContext, ToolResult } from '@voygent/scaffold-core';
 
 const greetTool: ScaffoldTool = {
   name: 'myapp:greet',

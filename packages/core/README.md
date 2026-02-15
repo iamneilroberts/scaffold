@@ -1,4 +1,4 @@
-# @scaffold/core
+# @voygent/scaffold-core
 
 A lightweight framework for building MCP (Model Context Protocol) servers on Cloudflare Workers.
 
@@ -15,13 +15,13 @@ A lightweight framework for building MCP (Model Context Protocol) servers on Clo
 ## Installation
 
 ```bash
-npm install @scaffold/core
+npm install @voygent/scaffold-core
 ```
 
 ## Quick Start
 
 ```typescript
-import { ScaffoldServer, InMemoryAdapter } from '@scaffold/core';
+import { ScaffoldServer, InMemoryAdapter } from '@voygent/scaffold-core';
 
 const config = {
   app: {
@@ -108,11 +108,11 @@ Storage adapters provide a unified interface for key-value storage:
 
 ```typescript
 // In-memory (for testing)
-import { InMemoryAdapter } from '@scaffold/core';
+import { InMemoryAdapter } from '@voygent/scaffold-core';
 const storage = new InMemoryAdapter();
 
 // Cloudflare KV (for production)
-import { CloudflareKVAdapter } from '@scaffold/core';
+import { CloudflareKVAdapter } from '@voygent/scaffold-core';
 const storage = new CloudflareKVAdapter(env.MY_KV_NAMESPACE);
 ```
 
@@ -126,7 +126,7 @@ All adapters support:
 Use version-based updates to prevent concurrent write conflicts:
 
 ```typescript
-import { storage } from '@scaffold/core';
+import { storage } from '@voygent/scaffold-core';
 
 const result = await storage.atomicUpdate(adapter, 'counter', (current) => {
   return (current ?? 0) + 1;
@@ -255,7 +255,7 @@ const config: ScaffoldConfig = {
 
 ```typescript
 // src/index.ts
-import { ScaffoldServer, CloudflareKVAdapter } from '@scaffold/core';
+import { ScaffoldServer, CloudflareKVAdapter } from '@voygent/scaffold-core';
 
 const server = new ScaffoldServer({
   config: { /* ... */ },

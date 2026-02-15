@@ -195,7 +195,7 @@ This is the **ONLY** stable interface. Everything else is internal and can chang
  * @packageDocumentation
  * Scaffold Core Public API
  *
- * This file defines the stable public API for @scaffold/core.
+ * This file defines the stable public API for @voygent/scaffold-core.
  * Only types and functions exported here are guaranteed to be stable.
  *
  * @version 1.0.0
@@ -1011,7 +1011,7 @@ export interface ValidationError {
 
 ```typescript
 /**
- * @scaffold/core
+ * @voygent/scaffold-core
  *
  * Stable public API for Scaffold MCP framework
  *
@@ -1143,7 +1143,7 @@ echo "✅ No breaking API changes"
 **Goal**: Ship a working MCP framework in 2-3 weeks
 
 **Duration**: 2-3 weeks
-**Deliverables**: `@scaffold/core` package, working example, deployment guide
+**Deliverables**: `@voygent/scaffold-core` package, working example, deployment guide
 
 ### Week 1: Foundation
 
@@ -2214,7 +2214,7 @@ describe('MCP protocol', () => {
 ```typescript
 // packages/plugin-telemetry/src/index.ts
 
-import type { ScaffoldPlugin, ToolContext } from '@scaffold/core';
+import type { ScaffoldPlugin, ToolContext } from '@voygent/scaffold-core';
 
 export const telemetryPlugin: ScaffoldPlugin = {
   name: '@scaffold/plugin-telemetry',
@@ -2541,7 +2541,7 @@ starter-generic/
 **Key helpers**: `src/storage/keys.ts`
 
 ```typescript
-import { auth } from '@scaffold/core';
+import { auth } from '@voygent/scaffold-core';
 
 // Simple user-prefixed keys
 export function userKey(authKey: string, ...parts: string[]): string {
@@ -2581,7 +2581,7 @@ Optimized for per-user data like trips, documents, or personal records.
 **Key helpers**: `src/storage/keys.ts`
 
 ```typescript
-import { auth } from '@scaffold/core';
+import { auth } from '@voygent/scaffold-core';
 
 // User-owned entity keys
 export function entityKey(
@@ -2624,7 +2624,7 @@ Optimized for location-based shared data using geohash spatial indexing.
 **Key helpers**: `src/storage/keys.ts`
 
 ```typescript
-import { auth } from '@scaffold/core';
+import { auth } from '@voygent/scaffold-core';
 import { encode as geohashEncode, neighbors } from 'ngeohash';
 
 // Shared location-based keys
@@ -3057,7 +3057,7 @@ npm run validate-api         # Check for breaking changes
 **For unit tests**: `InMemoryAdapter` - Fast, resets on each test run.
 
 ```typescript
-import { InMemoryAdapter } from '@scaffold/core/testing';
+import { InMemoryAdapter } from '@voygent/scaffold-core/testing';
 
 describe('my tool', () => {
   const storage = new InMemoryAdapter();
@@ -3351,7 +3351,7 @@ export function updateWithRetry() {
 
 | Phase | Duration | Deliverables |
 |-------|----------|--------------|
-| **Phase 1: Core** | 3 weeks | `@scaffold/core` package, tests, docs |
+| **Phase 1: Core** | 3 weeks | `@voygent/scaffold-core` package, tests, docs |
 | **Phase 2: Plugins** | 2-3 weeks | 5 optional plugins |
 | **Phase 3: Templates** | 1 week | 3 starters + CLI tool |
 | **Phase 4: Docs/Testing** | 1 week | E2E tests, security audit, guides |

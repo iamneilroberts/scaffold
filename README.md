@@ -13,8 +13,8 @@ Most people already subscribe to Claude, ChatGPT, or another frontier model. Tha
 The goal is to make it easy for anyone to spin up their own niche-focused tools — DIY apps that live inside the chat interface millions of people already use every day.
 
 ```typescript
-import { ScaffoldServer, CloudflareKVAdapter } from '@scaffold/core';
-import type { ScaffoldTool } from '@scaffold/core';
+import { ScaffoldServer, CloudflareKVAdapter } from '@voygent/scaffold-core';
+import type { ScaffoldTool } from '@voygent/scaffold-core';
 
 const saveTool: ScaffoldTool = {
   name: 'notes:save',
@@ -71,9 +71,19 @@ Three working apps you can deploy or use as starting points:
 
 Each has tools, a Worker entry point, and tests against `InMemoryAdapter`.
 
+## Quick start
+
+```bash
+mkdir my-expert && cd my-expert
+npm init -y
+npm install @voygent/scaffold-core
+```
+
+Or use the interactive wizard in Claude Code: `/scaffold-assistant`
+
 ## Try the examples locally
 
-`@scaffold/core` isn't published to npm yet. To try Scaffold, clone the monorepo and run one of the examples:
+Clone the monorepo and run one of the examples:
 
 ```bash
 git clone https://github.com/iamneilroberts/scaffold.git

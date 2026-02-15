@@ -1,7 +1,7 @@
 # Session Handoff: Methodology Layer Implementation
 
 **Date:** 2026-02-12
-**Session Focus:** Design and plan quality gates, knowledge files, progress tracking, and additive merge for @scaffold/core
+**Session Focus:** Design and plan quality gates, knowledge files, progress tracking, and additive merge for @voygent/scaffold-core
 
 ## What Was Accomplished
 1. Analyzed [claude-interview-coach](https://github.com/raphaotten/claude-interview-coach) repo for techniques to adapt

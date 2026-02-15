@@ -2,7 +2,7 @@
 
 ## Focus
 
-External code review of @scaffold/core using Codex, fix critical issues, create GitHub issues for findings.
+External code review of @voygent/scaffold-core using Codex, fix critical issues, create GitHub issues for findings.
 
 ## Work Done
 

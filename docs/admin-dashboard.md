@@ -51,8 +51,8 @@ Users authenticate via the login form. The key is stored in an HTTP-only cookie.
 ### Basic Tab Structure
 
 ```typescript
-import type { AdminTab, AdminContext, AdminTabContent } from '@scaffold/core';
-import { escapeHtml } from '@scaffold/core/admin';
+import type { AdminTab, AdminContext, AdminTabContent } from '@voygent/scaffold-core';
+import { escapeHtml } from '@voygent/scaffold-core/admin';
 
 const myTab: AdminTab = {
   id: 'my-tab',              // Unique identifier
@@ -104,7 +104,7 @@ interface AdminContext {
 ## Example: Statistics Tab
 
 ```typescript
-import { escapeHtml } from '@scaffold/core/admin';
+import { escapeHtml } from '@voygent/scaffold-core/admin';
 
 const statsTab: AdminTab = {
   id: 'stats',
@@ -337,7 +337,7 @@ The admin dashboard includes these utility classes:
 ### Always Escape User Data
 
 ```typescript
-import { escapeHtml, escapeJs } from '@scaffold/core/admin';
+import { escapeHtml, escapeJs } from '@voygent/scaffold-core/admin';
 
 // HTML content
 html: `<div>${escapeHtml(userInput)}</div>`
@@ -368,7 +368,7 @@ routes: [{
 ### Use Secure Response Helpers
 
 ```typescript
-import { secureHtmlResponse, secureJsonResponse } from '@scaffold/core/admin';
+import { secureHtmlResponse, secureJsonResponse } from '@voygent/scaffold-core/admin';
 
 // For HTML responses
 return secureHtmlResponse(html, 200, customCSP);
