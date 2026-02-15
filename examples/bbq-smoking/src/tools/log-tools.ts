@@ -17,7 +17,7 @@ function logId(): string {
 }
 
 export const addLogTool: ScaffoldTool = {
-  name: 'bbq:add_log',
+  name: 'bbq-add_log',
   description: `Log an event during an active cook. Events: temp_check, wrap, spritz, add_wood, adjust_vent, rest, note.
 Tips: Log temp every 30-60 min. Wrap brisket/pork butt at the stall (~150-170°F). Spritz every 45 min after bark sets.`,
   inputSchema: {
