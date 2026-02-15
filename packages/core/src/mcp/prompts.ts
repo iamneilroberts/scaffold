@@ -75,11 +75,11 @@ export async function handlePromptsGet(
 
   // Extract and validate auth
   const authKey = extractAuthKey(httpRequest, request);
-  if (!authKey) {
+  if (!authKey && config.auth.requireAuth !== false) {
     return authRequired(request.id);
   }
 
-  const authResult = await validateKey(authKey, config, storage, env);
+  const authResult = await validateKey(authKey ?? '', config, storage, env);
   if (!authResult.valid) {
     return authFailed(request.id, authResult.error);
   }
@@ -103,7 +103,7 @@ export async function handlePromptsGet(
   }
 
   // Build context for handler - hash the key so raw credentials are never exposed
-  const authKeyHash = await hashKeyAsync(authKey);
+  const authKeyHash = await hashKeyAsync(authKey ?? '');
   const ctx: ToolContext = {
     authKeyHash,
     userId: authResult.userId!,

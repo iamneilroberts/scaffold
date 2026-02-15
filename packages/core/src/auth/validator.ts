@@ -33,8 +33,11 @@ export async function validateKey(
   storage: StorageAdapter,
   _env: Record<string, unknown>
 ): Promise<AuthResult> {
-  // Reject empty keys immediately
+  // Reject empty keys — unless auth is not required
   if (!authKey || authKey.trim() === '') {
+    if (config.auth.requireAuth === false) {
+      return { valid: true, userId: 'anonymous', isAdmin: false, debugMode: false };
+    }
     return { valid: false, error: 'Auth key required' };
   }
 
@@ -134,6 +137,9 @@ export async function validateKey(
   }
 
   // No valid auth found
+  if (config.auth.requireAuth === false) {
+    return { valid: true, userId: 'anonymous', isAdmin: false, debugMode: false };
+  }
   return { valid: false, error: 'Invalid auth key' };
 }
 
@@ -144,6 +150,7 @@ export async function validateKey(
  * 1. Authorization header (Bearer token)
  * 2. X-Auth-Key header
  * 3. MCP _meta.authKey in JSON-RPC params
+ * 4. URL query parameter (?token=xxx)
  *
  * @param request - The incoming request
  * @param body - Parsed request body (for MCP params)
@@ -171,6 +178,18 @@ export function extractAuthKey(
   // Check MCP _meta.authKey in body
   if (body?.params?._meta?.authKey) {
     return body.params._meta.authKey;
+  }
+
+  // Check URL query parameter (?token=xxx)
+  // Enables Claude web custom connectors which don't support custom headers
+  try {
+    const url = new URL(request.url);
+    const token = url.searchParams.get('token');
+    if (token) {
+      return token;
+    }
+  } catch {
+    // URL parsing failed — skip this source
   }
 
   return null;
