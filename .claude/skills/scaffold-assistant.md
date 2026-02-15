@@ -152,3 +152,82 @@ Present a complete summary:
 Ask: "Does this look right? Any changes before I generate the code?"
 
 If approved, update state to `phase: "design"` and proceed to Phase 2.
+
+---
+
+## Phase 2: Design
+
+Transform the interview answers into a complete technical design. Present it for user approval before generating code.
+
+### Step 1: Derive Entity Types
+
+For each entity from the interview, produce the full TypeScript interface:
+
+```typescript
+export interface {EntityName} {
+  id: string;
+  // ... domain fields from interview
+  createdAt: string;
+  updatedAt: string;
+}
+```
+
+Rules:
+- PascalCase for interface names (e.g., `CookSession`, not `cook_session`)
+- Use `string` for timestamps (ISO 8601)
+- Use union types for status/enum fields
+- Optional fields use `?:`
+- Always include `id`, `createdAt`, `updatedAt`
+
+### Step 2: Derive Tool Definitions
+
+For each tool from the interview, specify:
+
+| Field | Value |
+|-------|-------|
+| **name** | `{prefix}-{action}` (hyphens only, max 64 chars, pattern: `^[a-zA-Z0-9_-]{1,64}$`) |
+| **description** | Multi-line with usage tips and common values |
+| **inputSchema** | JSON Schema with descriptive `description` for each property |
+| **type** | `create` / `get` / `list` / `update` / `delete` / `custom` |
+| **entity** | Which entity this operates on |
+| **hasValidate** | Whether this tool gets a `validate` function |
+
+### Step 3: Derive Key Schema
+
+For each entity, define:
+
+```typescript
+// Single item
+function {entity}Key(userId: string, {entity}Id: string): string
+// List prefix
+function {entities}Prefix(userId: string): string
+// Child items (if parent/child relationship)
+function {child}Key(userId: string, {parent}Id: string, {child}Id: string): string
+function {children}Prefix(userId: string, {parent}Id: string): string
+// ID generation
+function generateId(): string
+```
+
+### Step 4: Knowledge Plan
+
+For each knowledge topic:
+- **Topic name** (used as KV key: `_knowledge/{topic-slug}`)
+- **Acquisition method**: `research` or `user-provided`
+- **Seed in code**: Whether to embed in `seedKnowledge()` or acquire in Phase 4
+
+### Step 5: Quality Gates
+
+For each quality gate:
+- **Tool**: Which tool triggers the check
+- **Check name**: Snake_case identifier
+- **Condition**: What to check
+- **Severity**: `warning` (never blocks) or `error`
+- **Message**: Human-readable explanation
+
+### Step 6: Present Design
+
+Present the complete design as a structured summary. Include all TypeScript interfaces, the full tool table, key schema, knowledge plan, and quality gates.
+
+Ask: "Here's the complete design. Ready to generate the code, or want to change anything?"
+
+If approved, update state with the full design object and set `phase: "generate"`. Proceed to Phase 3.
