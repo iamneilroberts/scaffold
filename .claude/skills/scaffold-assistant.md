@@ -49,6 +49,20 @@ Generated apps are standalone Cloudflare Workers using `@voygent/scaffold-core` 
 
 After each phase, write updated state to `.scaffold-assistant.json`.
 
+### Edge Cases
+
+**Re-running a completed phase:** If the user asks to redo a phase that's already complete (e.g., "I want to change my entities"), reset the state to that phase and re-run it. Warn if this will invalidate later phases:
+- Changing interview → invalidates design, generated code, knowledge
+- Changing design → invalidates generated code, knowledge
+- Re-generating → invalidates knowledge seeding in index.ts
+- Re-deploying → safe, just redeploy
+
+**Modifying interview answers:** If the user says "actually, I want to add another entity" during any phase, go back to the relevant interview question, collect the new answer, and re-derive the design. Then re-generate only the affected files.
+
+**Partial completion:** If the skill is interrupted mid-phase (e.g., mid-generation), the state file records the phase but not sub-steps. On resume, re-run the current phase from the beginning — idempotent writes via the Write tool make this safe.
+
+**Project already has files:** If resuming at "generate" phase and files already exist, overwrite them. The state file is the source of truth, not the filesystem.
+
 ---
 
 ## Phase 1: Interview
