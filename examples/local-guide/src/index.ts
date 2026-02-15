@@ -1,4 +1,4 @@
-import { ScaffoldServer, CloudflareKVAdapter, type ScaffoldConfig } from '@scaffold/core';
+import { ScaffoldServer, CloudflareKVAdapter, type ScaffoldConfig } from '@voygent/scaffold-core';
 import { guideTools } from './tools.js';
 
 interface Env {

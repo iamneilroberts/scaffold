@@ -1,5 +1,6 @@
 {
-  "name": "@scaffold/core",
+  "name": "@voygent/scaffold-core",
+  "publishConfig": { "access": "public" },
   "version": "0.1.0",
   "description": "Security-first MCP framework with stable public API",
   "type": "module",

@@ -2,7 +2,7 @@
  * @packageDocumentation
  * Scaffold Core Public API
  *
- * This file defines the stable public API for @scaffold/core.
+ * This file defines the stable public API for @voygent/scaffold-core.
  * Only types and functions exported here are guaranteed to be stable.
  *
  * @version 0.1.0

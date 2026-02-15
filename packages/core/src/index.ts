@@ -1,5 +1,5 @@
 /**
- * @scaffold/core
+ * @voygent/scaffold-core
  *
  * Stable public API for Scaffold MCP framework
  *

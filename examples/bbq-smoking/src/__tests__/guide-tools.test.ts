@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { InMemoryAdapter } from '@scaffold/core';
-import type { ToolContext } from '@scaffold/core';
+import { InMemoryAdapter } from '@voygent/scaffold-core';
+import type { ToolContext } from '@voygent/scaffold-core';
 import { smokingGuideTool } from '../tools/guide-tools.js';
 
 function makeCtx(storage: InMemoryAdapter, userId = 'user1'): ToolContext {

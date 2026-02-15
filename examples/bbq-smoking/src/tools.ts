@@ -1,4 +1,4 @@
-import type { ScaffoldTool } from '@scaffold/core';
+import type { ScaffoldTool } from '@voygent/scaffold-core';
 import { createCookTool, getCookTool, listCooksTool, completeCookTool } from './tools/cook-tools.js';
 import { addLogTool } from './tools/log-tools.js';
 import { saveRecipeTool, getRecipeTool, listRecipesTool, updateRecipeTool } from './tools/recipe-tools.js';

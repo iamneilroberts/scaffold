@@ -1,4 +1,4 @@
-import type { ScaffoldTool, ToolContext, ToolResult } from '@scaffold/core';
+import type { ScaffoldTool, ToolContext, ToolResult } from '@voygent/scaffold-core';
 
 interface Trip {
   id: string;

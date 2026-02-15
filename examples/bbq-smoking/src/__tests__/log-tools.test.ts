@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { InMemoryAdapter } from '@scaffold/core';
-import type { ToolContext } from '@scaffold/core';
+import { InMemoryAdapter } from '@voygent/scaffold-core';
+import type { ToolContext } from '@voygent/scaffold-core';
 import { createCookTool, getCookTool } from '../tools/cook-tools.js';
 import { addLogTool } from '../tools/log-tools.js';
 
