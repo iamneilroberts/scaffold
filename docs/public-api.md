@@ -169,6 +169,7 @@ interface ScaffoldConfig {
   auth: {
     adminKey?: string;
     validKeys?: string[];
+    requireAuth?: boolean;        // Default: true. Set to false for unauthenticated access
     enableKeyIndex: boolean;
     enableFallbackScan: boolean;
     fallbackScanRateLimit: number;
@@ -555,6 +556,41 @@ interface ExecutionContext {
 ---
 
 ## Auth
+
+### No-Auth Mode
+
+When `requireAuth` is `false`, unauthenticated requests are allowed through with anonymous credentials:
+
+```typescript
+auth: {
+  requireAuth: false,       // Allow unauthenticated access
+  adminKey: env.ADMIN_KEY,  // Admin key still works if provided
+  enableKeyIndex: false,
+  enableFallbackScan: false,
+  fallbackScanRateLimit: 0,
+  fallbackScanBudget: 0,
+}
+```
+
+Anonymous requests receive:
+- `userId: 'anonymous'`
+- `isAdmin: false`
+- `authKeyHash: ''` (empty string)
+
+If a valid auth key is provided (via any key source), it's still validated normally — the user gets their real `userId` and admin status. No-auth mode only changes what happens when **no key is present**.
+
+**When to use:** Public demos, Claude web custom connectors (which don't support custom auth headers), or single-user tools where auth adds no value.
+
+### Auth Key Sources
+
+Scaffold extracts auth keys from requests in this order:
+
+1. `Authorization: Bearer <token>` header
+2. `X-Auth-Key: <token>` header
+3. MCP `_meta.authKey` in JSON-RPC params
+4. `?token=<token>` URL query parameter
+
+The URL query parameter source is useful for clients that can't set custom headers (e.g., some MCP connectors). The token is stripped from the URL before further processing.
 
 ### AuthResult
 

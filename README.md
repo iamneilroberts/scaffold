@@ -67,6 +67,7 @@ Three working apps you can deploy or use as starting points:
 | [notes-app](examples/notes-app) | Per-user CRUD — the simplest useful pattern |
 | [travel-planner](examples/travel-planner) | Nested entities — trips containing stops, with cross-references |
 | [local-guide](examples/local-guide) | Shared data + per-user favorites, geohash search for nearby places |
+| [bbq-smoking](examples/bbq-smoking) | Domain expert chatbot — cook tracking, logging, recipes, and built-in knowledge base. Uses no-auth mode for Claude web |
 
 Each has tools, a Worker entry point, and tests against `InMemoryAdapter`.
 

@@ -31,9 +31,12 @@ Scaffold is designed as a layered architecture for building MCP servers on Cloud
 ┌─────────────────────────────────────────────────────────────┐
 │                     Auth Validator                           │
 │  ┌───────────┐  ┌───────────┐  ┌──────────┐  ┌───────────┐  │
-│  │ ENV Admin │  │ Allowlist │  │ KV Index │  │  Fallback │  │
-│  │   Key     │  │           │  │          │  │   Scan    │  │
+│  │ No-Auth   │  │ ENV Admin │  │ KV Index │  │  Fallback │  │
+│  │ Bypass    │  │   Key     │  │          │  │   Scan    │  │
 │  └───────────┘  └───────────┘  └──────────┘  └───────────┘  │
+│  (requireAuth   ┌───────────┐                               │
+│   = false)      │ Allowlist │                               │
+│                 └───────────┘                               │
 └─────────────────────────────────────────────────────────────┘
                               │
                               ▼
@@ -117,12 +120,21 @@ Handles admin dashboard requests (`packages/core/src/admin/handler.ts`).
 
 Multi-layer authentication (`packages/core/src/auth/validator.ts`).
 
+**Auth Key Extraction (checked in order):**
+
+1. `Authorization: Bearer <token>` header
+2. `X-Auth-Key: <token>` header
+3. MCP `_meta.authKey` in JSON-RPC params
+4. `?token=<token>` URL query parameter
+
 **Validation Layers (checked in order):**
 
-1. **ENV Admin Key** - Constant-time comparison against `config.auth.adminKey`
-2. **ENV Allowlist** - Check against `config.auth.validKeys` array
-3. **KV Index** - O(1) lookup in `_auth-index/{hash}` keys
-4. **Fallback Scan** - Rate-limited scan of user records
+1. **No-Auth Bypass** - If `requireAuth: false` and no key present, return anonymous (`userId: 'anonymous'`, `isAdmin: false`)
+2. **ENV Admin Key** - Constant-time comparison against `config.auth.adminKey`
+3. **ENV Allowlist** - Check against `config.auth.validKeys` array
+4. **KV Index** - O(1) lookup in `_auth-index/{hash}` keys
+5. **Fallback Scan** - Rate-limited scan of user records
+6. **No-Auth Fallback** - If `requireAuth: false` and key didn't match, return anonymous
 
 **Supporting Components:**
 

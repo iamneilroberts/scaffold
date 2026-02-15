@@ -239,6 +239,7 @@ const config: ScaffoldConfig = {
   auth: {
     adminKey,           // Admin access key
     validKeys,          // Array of valid user keys
+    requireAuth,        // Set to false for unauthenticated access (default: true)
     enableKeyIndex,     // Use KV index for O(1) lookup
     enableFallbackScan, // Allow scanning (rate-limited)
     fallbackScanRateLimit, // Max scans per minute

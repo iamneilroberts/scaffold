@@ -170,6 +170,34 @@ routes = [
 ]
 ```
 
+## No-Auth Mode
+
+For public tools, personal projects, or Claude web custom connectors, you can disable authentication:
+
+```typescript
+auth: {
+  adminKey: env.ADMIN_KEY,
+  requireAuth: false,          // Allow unauthenticated access
+  enableKeyIndex: false,
+  enableFallbackScan: false,
+  fallbackScanRateLimit: 0,
+  fallbackScanBudget: 0,
+}
+```
+
+With `requireAuth: false`, unauthenticated requests get `userId: 'anonymous'` and `isAdmin: false`. Admin tools still require the admin key. See the [bbq-smoking example](../examples/bbq-smoking) for a working no-auth deployment.
+
+## Connecting to Claude Web
+
+Claude's web interface supports custom MCP connectors but can't send custom auth headers. The simplest approach is no-auth mode:
+
+1. Set `requireAuth: false` in your config
+2. Deploy to Cloudflare Workers
+3. In Claude web: **Settings → Integrations → Add Custom MCP**
+4. Enter your Worker URL: `https://my-app.your-subdomain.workers.dev`
+
+No additional configuration needed.
+
 ## Environment-Specific Configuration
 
 ### Using Environment Variables

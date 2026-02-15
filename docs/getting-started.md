@@ -66,7 +66,7 @@ curl -X POST http://localhost:8787 \
 
 ### Call a Tool
 
-Tool calls require authentication. Pass the admin key (from `wrangler.toml`) via the `Authorization` header:
+By default, tool calls require authentication. Pass the admin key (from `wrangler.toml`) via the `Authorization` header:
 
 ```bash
 curl -X POST http://localhost:8787 \
@@ -82,6 +82,8 @@ curl -X POST http://localhost:8787 \
     }
   }'
 ```
+
+> **Tip:** If you don't need auth (e.g., a public demo or personal tool), set `requireAuth: false` in your config. See [No-Auth Mode](#no-auth-mode) below.
 
 ### Admin Dashboard
 
@@ -166,7 +168,47 @@ npx wrangler secret put ADMIN_KEY
 npx wrangler deploy
 ```
 
-## 6. Connect to Claude Desktop
+## 6. No-Auth Mode
+
+If you don't need per-user authentication — for example, a personal tool, a public demo, or a Claude web custom connector — you can disable auth entirely:
+
+```typescript
+const config: ScaffoldConfig = {
+  app: { /* ... */ },
+  mcp: { /* ... */ },
+  auth: {
+    adminKey: env.ADMIN_KEY,   // Admin access still works
+    requireAuth: false,        // Allow unauthenticated requests
+    enableKeyIndex: false,
+    enableFallbackScan: false,
+    fallbackScanRateLimit: 0,
+    fallbackScanBudget: 0,
+  },
+  admin: { path: '/admin' },
+};
+```
+
+With `requireAuth: false`, unauthenticated requests get `userId: 'anonymous'` and `isAdmin: false`. If a valid auth key is provided, it's still validated normally.
+
+This is the simplest way to get a working MCP server — no auth setup needed at all:
+
+```bash
+curl -X POST https://my-app.your-subdomain.workers.dev \
+  -H "Content-Type: application/json" \
+  -d '{
+    "jsonrpc": "2.0",
+    "id": 1,
+    "method": "tools/call",
+    "params": {
+      "name": "myapp:greet",
+      "arguments": { "name": "World" }
+    }
+  }'
+```
+
+## 7. Connect to Claude
+
+### Claude Desktop
 
 Add your deployed server to Claude Desktop's MCP configuration:
 
@@ -183,7 +225,20 @@ Add your deployed server to Claude Desktop's MCP configuration:
 }
 ```
 
-Claude can now use your custom tools. Any MCP-compatible client (Claude Desktop, ChatGPT, etc.) can connect the same way.
+### Claude Web (Custom Connector)
+
+Claude's web interface supports custom MCP connectors but doesn't support custom auth headers. Use no-auth mode (`requireAuth: false`) for the simplest setup:
+
+1. Set `requireAuth: false` in your config
+2. Deploy to Cloudflare Workers
+3. In Claude web, go to **Settings → Integrations → Add Custom MCP**
+4. Enter your Worker URL: `https://my-app.your-subdomain.workers.dev`
+
+That's it — Claude web can now use your tools without any auth configuration.
+
+### Other MCP Clients
+
+Any MCP-compatible client (ChatGPT, etc.) can connect the same way. Use the appropriate auth method for your client — Bearer header, `X-Auth-Key` header, `_meta.authKey` in JSON-RPC params, or `?token=` URL query parameter.
 
 ## Next Steps
 

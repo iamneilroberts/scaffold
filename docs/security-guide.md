@@ -35,6 +35,31 @@ const config: ScaffoldConfig = {
 };
 ```
 
+### No-Auth Mode
+
+For public-facing tools, demos, or clients that can't send custom auth headers (like Claude web custom connectors), you can disable authentication entirely:
+
+```typescript
+auth: {
+  adminKey: env.ADMIN_KEY,  // Admin still works if key provided
+  requireAuth: false,       // Allow unauthenticated access
+  enableKeyIndex: false,
+  enableFallbackScan: false,
+  fallbackScanRateLimit: 0,
+  fallbackScanBudget: 0,
+}
+```
+
+When `requireAuth` is `false` and no auth key is present, the request proceeds with:
+- `userId: 'anonymous'`
+- `isAdmin: false`
+
+**Security implications:**
+- All unauthenticated users share the same `anonymous` userId, so they share stored data
+- Admin-only tools (like `scaffold:debug_info` and `scaffold:list_keys`) still require admin auth
+- If a valid auth key is provided, it's validated normally — no-auth mode only affects requests with **no key**
+- Consider rate limiting at the Cloudflare level if exposing to the public internet
+
 ### Auth Key Sources
 
 Scaffold extracts auth keys from requests in this order:
@@ -42,6 +67,9 @@ Scaffold extracts auth keys from requests in this order:
 1. `Authorization: Bearer <token>` header
 2. `X-Auth-Key: <token>` header
 3. MCP `_meta.authKey` in JSON-RPC params
+4. `?token=<token>` URL query parameter
+
+The URL query parameter is a convenience for clients that can't set custom headers. The token is stripped from the URL before further processing to avoid leaking into logs.
 
 ```typescript
 // Example: Claude Desktop sends auth via header
@@ -56,6 +84,9 @@ Scaffold extracts auth keys from requests in this order:
     "_meta": { "authKey": "user-abc123" }
   }
 }
+
+// Example: URL query parameter (for connectors that can't set headers)
+// POST https://my-app.workers.dev?token=user-abc123
 ```
 
 ### Timing Attack Prevention

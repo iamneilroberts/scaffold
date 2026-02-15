@@ -52,11 +52,36 @@ npm run dev
 >
 > Let me pull up the brisket guide and start tracking your cook...
 
+## Auth
+
+This example uses **no-auth mode** (`requireAuth: false`), which means anyone can use the tools without providing an API key. This is ideal for:
+
+- Personal tools where you're the only user
+- Public demos
+- Claude web custom connectors (which don't support custom auth headers)
+
+All unauthenticated users share the `anonymous` userId. If you need per-user data isolation, set `requireAuth: true` and configure auth keys.
+
 ## Deploy
 
 ```bash
 # Create KV namespace
 wrangler kv namespace create DATA
 # Update wrangler.toml with the namespace ID
+
+# Set admin key (optional — only needed for admin tools)
+wrangler secret put ADMIN_KEY
+
+# Deploy
 npm run deploy
 ```
+
+## Connect to Claude Web
+
+Since this example uses no-auth mode, you can connect it directly as a Claude web custom connector:
+
+1. Deploy to Cloudflare Workers
+2. In Claude web, go to **Settings → Integrations → Add Custom MCP**
+3. Enter your Worker URL (e.g., `https://scaffold-bbq-smoking.your-subdomain.workers.dev`)
+
+No auth configuration needed — it just works.
