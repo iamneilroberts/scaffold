@@ -1117,3 +1117,156 @@ async function seedKnowledge(storage: CloudflareKVAdapter): Promise<void> {
 2. Update the guide tool's description to list the actual available topics
 
 3. Update state: set each topic to `"complete"` in `knowledgeTopics`, set `phase: "deploy"`. Proceed to Phase 5.
+
+---
+
+## Phase 5: Deploy
+
+Deploy the generated project to Cloudflare Workers.
+
+### Pre-flight checks
+
+1. Run `npm install` in the project directory
+2. Run `npm test` — if tests fail, fix issues before proceeding
+3. Run `npx tsc --noEmit` — fix any type errors
+
+### Wrangler setup
+
+4. Check wrangler auth: `wrangler whoami`
+   - If not logged in, tell the user: "Run `wrangler login` in your terminal to authenticate with Cloudflare."
+   - Wait for confirmation before proceeding
+
+5. Create KV namespace:
+   ```bash
+   wrangler kv namespace create DATA
+   ```
+   Parse the namespace ID from the output (look for `id = "..."`)
+
+6. Create preview KV namespace:
+   ```bash
+   wrangler kv namespace create DATA --preview
+   ```
+   Parse the preview ID from the output
+
+7. Update `wrangler.toml` with the real namespace IDs (replace the placeholder values)
+
+### Generate auth token
+
+8. Generate a URL-safe admin token:
+   ```bash
+   openssl rand -hex 20
+   ```
+   **Important**: Use hex encoding, NOT base64. Base64 characters `+`, `/`, `=` break in URL query parameters.
+
+### Deploy
+
+9. Deploy the worker:
+   ```bash
+   wrangler deploy
+   ```
+   Parse the worker URL from the output (look for `https://...workers.dev`)
+
+10. Set the admin secret:
+    ```bash
+    echo "{generated-token}" | wrangler secret put ADMIN_KEY
+    ```
+
+11. Write `.dev.vars` with the same token for local development:
+    ```
+    ADMIN_KEY={generated-token}
+    ```
+
+### Verify deployment
+
+12. Health check — curl the worker URL:
+    ```bash
+    curl -s https://scaffold-{appSlug}.{subdomain}.workers.dev/
+    ```
+    Expected: HTML response (admin dashboard) or JSON response
+
+13. Test tool listing:
+    ```bash
+    curl -s -X POST https://scaffold-{appSlug}.{subdomain}.workers.dev/mcp \
+      -H "Content-Type: application/json" \
+      -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
+    ```
+    Expected: JSON with all your tools listed
+
+### Skip deploy option
+
+If the user wants to skip deployment, print manual instructions instead:
+
+```
+To deploy later:
+1. wrangler login
+2. wrangler kv namespace create DATA
+3. wrangler kv namespace create DATA --preview
+4. Update wrangler.toml with the namespace IDs
+5. openssl rand -hex 20  (save this as your admin key)
+6. wrangler deploy
+7. echo "your-key" | wrangler secret put ADMIN_KEY
+```
+
+Update state: set `deployed: true`, `workerUrl`, `authToken`, `phase: "connect"`. Proceed to Phase 6.
+
+---
+
+## Phase 6: Connect
+
+Present the connection information. This is the final phase.
+
+### Output
+
+```
+Your expert assistant is live!
+
+Worker URL: {workerUrl}
+Admin token: {authToken}
+
+## Connect in Claude Web
+1. Settings → Integrations → Add Custom MCP
+2. Paste URL: {workerUrl}
+3. Start a new conversation — your tools appear automatically
+
+## Connect in Claude Desktop
+Add to claude_desktop_config.json:
+
+{
+  "mcpServers": {
+    "{appSlug}": {
+      "url": "{workerUrl}/sse",
+      "headers": { "Authorization": "Bearer {authToken}" }
+    }
+  }
+}
+
+## Connect in Claude Code
+Add to .mcp.json:
+
+{
+  "mcpServers": {
+    "{appSlug}": {
+      "type": "sse",
+      "url": "{workerUrl}/sse",
+      "headers": { "Authorization": "Bearer {authToken}" }
+    }
+  }
+}
+
+## Test with curl
+curl -s -X POST {workerUrl}/mcp \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer {authToken}" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
+
+## Updating knowledge
+Use the {prefix}-learn tool to add or update knowledge without redeploying.
+Or edit src/knowledge/*.md files and redeploy with `wrangler deploy`.
+
+## Admin dashboard
+Visit {workerUrl}/admin?token={authToken} in your browser.
+```
+
+Update state: set `phase: "complete"`.
+
+Print: "Your **{appName}** is ready! Start a conversation in Claude and your tools will be available."
