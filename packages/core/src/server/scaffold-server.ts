@@ -342,11 +342,14 @@ export class ScaffoldServer {
       } else if (url.pathname.startsWith(this.config.admin.path)) {
         // 4. Admin dashboard
         response = await this.adminHandler.handle(request, env);
+      } else if (request.method === 'GET' && url.pathname === '/') {
+        // 5. MCP SSE endpoint (remote MCP connections from Claude iOS/web)
+        response = this.handleMCPSSE();
       } else if (
         request.method === 'POST' &&
         (request.headers.get('Content-Type') ?? '').includes('application/json')
       ) {
-        // 5. MCP protocol (JSON-RPC POST requests)
+        // 6. MCP protocol (JSON-RPC POST requests)
         response = await this.mcpHandler.handle(request, env);
       } else if (this.fallbackHandler) {
         // 6. Fallback handler
@@ -430,6 +433,22 @@ export class ScaffoldServer {
       newResponse.headers.set('Vary', 'Origin');
     }
     return newResponse;
+  }
+
+  /**
+   * Handle MCP SSE endpoint (GET)
+   *
+   * Remote MCP clients (Claude iOS, claude.ai) send a GET request to
+   * establish an SSE connection before sending JSON-RPC POST messages.
+   */
+  private handleMCPSSE(): Response {
+    return new Response(`${this.config.app.name} MCP Server Ready`, {
+      headers: {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
+      },
+    });
   }
 
   /**

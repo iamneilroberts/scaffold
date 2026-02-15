@@ -187,17 +187,25 @@ describe('ScaffoldServer', () => {
       expect(response.status).toBe(200);
     });
 
-    it('should use fallback handler', async () => {
+    it('should use fallback handler for non-GET unmatched routes', async () => {
       server.fallback(async () => {
         return new Response('custom fallback', { status: 404 });
       });
 
-      const request = new Request('http://localhost/unknown');
+      const request = new Request('http://localhost/unknown', { method: 'DELETE' });
       const response = await server.fetch(request, {});
 
       expect(response.status).toBe(404);
       const text = await response.text();
       expect(text).toBe('custom fallback');
+    });
+
+    it('should return MCP SSE endpoint for GET at root path', async () => {
+      const request = new Request('http://localhost/');
+      const response = await server.fetch(request, {});
+
+      expect(response.status).toBe(200);
+      expect(response.headers.get('Content-Type')).toBe('text/event-stream');
     });
   });
 
@@ -206,8 +214,8 @@ describe('ScaffoldServer', () => {
       const tools = server.getTools();
       const toolNames = tools.map(t => t.name);
 
-      expect(toolNames).toContain('scaffold:health_check');
-      expect(toolNames).toContain('scaffold:get_context');
+      expect(toolNames).toContain('scaffold-health_check');
+      expect(toolNames).toContain('scaffold-get_context');
     });
 
     it('should register custom tools', () => {
@@ -407,7 +415,15 @@ describe('ScaffoldServer', () => {
   });
 
   describe('default 404', () => {
-    it('should return 404 for unmatched routes', async () => {
+    it('should return 404 for unmatched non-GET routes', async () => {
+      const request = new Request('http://localhost/unknown/path', { method: 'DELETE' });
+
+      const response = await server.fetch(request, {});
+
+      expect(response.status).toBe(404);
+    });
+
+    it('should return 404 for unmatched GET routes (non-root)', async () => {
       const request = new Request('http://localhost/unknown/path');
 
       const response = await server.fetch(request, {});
