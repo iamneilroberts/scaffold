@@ -1046,3 +1046,74 @@ After generating all files, verify:
 - [ ] `package.json` uses `@voygent/scaffold-core` (not workspace `*`)
 
 Update state: set `generated: true`, `phase: "knowledge"`. Proceed to Phase 4.
+
+---
+
+## Phase 4: Knowledge Acquisition
+
+For each knowledge topic from the interview, acquire the content and save it.
+
+### For each topic in `knowledgePlan`:
+
+Check the acquisition method and follow the appropriate path:
+
+#### Method: `user-provided`
+
+1. Ask the user: "Please provide the knowledge for **{topic}**. You can:"
+   - Paste the content directly
+   - Give a file path (use Read tool to load it)
+   - Give a URL (use WebFetch to retrieve and extract)
+2. Format the content into the standard knowledge structure (see below)
+3. Present it for review
+4. Save to `src/knowledge/{topic-slug}.md`
+
+#### Method: `research`
+
+1. Use WebSearch to find 2-3 authoritative sources on the topic
+2. For each source, use WebFetch to retrieve the content
+3. Synthesize the sources into structured markdown
+4. Present the synthesized content for user review and approval
+5. Save to `src/knowledge/{topic-slug}.md`
+
+### Knowledge File Format
+
+Each knowledge file should follow this structure:
+
+```markdown
+# {Topic Title}
+
+## Key Facts
+- Fact 1
+- Fact 2
+
+## Reference Data
+| Column A | Column B |
+|----------|----------|
+| data     | data     |
+
+## Rules & Guidelines
+- Guideline 1
+- Guideline 2
+```
+
+Adapt the sections to the domain — not every topic needs tables or rules. The goal is structured, LLM-friendly content.
+
+### After all topics are complete:
+
+1. Update `src/index.ts` — fill in the `seedKnowledge()` function with `storage.put()` calls that embed the knowledge content directly:
+
+```typescript
+async function seedKnowledge(storage: CloudflareKVAdapter): Promise<void> {
+  const initialized = await storage.get('_knowledge/_initialized');
+  if (initialized) return;
+
+  await storage.put('_knowledge/{topic-slug}', `{content from knowledge file}`);
+  // ... repeat for each topic
+
+  await storage.put('_knowledge/_initialized', 'true');
+}
+```
+
+2. Update the guide tool's description to list the actual available topics
+
+3. Update state: set each topic to `"complete"` in `knowledgeTopics`, set `phase: "deploy"`. Proceed to Phase 5.
