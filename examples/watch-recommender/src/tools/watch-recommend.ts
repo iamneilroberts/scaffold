@@ -31,57 +31,43 @@ export const watchRecommendTool: ScaffoldTool = {
     // Build context block
     const sections: string[] = [];
 
-    sections.push('## Tone Rules (follow strictly)');
-    sections.push('- No emojis anywhere in your responses.');
-    sections.push('- Be direct and concise. No filler, no praise, no editorializing.');
-    sections.push('- Don\'t compliment the user\'s answers ("Great choice!", "Excellent!", "That\'s very high-signal").');
-    sections.push('- Present information cleanly — let the titles and data speak for themselves.');
-    sections.push('- When summarizing findings, be factual and specific, not flattering.');
-    sections.push('');
-
-    sections.push(`**Mood:** ${mood}`);
-    sections.push('');
+    sections.push('Tone: no emojis, no filler, no compliments ("Great choice!" etc). Be direct, factual, concise.');
+    sections.push(`Mood: ${mood}`);
 
     if (profile) {
-      sections.push(`**Taste Profile:**\n${profile.summary}`);
-      if (profile.topGenres.length) sections.push(`Top genres: ${profile.topGenres.join(', ')}`);
-      if (profile.avoidGenres.length) sections.push(`Avoid: ${profile.avoidGenres.join(', ')}`);
-    } else {
-      sections.push('**Taste Profile:** Not generated yet.');
+      // Cap summary to avoid token bloat from long prose
+      const summary = profile.summary.length > 500
+        ? profile.summary.slice(0, 500) + '...'
+        : profile.summary;
+      const parts = [`Taste: ${summary}`];
+      if (profile.topGenres.length) parts.push(`Top genres: ${profile.topGenres.join(', ')}`);
+      if (profile.avoidGenres.length) parts.push(`Avoid: ${profile.avoidGenres.join(', ')}`);
+      sections.push(parts.join('\n'));
     }
-    sections.push('');
 
     if (prefs) {
       if (prefs.statements.length > 0) {
-        sections.push('**Explicit Preferences:**');
-        sections.push(...prefs.statements.map(s => `- ${s.text}`));
+        sections.push('Preferences: ' + prefs.statements.map(s => s.text).join('; '));
       }
       if (prefs.streamingServices.length > 0) {
-        sections.push(`\n**Streaming Services:** ${prefs.streamingServices.join(', ')}`);
+        sections.push(`Services: ${prefs.streamingServices.join(', ')}`);
       }
     }
-    sections.push('');
 
     const isEmpty = !profile && watchedCount === 0 && (!prefs?.statements?.length);
     if (isEmpty) {
-      sections.push('**NOTICE:** This user has no taste profile, watch history, or preferences. Recommendations will be generic.');
-      sections.push('**Suggestion:** Offer to run taste discovery first by calling `watch-onboard` action `check`. Takes 2-3 minutes and produces much better results.\n');
-    }
-
-    if (watchedCount > 0) {
-      sections.push(`**Already Watched:** ${watchedCount} titles on file.`);
-    }
-
-    if (dismissedCount > 0) {
-      sections.push(`**Dismissed:** ${dismissedCount} titles on file.`);
+      sections.push('No profile, history, or preferences. Suggest running watch-onboard action=check first for better results.');
     }
 
     if (watchedCount > 0 || dismissedCount > 0) {
-      sections.push('After generating recommendations, call **watch-check** with your suggested titles to verify none are already in their history or dismissed list.');
+      const counts = [
+        watchedCount > 0 ? `${watchedCount} watched` : '',
+        dismissedCount > 0 ? `${dismissedCount} dismissed` : '',
+      ].filter(Boolean).join(', ');
+      sections.push(`History: ${counts}. After suggesting, call watch-check to verify no duplicates.`);
     }
 
-    sections.push('');
-    sections.push('Based on this context, suggest 5-8 movies or TV shows. For each, give the title, year, and a one-sentence reason why it fits. Then use **watch-check** to verify none are duplicates, and **watch-lookup** for each to check streaming availability.');
+    sections.push('Suggest 5-8 titles with year and one-sentence rationale. Then call watch-check, then watch-lookup for streaming.');
 
     return { content: [{ type: 'text', text: sections.join('\n') }] };
   },

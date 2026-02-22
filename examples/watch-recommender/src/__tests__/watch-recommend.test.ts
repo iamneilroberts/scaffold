@@ -36,8 +36,8 @@ describe('watch-recommend', () => {
     expect(text).toContain('Loves thrillers');
     expect(text).toContain('No horror');
     expect(text).toContain('netflix');
-    expect(text).toContain('Already Watched:** 1 titles on file');
-    expect(text).toContain('Dismissed:** 1 titles on file');
+    expect(text).toContain('1 watched');
+    expect(text).toContain('1 dismissed');
     expect(text).toContain('watch-check');
     expect(text).toContain('something exciting');
   });
