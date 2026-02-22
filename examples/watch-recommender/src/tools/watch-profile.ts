@@ -78,7 +78,7 @@ export const watchProfileTool: ScaffoldTool = {
           lowRated.length > 0 ? `**Low rated (1-2):** ${lowRated.join(', ')}` : '',
           notInterested.length > 0 ? `**Dismissed (not interested):** ${notInterested.map(d => d.title).join(', ')}` : '',
           '',
-          'Please generate a natural language taste profile summary from these stats, then call watch-profile with action "save" to store it.',
+          'Please generate a natural language taste profile summary from these stats, then call watch-profile with action "save" to store it. Write the profile in plain, factual language. No emojis, no flattery, no superlatives.',
         ].filter(Boolean).join('\n');
 
         return { content: [{ type: 'text', text: stats }] };

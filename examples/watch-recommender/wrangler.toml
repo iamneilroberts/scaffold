@@ -1,11 +1,11 @@
-name = "scaffold-watch-recommender"
+name = "scaffold-watch-rec"
 main = "src/index.ts"
 compatibility_date = "2024-09-23"
 compatibility_flags = ["nodejs_compat"]
 workers_dev = true
 
 [vars]
-PUBLIC_URL = "https://scaffold-watch-recommender.somotravel.workers.dev"
+PUBLIC_URL = "https://scaffold-watch-rec.somotravel.workers.dev"
 # TMDB_API_KEY and ADMIN_KEY set via wrangler secret / .dev.vars
 
 [[kv_namespaces]]

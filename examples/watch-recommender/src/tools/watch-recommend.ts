@@ -40,6 +40,14 @@ export const watchRecommendTool: ScaffoldTool = {
     // Build context block
     const sections: string[] = [];
 
+    sections.push('## Tone Rules (follow strictly)');
+    sections.push('- No emojis anywhere in your responses.');
+    sections.push('- Be direct and concise. No filler, no praise, no editorializing.');
+    sections.push('- Don\'t compliment the user\'s answers ("Great choice!", "Excellent!", "That\'s very high-signal").');
+    sections.push('- Present information cleanly — let the titles and data speak for themselves.');
+    sections.push('- When summarizing findings, be factual and specific, not flattering.');
+    sections.push('');
+
     sections.push(`**Mood:** ${mood}`);
     sections.push('');
 

@@ -9,12 +9,12 @@ import type { ScaffoldConfig } from '@voygent/scaffold-core';
  */
 export const config: ScaffoldConfig = {
   app: {
-    name: 'Watch Recommender',
+    name: 'WatchRec',
     description: 'Personal movie & TV recommendation assistant with taste profiling',
     version: '0.0.1',
   },
   mcp: {
-    serverName: 'scaffold-watch-recommender',
+    serverName: 'scaffold-watch-rec',
     protocolVersion: '2024-11-05',
   },
   auth: {

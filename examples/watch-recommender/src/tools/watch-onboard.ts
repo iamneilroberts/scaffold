@@ -114,6 +114,14 @@ export const watchOnboardTool: ScaffoldTool = {
 
         // Interview script
         sections.push('---');
+        sections.push('## Tone Rules (follow strictly)\n');
+        sections.push('- No emojis anywhere in your responses.');
+        sections.push('- Be direct and concise. No filler, no praise, no editorializing.');
+        sections.push('- Don\'t compliment the user\'s answers ("Great choice!", "Excellent!", "That\'s very high-signal").');
+        sections.push('- Present information cleanly — let the titles and data speak for themselves.');
+        sections.push('- When summarizing findings, be factual and specific, not flattering.');
+        sections.push('');
+        sections.push('---');
         sections.push('## Interview Script\n');
         sections.push('Follow these phases in order. Skip any phase not in the "Phases to run" list above.\n');
 
@@ -144,19 +152,25 @@ export const watchOnboardTool: ScaffoldTool = {
 
         if (missingPhases.includes('titles')) {
           sections.push('### Phase 2: Taste Discovery (Rapid-Fire Titles)\n');
-          sections.push('Present titles in batches of 5. For each title, ask for a quick reaction: thumbs up, thumbs down, or skip (haven\'t seen it / no opinion).');
+          sections.push('Present titles in batches of 5. Ask the user to rate each 1-5 or skip.');
           sections.push('');
-          sections.push('Keep it snappy — one line per title with year and genre hint. Example:');
-          sections.push('> "Quick reactions — thumbs up, down, or skip for each:"');
-          sections.push('> 1. **Parasite** (2019) — Korean thriller');
-          sections.push('> 2. **Spider-Verse** (2018) — animated action');
-          sections.push('> ...');
+          sections.push('Format each batch as a numbered list: title, year, one-word genre.');
+          sections.push('Tell the user to reply with just their ratings in order, comma-separated.');
           sections.push('');
-          sections.push('**For each thumbs up:** call `watch-log` with title and rating 5');
-          sections.push('**For each thumbs down:** call `watch-log` with title and rating 1');
-          sections.push('**For skips:** do nothing');
+          sections.push('Example prompt to user:');
+          sections.push('> "Rate each 1-5 (5=loved, 1=hated, s=skip):');
+          sections.push('> 1. Parasite (2019) — thriller');
+          sections.push('> 2. Spider-Verse (2018) — animated');
+          sections.push('> 3. Grand Budapest Hotel (2014) — comedy');
+          sections.push('> 4. Mad Max: Fury Road (2015) — action');
+          sections.push('> 5. Hereditary (2018) — horror');
+          sections.push('>');
+          sections.push('> Reply like: 5, 3, s, 4, s"');
           sections.push('');
-          sections.push('After all batches, review the pattern of likes/dislikes and synthesize 2-4 preference statements about what they enjoy. Call `watch-preference` with action `add` for each statement.');
+          sections.push('**For each rated title:** call `watch-log` with title and the given rating.');
+          sections.push('**For skips:** do nothing.');
+          sections.push('');
+          sections.push('After all batches, synthesize 2-4 preference statements from the pattern of ratings. Call `watch-preference` with action `add` for each statement.');
           sections.push('');
           sections.push('**Curated Titles:**\n');
 
