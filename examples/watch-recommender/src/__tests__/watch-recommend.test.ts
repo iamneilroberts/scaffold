@@ -1,0 +1,50 @@
+import { describe, it, expect, beforeEach } from 'vitest';
+import { InMemoryAdapter } from '@voygent/scaffold-core';
+import { watchRecommendTool } from '../tools/watch-recommend.js';
+import type { ToolContext } from '@voygent/scaffold-core';
+import type { WatchRecord, TasteProfile, Preferences, Dismissal } from '../types.js';
+
+function makeCtx(storage: InMemoryAdapter): ToolContext {
+  return {
+    authKeyHash: 'hash', userId: 'user-1', isAdmin: false,
+    storage, env: {}, debugMode: false, requestId: 'req-1',
+  };
+}
+
+describe('watch-recommend', () => {
+  let storage: InMemoryAdapter;
+
+  beforeEach(() => {
+    storage = new InMemoryAdapter();
+  });
+
+  it('returns context with all data populated', async () => {
+    await storage.put('user-1/taste-profile', {
+      summary: 'Loves thrillers', topGenres: ['Thriller'], avoidGenres: ['Horror'],
+      generatedAt: '2026-01-01', basedOnCount: 10,
+    } as TasteProfile);
+    await storage.put('user-1/preferences', {
+      statements: [{ text: 'No horror', added: '2026-01-01' }],
+      streamingServices: ['netflix'],
+    } as Preferences);
+    await storage.put('user-1/watched/100', { tmdbId: 100, title: 'Seen Movie' } as WatchRecord);
+    await storage.put('user-1/dismissed/200', { tmdbId: 200, title: 'Bad Movie', reason: 'not-interested' } as Dismissal);
+
+    const result = await watchRecommendTool.handler({ mood: 'something exciting' }, makeCtx(storage));
+    const text = (result.content[0] as { text: string }).text;
+
+    expect(text).toContain('Loves thrillers');
+    expect(text).toContain('No horror');
+    expect(text).toContain('netflix');
+    expect(text).toContain('Seen Movie');
+    expect(text).toContain('Bad Movie');
+    expect(text).toContain('something exciting');
+  });
+
+  it('works with no data', async () => {
+    const result = await watchRecommendTool.handler({ mood: 'anything good' }, makeCtx(storage));
+    expect(result.isError).toBeFalsy();
+    const text = (result.content[0] as { text: string }).text;
+    expect(text).toContain('anything good');
+  });
+});
