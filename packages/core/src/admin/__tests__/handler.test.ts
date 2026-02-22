@@ -338,7 +338,26 @@ describe('AdminHandler logout', () => {
 });
 
 describe('AdminHandler cookie security', () => {
-  it('should set Secure flag on auth cookie', async () => {
+  it('should set Secure flag on auth cookie for non-localhost', async () => {
+    const storage = new InMemoryAdapter();
+    const config = createTestConfig();
+    const handler = new AdminHandler({ config, storage });
+
+    const request = new Request('https://myapp.workers.dev/admin/auth', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ authKey: 'admin-key' }),
+    });
+
+    const response = await handler.handle(request, {});
+    const cookie = response.headers.get('Set-Cookie');
+
+    expect(cookie).toContain('Secure');
+    expect(cookie).toContain('HttpOnly');
+    expect(cookie).toContain('SameSite=Strict');
+  });
+
+  it('should omit Secure flag on localhost for browser compatibility', async () => {
     const storage = new InMemoryAdapter();
     const config = createTestConfig();
     const handler = new AdminHandler({ config, storage });
@@ -352,7 +371,7 @@ describe('AdminHandler cookie security', () => {
     const response = await handler.handle(request, {});
     const cookie = response.headers.get('Set-Cookie');
 
-    expect(cookie).toContain('Secure');
+    expect(cookie).not.toContain('Secure');
     expect(cookie).toContain('HttpOnly');
     expect(cookie).toContain('SameSite=Strict');
   });

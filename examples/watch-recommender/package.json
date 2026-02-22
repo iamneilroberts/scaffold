@@ -5,7 +5,9 @@
   "type": "module",
   "main": "./src/index.ts",
   "scripts": {
-    "dev": "wrangler dev",
+    "start": "npx tsx src/serve.ts",
+    "dev": "npx tsx --watch src/serve.ts",
+    "dev:cloud": "wrangler dev",
     "deploy": "wrangler deploy",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -16,6 +18,7 @@
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20240512.0",
+    "tsx": "^4.0.0",
     "typescript": "^5.4.0",
     "vitest": "^1.6.0",
     "wrangler": "^3.0.0"

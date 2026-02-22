@@ -17,11 +17,69 @@ interface StorageAdapter {
 }
 ```
 
+## Adapter Comparison
+
+| Adapter | Persistence | Use Case | Import |
+|---------|------------|----------|--------|
+| `InMemoryAdapter` | None (process only) | Tests | `@voygent/scaffold-core` |
+| `FileStorageAdapter` | Local JSON files | Local dev, personal tools | `@voygent/scaffold-core/node` |
+| `CloudflareKVAdapter` | Cloudflare KV | Production | `@voygent/scaffold-core` |
+
 ## Built-in Adapters
+
+### FileStorageAdapter
+
+For local development with persistent storage. Each key becomes a JSON file on disk.
+
+```typescript
+import { FileStorageAdapter } from '@voygent/scaffold-core/node';
+
+const storage = new FileStorageAdapter({ dataDir: '.scaffold/data' });
+
+// Same API as all other adapters
+await storage.put('user:123', { name: 'Alice' });
+const user = await storage.get('user:123');
+await storage.delete('user:123');
+
+// With TTL (expires after 60 seconds)
+await storage.put('session:abc', { token: 'xyz' }, { ttl: 60 });
+
+// List keys by prefix
+const result = await storage.list('user:');
+```
+
+**How it works:**
+
+- Key `admin/watched/12345` → file `.scaffold/data/admin/watched/12345.json`
+- Each file stores `{ value, version, metadata, expiresAt }` as readable JSON
+- Expired entries are cleaned up lazily on read
+- Path traversal (`..` in keys) is rejected
+- Defaults to `.scaffold/data` in the current working directory
+
+**When to use:**
+
+- Getting started with Scaffold (no Cloudflare account needed)
+- Local development and testing with persistent data
+- Personal tools and scripts
+- Prototyping before deploying to production
+
+**Inspect your data:**
+
+Since files are plain JSON, you can browse them directly:
+
+```bash
+# See all stored keys
+find .scaffold/data -name '*.json'
+
+# Read a specific entry
+cat .scaffold/data/admin/watched/12345.json | jq .value
+```
+
+> **Note:** `FileStorageAdapter` uses `node:fs` and is imported from `@voygent/scaffold-core/node`, not the main entry point. This keeps the main export compatible with Cloudflare Workers (which don't have `node:fs`).
 
 ### InMemoryAdapter
 
-For testing and local development. Data is lost when the process exits.
+For testing. Data is lost when the process exits.
 
 ```typescript
 import { InMemoryAdapter } from '@voygent/scaffold-core';

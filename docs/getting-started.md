@@ -1,13 +1,11 @@
 # Getting Started with Scaffold
 
-Build your first MCP server in about 5 minutes.
+Build your first MCP server in about 5 minutes. No cloud account needed.
 
 ## Prerequisites
 
 - Node.js 18+
 - npm
-
-No Cloudflare account is needed for local development.
 
 ## 1. Install
 
@@ -16,7 +14,7 @@ No Cloudflare account is needed for local development.
 ```bash
 mkdir my-expert && cd my-expert
 npm init -y
-npm install @voygent/scaffold-core
+npm install @voygent/scaffold-core tsx
 ```
 
 ### Inside the monorepo
@@ -32,29 +30,23 @@ npm run build
 
 ## 2. Run an Example
 
-The fastest way to see Scaffold working is to run the notes-app example:
+The fastest way to see Scaffold working is to run the watch-recommender example:
 
 ```bash
-cd examples/notes-app
-npm test
+cd examples/watch-recommender
+npm start
 ```
 
-You should see all tests pass. These run against `InMemoryAdapter` — no external services needed.
+Your server is running at `http://localhost:3001`. Data is stored in `.scaffold/data/` as readable JSON files.
 
-To start a local dev server:
-
-```bash
-npx wrangler dev
-```
-
-Wrangler uses local storage automatically — the placeholder KV IDs in `wrangler.toml` are fine for local dev. Your server is now running at `http://localhost:8787`.
+Open the admin dashboard at `http://localhost:3001/admin`.
 
 ## 3. Test Your Server
 
 ### Health Check
 
 ```bash
-curl http://localhost:8787/health
+curl http://localhost:3001/health
 ```
 
 Response:
@@ -62,24 +54,24 @@ Response:
 {
   "status": "ok",
   "version": "0.0.1",
-  "timestamp": "2026-02-05T12:00:00.000Z"
+  "timestamp": "2026-02-22T12:00:00.000Z"
 }
 ```
 
 ### List Available Tools
 
 ```bash
-curl -X POST http://localhost:8787 \
+curl -X POST http://localhost:3001 \
   -H "Content-Type: application/json" \
   -d '{"jsonrpc": "2.0", "id": 1, "method": "tools/list"}'
 ```
 
 ### Call a Tool
 
-By default, tool calls require authentication. Pass the admin key (from `wrangler.toml`) via the `Authorization` header:
+By default, tool calls require authentication. Pass the admin key (from `.dev.vars`) via the `Authorization` header:
 
 ```bash
-curl -X POST http://localhost:8787 \
+curl -X POST http://localhost:3001 \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer change-me-in-production" \
   -d '{
@@ -97,28 +89,46 @@ curl -X POST http://localhost:8787 \
 
 ### Admin Dashboard
 
-Open `http://localhost:8787/admin` in your browser. Enter `change-me-in-production` when prompted.
+Open `http://localhost:3001/admin` in your browser. Enter your admin key when prompted.
 
 ## 4. Create Your Own App
 
-The easiest way to start is by copying an existing example. Run these from the repo root:
+Create a new directory with three files:
 
-```bash
-cp -r examples/notes-app examples/my-app
+### `config.ts` — Shared configuration
+
+```typescript
+import type { ScaffoldConfig } from '@voygent/scaffold-core';
+
+export const config: ScaffoldConfig = {
+  app: {
+    name: 'my-app',
+    description: 'My first Scaffold MCP server',
+    version: '0.0.1',
+  },
+  mcp: {
+    serverName: 'scaffold-my-app',
+    protocolVersion: '2024-11-05',
+  },
+  auth: {
+    adminKey: undefined, // filled at runtime
+    requireAuth: true,
+    enableKeyIndex: false,
+    enableFallbackScan: false,
+    fallbackScanRateLimit: 0,
+    fallbackScanBudget: 0,
+  },
+  admin: { path: '/admin' },
+};
 ```
 
-Update the names so your app doesn't collide with the original:
-
-- In `examples/my-app/package.json`, change `"name"` to `"@scaffold/example-my-app"`
-- In `examples/my-app/wrangler.toml`, change `name` to `"scaffold-my-app"`
-
-Now edit `examples/my-app/src/tools.ts` to define your own tools. A tool is a plain object:
+### `tools.ts` — Your tools
 
 ```typescript
 import type { ScaffoldTool, ToolContext, ToolResult } from '@voygent/scaffold-core';
 
 const greetTool: ScaffoldTool = {
-  name: 'myapp:greet',
+  name: 'myapp-greet',
   description: 'Greet a user by name',
   inputSchema: {
     type: 'object',
@@ -138,95 +148,110 @@ const greetTool: ScaffoldTool = {
 export const myTools: ScaffoldTool[] = [greetTool];
 ```
 
-Update `examples/my-app/src/index.ts` to import your tools, then run the dev server:
+### `serve.ts` — Local entry point
 
-```bash
-cd examples/my-app
-npx wrangler dev
+```typescript
+import { ScaffoldServer } from '@voygent/scaffold-core';
+import { FileStorageAdapter, startLocalServer, loadEnvFile } from '@voygent/scaffold-core/node';
+import { config } from './config.js';
+import { myTools } from './tools.js';
+
+const env = loadEnvFile();
+
+const server = new ScaffoldServer({
+  config: { ...config, auth: { ...config.auth, adminKey: env['ADMIN_KEY'] } },
+  storage: new FileStorageAdapter(),
+  tools: myTools,
+});
+
+startLocalServer(server, env);
 ```
 
-## 5. Add Persistent Storage
-
-For production, use Cloudflare KV. Update `wrangler.toml`:
-
-```toml
-name = "my-app"
-main = "src/index.ts"
-compatibility_date = "2024-09-23"
-
-[vars]
-ADMIN_KEY = "change-me-in-production"
-
-[[kv_namespaces]]
-binding = "DATA"
-id = "your-kv-namespace-id"
-preview_id = "your-preview-kv-namespace-id"
-```
-
-Create the KV namespace and deploy:
+### `.dev.vars` — Local secrets
 
 ```bash
-# Create KV namespace (requires Cloudflare account)
+ADMIN_KEY=dev-admin-key-change-in-prod
+```
+
+### Run it
+
+```bash
+npx tsx serve.ts
+```
+
+Your server is at `http://localhost:3001`. Data persists in `.scaffold/data/`.
+
+## 5. Deploying to Cloudflare (optional)
+
+When you're ready for production, add a Cloudflare Workers entry point alongside your local one:
+
+### `index.ts` — Workers entry point
+
+```typescript
+import { ScaffoldServer, CloudflareKVAdapter } from '@voygent/scaffold-core';
+import { config } from './config.js';
+import { myTools } from './tools.js';
+
+interface Env {
+  DATA: KVNamespace;
+  ADMIN_KEY: string;
+}
+
+export default {
+  async fetch(request: Request, env: Env, ctx: ExecutionContext) {
+    const server = new ScaffoldServer({
+      config: { ...config, auth: { ...config.auth, adminKey: env.ADMIN_KEY } },
+      storage: new CloudflareKVAdapter(env.DATA),
+      tools: myTools,
+    });
+    return server.fetch(request, env as unknown as Record<string, unknown>, ctx);
+  },
+};
+```
+
+Then deploy:
+
+```bash
+# Create KV namespace
 npx wrangler kv:namespace create DATA
 
-# Update wrangler.toml with the IDs from the output above
-
-# Set a real admin key as a secret
+# Set admin key as a secret
 npx wrangler secret put ADMIN_KEY
 
 # Deploy
 npx wrangler deploy
 ```
 
+To migrate your local data to Cloudflare KV, see [Deployment — Local to Cloud Migration](./deployment.md#local-to-cloud-migration).
+
 ## 6. No-Auth Mode
 
 If you don't need per-user authentication — for example, a personal tool, a public demo, or a Claude web custom connector — you can disable auth entirely:
 
 ```typescript
-const config: ScaffoldConfig = {
-  app: { /* ... */ },
-  mcp: { /* ... */ },
-  auth: {
-    adminKey: env.ADMIN_KEY,   // Admin access still works
-    requireAuth: false,        // Allow unauthenticated requests
-    enableKeyIndex: false,
-    enableFallbackScan: false,
-    fallbackScanRateLimit: 0,
-    fallbackScanBudget: 0,
-  },
-  admin: { path: '/admin' },
-};
+auth: {
+  adminKey: env['ADMIN_KEY'],   // Admin access still works
+  requireAuth: false,           // Allow unauthenticated requests
+  enableKeyIndex: false,
+  enableFallbackScan: false,
+  fallbackScanRateLimit: 0,
+  fallbackScanBudget: 0,
+},
 ```
 
 With `requireAuth: false`, unauthenticated requests get `userId: 'anonymous'` and `isAdmin: false`. If a valid auth key is provided, it's still validated normally.
-
-This is the simplest way to get a working MCP server — no auth setup needed at all:
-
-```bash
-curl -X POST https://my-app.your-subdomain.workers.dev \
-  -H "Content-Type: application/json" \
-  -d '{
-    "jsonrpc": "2.0",
-    "id": 1,
-    "method": "tools/call",
-    "params": {
-      "name": "myapp:greet",
-      "arguments": { "name": "World" }
-    }
-  }'
-```
 
 ## 7. Connect to Claude
 
 ### Claude Desktop
 
-Add your deployed server to Claude Desktop's MCP configuration:
+Add your server to Claude Desktop's MCP configuration:
 
 ```json
 {
   "mcpServers": {
     "my-app": {
-      "url": "https://my-app.your-subdomain.workers.dev",
+      "url": "http://localhost:3001",
       "headers": {
         "Authorization": "Bearer your-auth-key"
       }
@@ -234,6 +259,8 @@ Add your deployed server to Claude Desktop's MCP configuration:
   }
 }
 ```
+
+For a deployed server, replace the URL with your Workers URL.
 
 ### Claude Web (Custom Connector)
 
@@ -244,16 +271,15 @@ Claude's web interface supports custom MCP connectors but doesn't support custom
 3. In Claude web, go to **Settings → Integrations → Add Custom MCP**
 4. Enter your Worker URL: `https://my-app.your-subdomain.workers.dev`
 
-That's it — Claude web can now use your tools without any auth configuration.
-
 ### Other MCP Clients
 
-Any MCP-compatible client (ChatGPT, etc.) can connect the same way. Use the appropriate auth method for your client — Bearer header, `X-Auth-Key` header, `_meta.authKey` in JSON-RPC params, or `?token=` URL query parameter.
+Any MCP-compatible client can connect the same way. Use the appropriate auth method for your client — Bearer header, `X-Auth-Key` header, `_meta.authKey` in JSON-RPC params, or `?token=` URL query parameter.
 
 ## Next Steps
 
+- [Storage Adapters](./storage-adapters.md) — adapters for local files, Cloudflare KV, and custom backends
 - [Storage Patterns](./storage-patterns.md) — key design, indexes, anti-patterns
 - [Public API Reference](./public-api.md) — complete API documentation
 - [Security Guide](./security-guide.md) — auth, rate limiting, and XSS prevention
 - [Plugin Development](./plugin-development.md) — building reusable tool packages
-- [Deployment](./deployment.md) — full Cloudflare Workers setup
+- [Deployment](./deployment.md) — Cloudflare Workers setup and local-to-cloud migration

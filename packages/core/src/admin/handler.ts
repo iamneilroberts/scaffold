@@ -71,6 +71,28 @@ export class AdminHandler {
   }
 
   /**
+   * Check if a request is to localhost (where Secure cookies are rejected by browsers)
+   */
+  private isLocalhost(request: Request): boolean {
+    try {
+      const host = new URL(request.url).hostname;
+      return host === 'localhost' || host === '127.0.0.1' || host === '::1';
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Build cookie attributes, omitting Secure for localhost
+   */
+  private cookieAttrs(request: Request, maxAge: number): string {
+    const parts = [`Path=${this.adminPath}`, 'HttpOnly', 'SameSite=Strict'];
+    if (!this.isLocalhost(request)) parts.push('Secure');
+    parts.push(`Max-Age=${maxAge}`);
+    return parts.join('; ');
+  }
+
+  /**
    * Handle an admin request
    */
   async handle(
@@ -90,7 +112,7 @@ export class AdminHandler {
 
     // Logout route - clears auth cookie
     if (subPath === '/logout' && request.method === 'POST') {
-      return this.handleLogout();
+      return this.handleLogout(request);
     }
 
     // All other routes require authentication via cookie or header
@@ -117,7 +139,7 @@ export class AdminHandler {
       // Clear the auth cookie (must match Set-Cookie attributes)
       response.headers.set(
         'Set-Cookie',
-        `scaffold_admin_key=; Path=${this.adminPath}; HttpOnly; SameSite=Strict; Secure; Max-Age=0`
+        `scaffold_admin_key=; ${this.cookieAttrs(request, 0)}`
       );
       return response;
     }
@@ -173,7 +195,7 @@ export class AdminHandler {
       const response = secureJsonResponse({ success: true });
       response.headers.set(
         'Set-Cookie',
-        `scaffold_admin_key=${encodeURIComponent(authKey)}; Path=${this.adminPath}; HttpOnly; SameSite=Strict; Secure; Max-Age=${60 * 60 * 24}` // 24 hours
+        `scaffold_admin_key=${encodeURIComponent(authKey)}; ${this.cookieAttrs(request, 60 * 60 * 24)}`
       );
 
       return response;
@@ -185,11 +207,11 @@ export class AdminHandler {
   /**
    * Handle logout POST request - clears auth cookie
    */
-  private handleLogout(): Response {
+  private handleLogout(request: Request): Response {
     const response = secureJsonResponse({ success: true });
     response.headers.set(
       'Set-Cookie',
-      `scaffold_admin_key=; Path=${this.adminPath}; HttpOnly; SameSite=Strict; Secure; Max-Age=0`
+      `scaffold_admin_key=; ${this.cookieAttrs(request, 0)}`
     );
     return response;
   }

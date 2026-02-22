@@ -5,7 +5,7 @@ This guide covers deploying Scaffold applications to Cloudflare Workers, from lo
 ## Prerequisites
 
 - Node.js 18+
-- Cloudflare account
+- Cloudflare account (free tier works)
 - Wrangler CLI (`npm install -g wrangler`)
 
 ## Project Structure
@@ -259,6 +259,60 @@ LOG_LEVEL = "info"
 ENVIRONMENT = "staging"
 LOG_LEVEL = "debug"
 ```
+
+## Local to Cloud Migration
+
+If you've been developing locally with `FileStorageAdapter` and want to move your data to Cloudflare KV, use the `exportToKVBulk` utility.
+
+### The Dual Entry Point Pattern
+
+Scaffold apps use shared code (tools, config, types) with separate entry points for local and cloud:
+
+```
+src/
+  config.ts    ← shared config
+  tools.ts     ← shared tools
+  types.ts     ← shared types
+  index.ts     ← Cloudflare Workers entry (CloudflareKVAdapter)
+  serve.ts     ← Local Node.js entry (FileStorageAdapter)
+```
+
+- `npm start` → runs `serve.ts` locally with `FileStorageAdapter`
+- `npm run deploy` → deploys `index.ts` to Cloudflare with `CloudflareKVAdapter`
+
+### Migrating Data
+
+1. Export your local data to the format `wrangler kv:bulk put` expects:
+
+```typescript
+// migrate.ts
+import { exportToKVBulk } from '@voygent/scaffold-core/node';
+import { writeFileSync } from 'node:fs';
+
+const entries = exportToKVBulk('.scaffold/data');
+writeFileSync('kv-bulk.json', JSON.stringify(entries, null, 2));
+console.log(`Exported ${entries.length} entries to kv-bulk.json`);
+```
+
+2. Run the migration script:
+
+```bash
+npx tsx migrate.ts
+```
+
+3. Upload to Cloudflare KV:
+
+```bash
+npx wrangler kv:bulk put --namespace-id YOUR_KV_NAMESPACE_ID kv-bulk.json
+```
+
+The export preserves:
+- All stored values
+- Version metadata (for optimistic locking continuity)
+- Custom metadata
+- TTL expirations (converted to KV's `expiration` format)
+
+Expired entries are automatically excluded from the export.
 
 ## CI/CD with GitHub Actions
 

@@ -1,30 +1,8 @@
-import { ScaffoldServer, CloudflareKVAdapter, type ScaffoldConfig } from '@voygent/scaffold-core';
+import { ScaffoldServer, CloudflareKVAdapter } from '@voygent/scaffold-core';
 import { watchTools } from './tools.js';
 import { adminPageHtml } from './admin-page.js';
+import { config } from './config.js';
 import type { Env } from './types.js';
-
-const config: ScaffoldConfig = {
-  app: {
-    name: 'Watch Recommender',
-    description: 'Personal movie & TV recommendation assistant with taste profiling',
-    version: '0.0.1',
-  },
-  mcp: {
-    serverName: 'scaffold-watch-recommender',
-    protocolVersion: '2024-11-05',
-  },
-  auth: {
-    adminKey: undefined,
-    requireAuth: true,
-    enableKeyIndex: false,
-    enableFallbackScan: false,
-    fallbackScanRateLimit: 0,
-    fallbackScanBudget: 0,
-  },
-  admin: {
-    path: '/admin',
-  },
-};
 
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
