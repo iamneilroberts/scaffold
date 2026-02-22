@@ -63,6 +63,12 @@ export const watchRecommendTool: ScaffoldTool = {
     }
     sections.push('');
 
+    const isEmpty = !profile && watchedTitles.length === 0 && (!prefs?.statements?.length);
+    if (isEmpty) {
+      sections.push('**NOTICE:** This user has no taste profile, watch history, or preferences. Recommendations will be generic.');
+      sections.push('**Suggestion:** Offer to run taste discovery first by calling `watch-onboard` action `check`. Takes 2-3 minutes and produces much better results.\n');
+    }
+
     if (watchedTitles.length > 0) {
       sections.push(`**Already Watched (${watchedTitles.length} titles — do NOT recommend these):**`);
       sections.push(watchedTitles.join(', '));

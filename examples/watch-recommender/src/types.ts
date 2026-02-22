@@ -35,6 +35,12 @@ export interface TasteProfile {
   basedOnCount: number;
 }
 
+export interface OnboardingState {
+  completedAt?: string;
+  completedPhases: string[];
+  lastRunAt?: string;
+}
+
 export interface TmdbSearchResult {
   id: number;
   title?: string;        // movies

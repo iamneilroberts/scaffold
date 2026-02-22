@@ -5,6 +5,7 @@ import { watchProfileTool } from './tools/watch-profile.js';
 import { watchRecommendTool } from './tools/watch-recommend.js';
 import { watchLookupTool } from './tools/watch-lookup.js';
 import { watchImportTool } from './tools/watch-import.js';
+import { watchOnboardTool } from './tools/watch-onboard.js';
 import type { ScaffoldTool } from '@voygent/scaffold-core';
 
 export const watchTools: ScaffoldTool[] = [
@@ -15,4 +16,5 @@ export const watchTools: ScaffoldTool[] = [
   watchRecommendTool,
   watchLookupTool,
   watchImportTool,
+  watchOnboardTool,
 ];
