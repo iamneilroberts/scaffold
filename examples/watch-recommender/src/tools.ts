@@ -3,6 +3,7 @@ import { watchDismissTool } from './tools/watch-dismiss.js';
 import { watchPreferenceTool } from './tools/watch-preference.js';
 import { watchProfileTool } from './tools/watch-profile.js';
 import { watchRecommendTool } from './tools/watch-recommend.js';
+import { watchCheckTool } from './tools/watch-check.js';
 import { watchLookupTool } from './tools/watch-lookup.js';
 import { watchImportTool } from './tools/watch-import.js';
 import { watchOnboardTool } from './tools/watch-onboard.js';
@@ -15,6 +16,7 @@ export const watchTools: ScaffoldTool[] = [
   watchPreferenceTool,
   watchProfileTool,
   watchRecommendTool,
+  watchCheckTool,
   watchLookupTool,
   watchImportTool,
   watchOnboardTool,

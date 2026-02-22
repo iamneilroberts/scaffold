@@ -1,5 +1,5 @@
 import type { ScaffoldTool, ToolContext, ToolResult } from '@voygent/scaffold-core';
-import type { WatchRecord, TasteProfile, Preferences, Dismissal } from '../types.js';
+import type { TasteProfile, Preferences } from '../types.js';
 import { watchedPrefix, dismissedPrefix, tasteProfileKey, preferencesKey } from '../keys.js';
 
 export const watchRecommendTool: ScaffoldTool = {
@@ -21,21 +21,12 @@ export const watchRecommendTool: ScaffoldTool = {
     // Load preferences
     const prefs = await ctx.storage.get<Preferences>(preferencesKey(ctx.userId));
 
-    // Load watched titles (just titles + IDs for dedup)
+    // Count watched and dismissed titles (no value loading — fast)
     const watchedResult = await ctx.storage.list(watchedPrefix(ctx.userId));
-    const watchedTitles: string[] = [];
-    for (const key of watchedResult.keys) {
-      const record = await ctx.storage.get<WatchRecord>(key);
-      if (record) watchedTitles.push(record.title);
-    }
+    const watchedCount = watchedResult.keys.length;
 
-    // Load dismissed titles
     const dismissedResult = await ctx.storage.list(dismissedPrefix(ctx.userId));
-    const dismissedTitles: string[] = [];
-    for (const key of dismissedResult.keys) {
-      const d = await ctx.storage.get<Dismissal>(key);
-      if (d) dismissedTitles.push(d.title);
-    }
+    const dismissedCount = dismissedResult.keys.length;
 
     // Build context block
     const sections: string[] = [];
@@ -71,24 +62,26 @@ export const watchRecommendTool: ScaffoldTool = {
     }
     sections.push('');
 
-    const isEmpty = !profile && watchedTitles.length === 0 && (!prefs?.statements?.length);
+    const isEmpty = !profile && watchedCount === 0 && (!prefs?.statements?.length);
     if (isEmpty) {
       sections.push('**NOTICE:** This user has no taste profile, watch history, or preferences. Recommendations will be generic.');
       sections.push('**Suggestion:** Offer to run taste discovery first by calling `watch-onboard` action `check`. Takes 2-3 minutes and produces much better results.\n');
     }
 
-    if (watchedTitles.length > 0) {
-      sections.push(`**Already Watched (${watchedTitles.length} titles — do NOT recommend these):**`);
-      sections.push(watchedTitles.join(', '));
+    if (watchedCount > 0) {
+      sections.push(`**Already Watched:** ${watchedCount} titles on file.`);
     }
 
-    if (dismissedTitles.length > 0) {
-      sections.push(`\n**Dismissed (do NOT recommend these):**`);
-      sections.push(dismissedTitles.join(', '));
+    if (dismissedCount > 0) {
+      sections.push(`**Dismissed:** ${dismissedCount} titles on file.`);
+    }
+
+    if (watchedCount > 0 || dismissedCount > 0) {
+      sections.push('After generating recommendations, call **watch-check** with your suggested titles to verify none are already in their history or dismissed list.');
     }
 
     sections.push('');
-    sections.push('Based on this context, suggest 5-8 movies or TV shows. For each, give the title, year, and a one-sentence reason why it fits. Then use **watch-lookup** for each to check streaming availability.');
+    sections.push('Based on this context, suggest 5-8 movies or TV shows. For each, give the title, year, and a one-sentence reason why it fits. Then use **watch-check** to verify none are duplicates, and **watch-lookup** for each to check streaming availability.');
 
     return { content: [{ type: 'text', text: sections.join('\n') }] };
   },
