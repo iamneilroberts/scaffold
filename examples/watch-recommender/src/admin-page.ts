@@ -50,7 +50,16 @@ export function adminPageHtml(): string {
       <h3>Import Watch History</h3>
       <p style="color:#888; margin: 0.5rem 0">Netflix: Account > Profile > Viewing Activity > Download</p>
       <input type="file" id="csv-file" accept=".csv" style="margin: 1rem 0">
-      <button onclick="importCsv()">Import CSV</button>
+      <button id="import-btn" onclick="importCsv()">Import CSV</button>
+      <div id="import-progress" class="hidden" style="margin-top:1rem">
+        <div style="display:flex; justify-content:space-between; margin-bottom:0.25rem">
+          <span id="progress-label">Importing...</span>
+          <span id="progress-pct">0%</span>
+        </div>
+        <div style="background:#2a2a3e; border-radius:4px; height:8px; overflow:hidden">
+          <div id="progress-bar" style="background:#6c63ff; height:100%; width:0%; transition:width 0.3s"></div>
+        </div>
+      </div>
       <div id="import-status" class="hidden"></div>
     </div>
   </div>
@@ -112,25 +121,74 @@ export function adminPageHtml(): string {
       });
     });
 
-    // Import
+    // Auto-select tab from URL hash
+    if (location.hash === '#import') {
+      document.querySelector('[data-tab="import"]').click();
+    }
+
+    // Import (chunked)
     async function importCsv() {
       const fileInput = document.getElementById('csv-file');
       const file = fileInput.files[0];
       if (!file) return;
       const csv = await file.text();
-      const status = document.getElementById('import-status');
-      status.className = 'status';
-      status.textContent = 'Importing... this may take a moment.';
-      status.classList.remove('hidden');
-      try {
-        const result = await callTool('watch-import', { csv, source: 'netflix' });
-        const text = result.content[0].text;
-        status.className = 'status success';
-        status.textContent = text;
-      } catch (e) {
-        status.className = 'status error';
-        status.textContent = e.message;
+      const lines = csv.split('\\n').map(l => l.trim()).filter(Boolean);
+      if (lines.length < 2) { alert('CSV appears empty'); return; }
+
+      const header = lines[0];
+      const dataLines = lines.slice(1);
+      const CHUNK_SIZE = 50;
+      const chunks = [];
+      for (let i = 0; i < dataLines.length; i += CHUNK_SIZE) {
+        chunks.push(dataLines.slice(i, i + CHUNK_SIZE));
       }
+
+      const btn = document.getElementById('import-btn');
+      const progress = document.getElementById('import-progress');
+      const progressBar = document.getElementById('progress-bar');
+      const progressLabel = document.getElementById('progress-label');
+      const progressPct = document.getElementById('progress-pct');
+      const status = document.getElementById('import-status');
+
+      btn.disabled = true;
+      progress.classList.remove('hidden');
+      status.classList.add('hidden');
+
+      let totalImported = 0, totalSkipped = 0, totalFailed = 0;
+
+      for (let i = 0; i < chunks.length; i++) {
+        const chunkCsv = header + '\\n' + chunks[i].join('\\n');
+        const pct = Math.round(((i + 1) / chunks.length) * 100);
+        progressLabel.textContent = 'Chunk ' + (i + 1) + ' of ' + chunks.length + '...';
+        progressPct.textContent = pct + '%';
+        progressBar.style.width = pct + '%';
+
+        try {
+          const result = await callTool('watch-import', { csv: chunkCsv, source: 'netflix' });
+          const text = result.content[0].text;
+          const impMatch = text.match(/(\\d+) titles imported/);
+          const skipMatch = text.match(/(\\d+) skipped/);
+          const failMatch = text.match(/(\\d+) failed/);
+          if (impMatch) totalImported += parseInt(impMatch[1]);
+          if (skipMatch) totalSkipped += parseInt(skipMatch[1]);
+          if (failMatch) totalFailed += parseInt(failMatch[1]);
+        } catch (e) {
+          totalFailed += chunks[i].length;
+        }
+      }
+
+      progressBar.style.width = '100%';
+      progressLabel.textContent = 'Done!';
+      progressPct.textContent = '100%';
+      btn.disabled = false;
+
+      const parts = [totalImported + ' titles imported'];
+      if (totalSkipped > 0) parts.push(totalSkipped + ' skipped');
+      if (totalFailed > 0) parts.push(totalFailed + ' failed');
+
+      status.className = 'status success';
+      status.innerHTML = '<strong>' + parts.join(', ') + '</strong><br><span style="color:#888;margin-top:0.5rem;display:block">You can now return to Claude to continue setup.</span>';
+      status.classList.remove('hidden');
     }
 
     // History

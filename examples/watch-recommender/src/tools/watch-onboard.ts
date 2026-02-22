@@ -75,6 +75,7 @@ export const watchOnboardTool: ScaffoldTool = {
           missingPhases.push('titles'); // always run in refine mode
         } else {
           if (!hasServices) missingPhases.push('services');
+          if (!hasHistory) missingPhases.push('history');
           if (!hasHistory) missingPhases.push('titles');
           if (!hasPreferences) missingPhases.push('preferences');
         }
@@ -114,6 +115,21 @@ export const watchOnboardTool: ScaffoldTool = {
           sections.push('Ask: "What streaming services do you have? (Netflix, Hulu, Disney+, HBO Max, Apple TV+, Amazon Prime, Peacock, Paramount+, etc.)"');
           sections.push('');
           sections.push('After they answer, call: `watch-preference` with action `set-services` and their list.');
+          sections.push('');
+        }
+
+        if (missingPhases.includes('history')) {
+          sections.push('### Phase: Watch History Import\n');
+          sections.push('Ask: "Would you like to import your Netflix watch history? It takes about a minute and gives me a much better picture of your taste."');
+          sections.push('');
+          sections.push('If they say yes:');
+          sections.push('1. Call `watch-history-upload` with action `prepare` to get the upload URL');
+          sections.push('2. Share the URL with the user and tell them to open it in their browser');
+          sections.push('3. Wait for them to confirm they\'re done uploading');
+          sections.push('4. Call `watch-history-upload` with action `status` to confirm the import and see how many titles were added');
+          sections.push('5. Acknowledge the results and continue to the next phase');
+          sections.push('');
+          sections.push('If they decline, skip this phase and continue with rapid-fire titles.');
           sections.push('');
         }
 
