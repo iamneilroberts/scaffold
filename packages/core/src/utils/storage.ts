@@ -100,8 +100,27 @@ export async function batchPut<T>(
   );
 }
 
+/**
+ * Delete all keys matching a prefix (handles pagination)
+ */
+export async function deleteByPrefix(
+  adapter: StorageAdapter,
+  prefix: string
+): Promise<number> {
+  let deleted = 0;
+  let cursor: string | undefined;
+  do {
+    const result = await adapter.list(prefix, { cursor });
+    await Promise.all(result.keys.map(key => adapter.delete(key)));
+    deleted += result.keys.length;
+    cursor = result.cursor;
+  } while (cursor);
+  return deleted;
+}
+
 export const storage = {
   atomicUpdate,
   batchGet,
   batchPut,
+  deleteByPrefix,
 };

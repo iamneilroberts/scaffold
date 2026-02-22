@@ -173,6 +173,19 @@ export async function handleToolsCall(
 
     return jsonResponse(request.id, mcpResult);
   } catch (error) {
+    // Always log errors to console for debugging (appears in wrangler tail)
+    console.error('[MCP Tool Error]', {
+      tool: params.name,
+      userId: ctx.userId,
+      isAdmin: ctx.isAdmin,
+      debugMode: ctx.debugMode,
+      error: error instanceof Error ? {
+        message: error.message,
+        stack: error.stack,
+        name: error.name
+      } : error
+    });
+
     const message = ctx.debugMode && error instanceof Error
       ? error.message
       : 'Tool execution failed';

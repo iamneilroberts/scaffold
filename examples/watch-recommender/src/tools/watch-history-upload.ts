@@ -4,7 +4,7 @@ import { watchedPrefix } from '../keys.js';
 
 export const watchHistoryUploadTool: ScaffoldTool = {
   name: 'watch-history-upload',
-  description: 'Manage watch history CSV uploads. Actions: "prepare" returns a URL for the user to upload their Netflix CSV in-browser, "status" returns a summary of their current watch history (count + recent titles).',
+  description: 'Import watch history. You cannot accept CSV files or CSV text in conversation. Action "prepare" returns a browser URL where the user uploads their CSV file directly (not through chat). Action "status" returns current watch history summary (total count + recent titles). This is the only way to import — never ask users to paste or upload CSV in chat.',
   inputSchema: {
     type: 'object',
     properties: {
@@ -17,9 +17,7 @@ export const watchHistoryUploadTool: ScaffoldTool = {
 
     switch (action) {
       case 'prepare': {
-        // The admin page at /app stores the auth token in localStorage after first visit.
-        // The #import hash auto-selects the import tab.
-        const url = `/app#import`;
+        const url = `${ctx.env.PUBLIC_URL}/app?token=${ctx.env.ADMIN_KEY}#import`;
 
         return {
           content: [{
@@ -29,12 +27,10 @@ export const watchHistoryUploadTool: ScaffoldTool = {
               '',
               `**URL:** ${url}`,
               '',
-              'Share this link with the user. It opens the import page where they can:',
+              'Share this exact link with the user. It opens the import page where they can:',
               '1. Select their Netflix CSV file (Account > Profile > Viewing Activity > Download)',
               '2. Click Import — the file is processed in chunks with a progress bar',
               '3. Return to this conversation when done',
-              '',
-              'Note: The user must have visited /app before (with their token) so auth is stored in localStorage.',
               '',
               'After they confirm the upload is complete, call `watch-history-upload` with action `status` to see results.',
             ].join('\n'),

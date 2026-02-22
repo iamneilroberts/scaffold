@@ -1,6 +1,7 @@
 import type { ScaffoldTool, ToolContext, ToolResult } from '@voygent/scaffold-core';
+import { storage } from '@voygent/scaffold-core';
 import type { OnboardingState, TasteProfile, Preferences } from '../types.js';
-import { onboardingKey, tasteProfileKey, preferencesKey, watchedPrefix } from '../keys.js';
+import { onboardingKey, tasteProfileKey, preferencesKey, watchedPrefix, dismissedPrefix } from '../keys.js';
 
 interface CuratedTitle {
   title: string;
@@ -37,11 +38,11 @@ const CURATED_TITLES: CuratedTitle[] = [
 
 export const watchOnboardTool: ScaffoldTool = {
   name: 'watch-onboard',
-  description: 'Interactive onboarding and taste discovery. Actions: "check" to see what\'s needed and get an interview script with curated titles, "complete" to mark onboarding done. Use mode "refine" to re-run taste discovery for existing users.',
+  description: 'Interactive onboarding and taste discovery. Actions: "check" to see what\'s needed and get an interview script with curated titles, "complete" to mark onboarding done, "reset" to wipe all user data. Use mode "refine" to re-run taste discovery for existing users.',
   inputSchema: {
     type: 'object',
     properties: {
-      action: { type: 'string', description: '"check" or "complete"' },
+      action: { type: 'string', description: '"check", "complete", or "reset"' },
       mode: { type: 'string', description: '"onboard" (default) or "refine" — refine always runs titles phase, skips services if set' },
       completedPhases: { type: 'array', items: { type: 'string' }, description: 'Phases completed (for complete action)' },
     },
@@ -94,6 +95,12 @@ export const watchOnboardTool: ScaffoldTool = {
         sections.push(`| Onboarding | ${onboarding?.completedAt ? `Completed ${onboarding.completedAt}` : 'Not completed'} |`);
         sections.push('');
 
+        const adminUrl = `${ctx.env.PUBLIC_URL}/app?token=${ctx.env.ADMIN_KEY}`;
+        sections.push('## Admin Page');
+        sections.push(`The user has a web dashboard for uploading CSV files, managing preferences, and viewing history: ${adminUrl}`);
+        sections.push('Share this link early so they can bookmark it.');
+        sections.push('');
+
         if (missingPhases.length === 0) {
           sections.push('**All set!** This user has completed all onboarding phases.');
           if (mode !== 'refine') {
@@ -120,14 +127,16 @@ export const watchOnboardTool: ScaffoldTool = {
 
         if (missingPhases.includes('history')) {
           sections.push('### Phase: Watch History Import\n');
-          sections.push('Ask: "Would you like to import your Netflix watch history? It takes about a minute and gives me a much better picture of your taste."');
-          sections.push('');
+          sections.push('IMPORTANT: You cannot accept CSV files or CSV text in this conversation. The only import path is the browser upload page.\n');
+          sections.push('Ask: "Would you like to import your Netflix watch history? It takes about a minute and gives me a much better picture of your taste."\n');
           sections.push('If they say yes:');
-          sections.push('1. Call `watch-history-upload` with action `prepare` to get the upload URL');
-          sections.push('2. Share the URL with the user and tell them to open it in their browser');
-          sections.push('3. Wait for them to confirm they\'re done uploading');
+          sections.push('1. Call `watch-history-upload` with action `prepare` to get the browser upload URL');
+          sections.push('2. Share the URL with the user — they open it in their browser and upload the CSV file there');
+          sections.push('3. Wait for them to say they are done');
           sections.push('4. Call `watch-history-upload` with action `status` to confirm the import and see how many titles were added');
           sections.push('5. Acknowledge the results and continue to the next phase');
+          sections.push('');
+          sections.push('If the user tries to paste or upload CSV in chat, redirect them: "I can\'t process CSV files directly — please use the upload page I linked above."');
           sections.push('');
           sections.push('If they decline, skip this phase and continue with rapid-fire titles.');
           sections.push('');
@@ -218,8 +227,23 @@ export const watchOnboardTool: ScaffoldTool = {
         return { content: [{ type: 'text', text: `Onboarding marked complete. Phases: ${state.completedPhases.join(', ')}` }] };
       }
 
+      case 'reset': {
+        const watchedDeleted = await storage.deleteByPrefix(ctx.storage, watchedPrefix(ctx.userId));
+        const dismissedDeleted = await storage.deleteByPrefix(ctx.storage, dismissedPrefix(ctx.userId));
+        await ctx.storage.delete(preferencesKey(ctx.userId));
+        await ctx.storage.delete(tasteProfileKey(ctx.userId));
+        await ctx.storage.delete(onboardingKey(ctx.userId));
+
+        return {
+          content: [{
+            type: 'text',
+            text: `Reset complete. Deleted ${watchedDeleted} watched, ${dismissedDeleted} dismissed, plus preferences, taste profile, and onboarding state.`,
+          }],
+        };
+      }
+
       default:
-        return { content: [{ type: 'text', text: `Unknown action: "${action}". Use "check" or "complete".` }], isError: true };
+        return { content: [{ type: 'text', text: `Unknown action: "${action}". Use "check", "complete", or "reset".` }], isError: true };
     }
   },
 };

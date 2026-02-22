@@ -37,7 +37,7 @@ function extractShowName(title: string): string {
 
 export const watchImportTool: ScaffoldTool = {
   name: 'watch-import',
-  description: 'Import watch history from CSV. Supports Netflix format (Title,Date columns). TV episodes are deduplicated by show name. Each title is resolved via TMDB.',
+  description: 'INTERNAL ONLY — called by the browser admin page, never from conversation. You cannot accept or process CSV data in chat. To import watch history, use watch-history-upload (action "prepare") which gives the user a browser upload URL.',
   inputSchema: {
     type: 'object',
     properties: {
