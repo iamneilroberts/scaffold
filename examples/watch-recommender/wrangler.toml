@@ -9,5 +9,5 @@ workers_dev = true
 
 [[kv_namespaces]]
 binding = "DATA"
-id = "PLACEHOLDER_KV_ID"
-preview_id = "PLACEHOLDER_PREVIEW_KV_ID"
+id = "0415ef060eb84655acebe5eefae6c4a4"
+preview_id = "d0901b68a74d4d0cbcf6b837bdd65921"
