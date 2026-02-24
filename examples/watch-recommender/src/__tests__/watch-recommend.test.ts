@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { InMemoryAdapter } from '@voygent/scaffold-core';
 import { watchRecommendTool } from '../tools/watch-recommend.js';
 import type { ToolContext } from '@voygent/scaffold-core';
-import type { WatchRecord, TasteProfile, Preferences, Dismissal } from '../types.js';
+import type { WatchRecord, TasteProfile, Preferences, Dismissal, QueueItem } from '../types.js';
 
 function makeCtx(storage: InMemoryAdapter): ToolContext {
   return {
@@ -47,5 +47,20 @@ describe('watch-recommend', () => {
     expect(result.isError).toBeFalsy();
     const text = (result.content[0] as { text: string }).text;
     expect(text).toContain('anything good');
+  });
+
+  it('includes queue items in recommendation context', async () => {
+    const queueItem: QueueItem = {
+      tmdbId: 550, title: 'Fight Club', type: 'movie', addedDate: '2026-01-01',
+      priority: 'high', tags: ['thriller night'], source: 'manual',
+      genres: ['Drama', 'Thriller'], overview: '...',
+    };
+    await storage.put('user-1/queue/550', queueItem);
+
+    const ctx = makeCtx(storage);
+    const result = await watchRecommendTool.handler({ mood: 'something intense' }, ctx);
+    const text = (result.content[0] as { type: string; text: string }).text;
+    expect(text).toContain('Fight Club');
+    expect(text).toContain('queue');
   });
 });

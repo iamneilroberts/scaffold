@@ -1,6 +1,7 @@
 import type { ScaffoldTool, ToolContext, ToolResult } from '@voygent/scaffold-core';
-import type { TasteProfile, Preferences } from '../types.js';
-import { watchedPrefix, dismissedPrefix, tasteProfileKey, preferencesKey } from '../keys.js';
+import { storage as storageUtils } from '@voygent/scaffold-core';
+import type { TasteProfile, Preferences, QueueItem } from '../types.js';
+import { watchedPrefix, dismissedPrefix, queuePrefix, tasteProfileKey, preferencesKey } from '../keys.js';
 
 export const watchRecommendTool: ScaffoldTool = {
   name: 'watch-recommend',
@@ -65,6 +66,20 @@ export const watchRecommendTool: ScaffoldTool = {
         dismissedCount > 0 ? `${dismissedCount} dismissed` : '',
       ].filter(Boolean).join(', ');
       sections.push(`History: ${counts}. After suggesting, call watch-check to verify no duplicates.`);
+    }
+
+    // Load queue items for recommendation context
+    const queueResult = await ctx.storage.list(queuePrefix(ctx.userId));
+    if (queueResult.keys.length > 0) {
+      const queueItems = await storageUtils.batchGet<QueueItem>(ctx.storage, queueResult.keys);
+      const queueList = Array.from(queueItems.values())
+        .filter((item): item is QueueItem => item !== null)
+        .map(item => {
+          const tagText = item.tags.length > 0 ? ` [${item.tags.join(', ')}]` : '';
+          return `  - ${item.title} (${item.type}, ${item.priority} priority${tagText})`;
+        })
+        .join('\n');
+      sections.push(`\nUser's queue (titles they want to watch — suggest these first if they match the mood):\n${queueList}`);
     }
 
     sections.push('Suggest 5-8 titles with year and one-sentence rationale. Then call watch-check, then watch-lookup for streaming.');
