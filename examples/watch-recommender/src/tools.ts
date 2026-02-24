@@ -8,6 +8,7 @@ import { watchLookupTool } from './tools/watch-lookup.js';
 import { watchOnboardTool } from './tools/watch-onboard.js';
 import { watchQueueTool } from './tools/watch-queue.js';
 import { watchSeenBulkTool } from './tools/watch-seen-bulk.js';
+import { watchScreenTool } from './tools/watch-screen.js';
 import type { ScaffoldTool } from '@voygent/scaffold-core';
 
 export const watchTools: ScaffoldTool[] = [
@@ -21,4 +22,5 @@ export const watchTools: ScaffoldTool[] = [
   watchOnboardTool,
   watchQueueTool,
   watchSeenBulkTool,
+  watchScreenTool,
 ];
