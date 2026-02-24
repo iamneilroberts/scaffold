@@ -42,6 +42,16 @@ export interface TmdbCredits {
   crew: Array<{ personId: number; name: string; job: string; department: string }>;
 }
 
+export interface TmdbEpisodeDetails {
+  season: number;
+  episode: number;
+  name: string;
+  overview: string;
+  airDate: string;
+  guestStars: Array<{ personId: number; name: string; character: string }>;
+  crew: Array<{ personId: number; name: string; job: string }>;
+}
+
 const KEY_CREW_JOBS = new Set([
   'Director', 'Writer', 'Screenplay', 'Cinematography',
   'Director of Photography', 'Original Music Composer', 'Composer',
@@ -121,6 +131,26 @@ export class TmdbClient {
       crew: data.crew
         .filter(c => KEY_CREW_JOBS.has(c.job))
         .map(c => ({ personId: c.id, name: c.name, job: c.job, department: c.department })),
+    };
+  }
+
+  async getEpisodeDetails(tmdbId: number, season: number, episode: number): Promise<TmdbEpisodeDetails> {
+    const url = `${BASE_URL}/tv/${tmdbId}/season/${season}/episode/${episode}`;
+    const res = await fetch(url, { headers: this.headers() });
+    if (!res.ok) throw new Error(`TMDB episode failed: ${res.status}`);
+    const data = await res.json() as Record<string, unknown>;
+
+    const guestStars = (data.guest_stars as Array<{ id: number; name: string; character: string }>) ?? [];
+    const crew = (data.crew as Array<{ id: number; name: string; job: string }>) ?? [];
+
+    return {
+      season: data.season_number as number,
+      episode: data.episode_number as number,
+      name: data.name as string,
+      overview: data.overview as string,
+      airDate: data.air_date as string,
+      guestStars: guestStars.map(g => ({ personId: g.id, name: g.name, character: g.character })),
+      crew: crew.map(c => ({ personId: c.id, name: c.name, job: c.job })),
     };
   }
 

@@ -209,6 +209,43 @@ describe('TmdbClient', () => {
     });
   });
 
+  describe('getEpisodeDetails', () => {
+    it('fetches episode details with guest stars and crew', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          id: 999,
+          name: 'Chicanery',
+          overview: 'Jimmy takes the stand...',
+          air_date: '2017-05-08',
+          season_number: 3,
+          episode_number: 5,
+          guest_stars: [
+            { id: 50, name: 'Ann Cusack', character: 'Rebecca Bois' },
+          ],
+          crew: [
+            { id: 60, name: 'Daniel Sackheim', job: 'Director' },
+            { id: 61, name: 'Gordon Smith', job: 'Writer' },
+          ],
+        }),
+      });
+
+      const ep = await client.getEpisodeDetails(1396, 3, 5);
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        'https://api.themoviedb.org/3/tv/1396/season/3/episode/5',
+        { headers: { Authorization: 'Bearer test-api-key', 'Content-Type': 'application/json' } },
+      );
+      expect(ep.name).toBe('Chicanery');
+      expect(ep.season).toBe(3);
+      expect(ep.episode).toBe(5);
+      expect(ep.guestStars).toHaveLength(1);
+      expect(ep.guestStars[0]).toEqual({ personId: 50, name: 'Ann Cusack', character: 'Rebecca Bois' });
+      expect(ep.crew).toHaveLength(2);
+      expect(ep.crew[0]).toEqual({ personId: 60, name: 'Daniel Sackheim', job: 'Director' });
+    });
+  });
+
   describe('getKeywords', () => {
     it('fetches keywords for a movie (uses "keywords" key)', async () => {
       mockFetch.mockResolvedValueOnce({
