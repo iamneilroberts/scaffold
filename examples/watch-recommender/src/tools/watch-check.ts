@@ -1,7 +1,7 @@
 import type { ScaffoldTool, ToolContext, ToolResult } from '@voygent/scaffold-core';
 import { storage } from '@voygent/scaffold-core';
-import type { WatchRecord, Dismissal, QueueItem } from '../types.js';
-import { watchedPrefix, dismissedPrefix, queuePrefix } from '../keys.js';
+import type { WatchRecord, Dismissal, QueueItem, SeenEntry } from '../types.js';
+import { watchedPrefix, dismissedPrefix, queuePrefix, seenPrefix } from '../keys.js';
 
 function normalize(s: string): string {
   return s.toLowerCase().trim();
@@ -36,6 +36,10 @@ export const watchCheckTool: ScaffoldTool = {
     const queueResult = await ctx.storage.list(queuePrefix(ctx.userId));
     const queueMap = await storage.batchGet<QueueItem>(ctx.storage, queueResult.keys);
 
+    // Load all seen keys, then batch-fetch values
+    const seenResult = await ctx.storage.list(seenPrefix(ctx.userId));
+    const seenMap = await storage.batchGet<SeenEntry>(ctx.storage, seenResult.keys);
+
     // Build normalized title sets
     const watchedTitles = new Map<string, string>(); // normalized → original
     for (const record of watchedMap.values()) {
@@ -50,6 +54,11 @@ export const watchCheckTool: ScaffoldTool = {
     const queueTitles = new Map<string, string>();
     for (const record of queueMap.values()) {
       queueTitles.set(normalize(record.title), record.title);
+    }
+
+    const seenTitles = new Map<string, string>();
+    for (const record of seenMap.values()) {
+      seenTitles.set(normalize(record.title), record.title);
     }
 
     const conflicts: { title: string; reason: string; matchedTitle: string }[] = [];
@@ -85,6 +94,17 @@ export const watchCheckTool: ScaffoldTool = {
           conflicts.push({ title, reason: 'already in your queue', matchedTitle: queueOriginal });
           found = true;
           break;
+        }
+      }
+
+      // Check seen
+      if (!found) {
+        for (const [seenNorm, seenOriginal] of seenTitles) {
+          if (norm.includes(seenNorm) || seenNorm.includes(norm)) {
+            conflicts.push({ title, reason: 'already seen', matchedTitle: seenOriginal });
+            found = true;
+            break;
+          }
         }
       }
       if (!found) {

@@ -1,7 +1,7 @@
 import type { ScaffoldTool, ToolContext, ToolResult } from '@voygent/scaffold-core';
 import { storage as storageUtils } from '@voygent/scaffold-core';
 import type { TasteProfile, Preferences, QueueItem } from '../types.js';
-import { watchedPrefix, dismissedPrefix, queuePrefix, tasteProfileKey, preferencesKey } from '../keys.js';
+import { watchedPrefix, dismissedPrefix, queuePrefix, tasteProfileKey, preferencesKey, seenPrefix } from '../keys.js';
 
 export const watchRecommendTool: ScaffoldTool = {
   name: 'watch-recommend',
@@ -29,6 +29,9 @@ export const watchRecommendTool: ScaffoldTool = {
     const dismissedResult = await ctx.storage.list(dismissedPrefix(ctx.userId));
     const dismissedCount = dismissedResult.keys.length;
 
+    const seenResult = await ctx.storage.list(seenPrefix(ctx.userId));
+    const seenCount = seenResult.keys.length;
+
     // Build context block
     const sections: string[] = [];
 
@@ -55,14 +58,15 @@ export const watchRecommendTool: ScaffoldTool = {
       }
     }
 
-    const isEmpty = !profile && watchedCount === 0 && (!prefs?.statements?.length);
+    const isEmpty = !profile && watchedCount === 0 && seenCount === 0 && (!prefs?.statements?.length);
     if (isEmpty) {
       sections.push('No profile, history, or preferences. Suggest running watch-onboard action=check first for better results.');
     }
 
-    if (watchedCount > 0 || dismissedCount > 0) {
+    const totalWatched = watchedCount + seenCount;
+    if (totalWatched > 0 || dismissedCount > 0) {
       const counts = [
-        watchedCount > 0 ? `${watchedCount} watched` : '',
+        totalWatched > 0 ? `${totalWatched} watched` : '',
         dismissedCount > 0 ? `${dismissedCount} dismissed` : '',
       ].filter(Boolean).join(', ');
       sections.push(`History: ${counts}. After suggesting, call watch-check to verify no duplicates.`);
