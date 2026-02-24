@@ -1,7 +1,7 @@
 import type { ScaffoldTool, ToolContext, ToolResult } from '@voygent/scaffold-core';
 import { storage as storageUtils } from '@voygent/scaffold-core';
 import type { QueueItem, WatchRecord, Dismissal, SeenEntry } from '../types.js';
-import { TmdbClient } from '../tmdb.js';
+import { getTmdbClient } from '../tmdb.js';
 import { queueKey, queuePrefix, watchedKey, dismissedKey, seenKey } from '../keys.js';
 
 export const watchQueueTool: ScaffoldTool = {
@@ -121,7 +121,7 @@ async function resolveTitle(
     };
   }
 
-  const tmdb = new TmdbClient(ctx.env.TMDB_API_KEY as string);
+  const tmdb = await getTmdbClient(ctx);
   const results = await tmdb.searchMulti(args.title);
   if (results.length === 0) {
     return {

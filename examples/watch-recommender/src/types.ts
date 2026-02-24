@@ -60,6 +60,13 @@ export interface OnboardingState {
   lastRunAt?: string;
 }
 
+export interface UserSettings {
+  tmdbUsageCap: number;
+  tmdbUsageCount: number;
+  tmdbUsageResetAt: string;
+  personalTmdbKey: string | null;
+}
+
 export interface TmdbSearchResult {
   id: number;
   title?: string;        // movies

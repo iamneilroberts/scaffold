@@ -1,6 +1,6 @@
 import type { ScaffoldTool, ToolContext, ToolResult } from '@voygent/scaffold-core';
 import type { Dismissal } from '../types.js';
-import { TmdbClient } from '../tmdb.js';
+import { getTmdbClient } from '../tmdb.js';
 import { dismissedKey } from '../keys.js';
 
 export const watchDismissTool: ScaffoldTool = {
@@ -22,7 +22,7 @@ export const watchDismissTool: ScaffoldTool = {
     let resolvedTitle = title;
 
     if (!resolvedId) {
-      const tmdb = new TmdbClient(ctx.env.TMDB_API_KEY as string);
+      const tmdb = await getTmdbClient(ctx);
       const results = await tmdb.searchMulti(title);
       if (results.length === 0) {
         return { content: [{ type: 'text', text: `No results found for "${title}".` }], isError: true };

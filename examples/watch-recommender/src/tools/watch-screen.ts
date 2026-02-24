@@ -1,6 +1,6 @@
 import type { ScaffoldTool, ToolContext, ToolResult } from '@voygent/scaffold-core';
 import type { ScreenContext } from '../types.js';
-import { TmdbClient } from '../tmdb.js';
+import { TmdbClient, getTmdbClient } from '../tmdb.js';
 
 export const watchScreenTool: ScaffoldTool = {
   name: 'watch-screen',
@@ -32,7 +32,7 @@ export const watchScreenTool: ScaffoldTool = {
       personId?: number;
     };
 
-    const tmdb = new TmdbClient(ctx.env.TMDB_API_KEY as string);
+    const tmdb = await getTmdbClient(ctx);
 
     if (action === 'start') {
       return handleStart(tmdb, title, season, episode);

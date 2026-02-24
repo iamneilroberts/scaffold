@@ -1,8 +1,7 @@
 import type { ScaffoldTool, ToolContext, ToolResult } from '@voygent/scaffold-core';
-import type { WatchRecord } from '../types.js';
-import { TmdbClient } from '../tmdb.js';
+import type { WatchRecord, QueueItem } from '../types.js';
+import { getTmdbClient } from '../tmdb.js';
 import { watchedKey, queueKey } from '../keys.js';
-import type { QueueItem } from '../types.js';
 
 export const watchLogTool: ScaffoldTool = {
   name: 'watch-log',
@@ -17,7 +16,7 @@ export const watchLogTool: ScaffoldTool = {
   },
   handler: async (input: unknown, ctx: ToolContext): Promise<ToolResult> => {
     const { title, rating } = input as { title: string; rating?: number };
-    const tmdb = new TmdbClient(ctx.env.TMDB_API_KEY as string);
+    const tmdb = await getTmdbClient(ctx);
 
     const results = await tmdb.searchMulti(title);
     if (results.length === 0) {

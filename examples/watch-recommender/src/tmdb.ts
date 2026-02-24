@@ -1,4 +1,6 @@
-import type { TmdbSearchResult, TmdbProvider } from './types.js';
+import type { ToolContext } from '@voygent/scaffold-core';
+import type { TmdbSearchResult, TmdbProvider, UserSettings } from './types.js';
+import { settingsKey } from './keys.js';
 
 const BASE_URL = 'https://api.themoviedb.org/3';
 
@@ -239,4 +241,15 @@ export class TmdbClient {
   genreNames(genreIds: number[]): string[] {
     return genreIds.map(id => GENRE_MAP[id]).filter(Boolean);
   }
+}
+
+/**
+ * Get a TmdbClient using the user's personal key if available,
+ * falling back to the shared app key.
+ */
+export async function getTmdbClient(ctx: ToolContext): Promise<TmdbClient> {
+  const settings = await ctx.storage.get<UserSettings>(settingsKey(ctx.userId));
+  const personalKey = settings?.personalTmdbKey;
+  const sharedKey = (ctx.env as Record<string, string>).TMDB_API_KEY;
+  return new TmdbClient(personalKey || sharedKey);
 }

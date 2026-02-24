@@ -1,5 +1,5 @@
 import type { ScaffoldTool, ToolContext, ToolResult } from '@voygent/scaffold-core';
-import { TmdbClient } from '../tmdb.js';
+import { getTmdbClient } from '../tmdb.js';
 
 export const watchLookupTool: ScaffoldTool = {
   name: 'watch-lookup',
@@ -14,7 +14,7 @@ export const watchLookupTool: ScaffoldTool = {
   },
   handler: async (input: unknown, ctx: ToolContext): Promise<ToolResult> => {
     const { title, region } = input as { title: string; region?: string };
-    const tmdb = new TmdbClient(ctx.env.TMDB_API_KEY as string);
+    const tmdb = await getTmdbClient(ctx);
 
     const results = await tmdb.searchMulti(title);
     if (results.length === 0) {
