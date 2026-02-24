@@ -226,6 +226,31 @@ describe('AdminHandler', () => {
       expect(html).toContain('Custom content');
     });
 
+    it('renders tab script and styles in dashboard', async () => {
+      const interactiveTab: AdminTab = {
+        id: 'interactive',
+        label: 'Interactive Tab',
+        order: 20,
+        render: async () => ({
+          html: '<div>Interactive content</div>',
+          script: 'console.log("tab-script-loaded");',
+          styles: '.interactive { color: red; }',
+        }),
+      };
+
+      handler.registerTab(interactiveTab);
+
+      const request = new Request('http://localhost/admin?tab=interactive', {
+        headers: { 'X-Admin-Key': 'admin-key' },
+      });
+
+      const response = await handler.handle(request, {});
+      const html = await response.text();
+
+      expect(html).toContain('console.log("tab-script-loaded")');
+      expect(html).toContain('.interactive { color: red; }');
+    });
+
     it('should replace existing tab with same ID', async () => {
       const customOverview: AdminTab = {
         id: 'overview',

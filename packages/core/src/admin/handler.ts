@@ -244,7 +244,9 @@ export class AdminHandler {
         this.tabs,
         tabId,
         tabContent.html,
-        this.adminPath
+        this.adminPath,
+        tabContent.script,
+        tabContent.styles,
       );
 
       return secureHtmlResponse(html, 200, this.config.admin.csp);

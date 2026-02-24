@@ -369,7 +369,9 @@ export function dashboardLayout(
   tabs: AdminTab[],
   activeTabId: string,
   content: string,
-  adminPath: string
+  adminPath: string,
+  tabScript?: string,
+  tabStyles?: string,
 ): string {
   const navItems = tabs
     .sort((a, b) => a.order - b.order)
@@ -390,7 +392,7 @@ export function dashboardLayout(
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Scaffold Admin</title>
-  <style>${adminStyles}</style>
+  <style>${adminStyles}${tabStyles ? '\n' + tabStyles : ''}</style>
 </head>
 <body>
   <div class="admin-layout">
@@ -410,6 +412,7 @@ export function dashboardLayout(
     </main>
   </div>
   <script>${adminScript}</script>
+  ${tabScript ? '<script>' + tabScript + '</script>' : ''}
 </body>
 </html>`;
 }
