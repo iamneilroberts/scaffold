@@ -246,6 +246,36 @@ describe('TmdbClient', () => {
     });
   });
 
+  describe('getPersonDetails', () => {
+    it('fetches person biography and metadata', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          id: 17419,
+          name: 'Bryan Cranston',
+          biography: 'Bryan Lee Cranston is an American actor...',
+          birthday: '1956-03-07',
+          deathday: null,
+          place_of_birth: 'Canoga Park, California, USA',
+          known_for_department: 'Acting',
+        }),
+      });
+
+      const person = await client.getPersonDetails(17419);
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        'https://api.themoviedb.org/3/person/17419',
+        { headers: { Authorization: 'Bearer test-api-key', 'Content-Type': 'application/json' } },
+      );
+      expect(person.name).toBe('Bryan Cranston');
+      expect(person.biography).toContain('American actor');
+      expect(person.birthday).toBe('1956-03-07');
+      expect(person.deathday).toBeUndefined();
+      expect(person.placeOfBirth).toBe('Canoga Park, California, USA');
+      expect(person.knownForDepartment).toBe('Acting');
+    });
+  });
+
   describe('getKeywords', () => {
     it('fetches keywords for a movie (uses "keywords" key)', async () => {
       mockFetch.mockResolvedValueOnce({

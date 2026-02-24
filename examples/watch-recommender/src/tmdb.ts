@@ -52,6 +52,16 @@ export interface TmdbEpisodeDetails {
   crew: Array<{ personId: number; name: string; job: string }>;
 }
 
+export interface TmdbPersonDetails {
+  personId: number;
+  name: string;
+  biography: string;
+  birthday?: string;
+  deathday?: string;
+  placeOfBirth?: string;
+  knownForDepartment: string;
+}
+
 const KEY_CREW_JOBS = new Set([
   'Director', 'Writer', 'Screenplay', 'Cinematography',
   'Director of Photography', 'Original Music Composer', 'Composer',
@@ -163,6 +173,23 @@ export class TmdbClient {
     // TMDB returns "keywords" for movies, "results" for TV
     const items = (data.keywords ?? data.results) as Array<{ id: number; name: string }>;
     return items.map(k => k.name);
+  }
+
+  async getPersonDetails(personId: number): Promise<TmdbPersonDetails> {
+    const url = `${BASE_URL}/person/${personId}`;
+    const res = await fetch(url, { headers: this.headers() });
+    if (!res.ok) throw new Error(`TMDB person failed: ${res.status}`);
+    const data = await res.json() as Record<string, unknown>;
+
+    return {
+      personId,
+      name: data.name as string,
+      biography: data.biography as string,
+      birthday: (data.birthday as string) || undefined,
+      deathday: (data.deathday as string) || undefined,
+      placeOfBirth: (data.place_of_birth as string) || undefined,
+      knownForDepartment: data.known_for_department as string,
+    };
   }
 
   genreNames(genreIds: number[]): string[] {
