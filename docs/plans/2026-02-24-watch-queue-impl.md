@@ -1526,6 +1526,712 @@ git commit -m "fix: resolve test failures from queue integration"
 
 ---
 
+---
+
+# Addendum: Local-First History (Tasks 16–20)
+
+> **Ref:** `docs/plans/2026-02-24-local-history-design.md`
+
+These tasks implement the local-first history design: browser-side CSV parsing, slim seen-set for dedup, one-time migration, and removal of server-side import tools.
+
+**Modifications to earlier tasks:**
+- **Task 1:** Also add `SeenEntry` type and `seen` key functions (included below)
+- **Task 3 (watch-queue add):** Also check `seen/` prefix when warning about already-watched titles (included below)
+- **Task 10 (watch-check):** Also check `seen/` prefix (already structured to accept this — add `seenPrefix` alongside `queuePrefix`)
+- **Task 11 (watch-recommend):** Count `seen/` entries in total watched count (add `seenPrefix` list alongside `watched`)
+
+---
+
+## Task 1 Addendum: SeenEntry Type and Keys
+
+**Files:**
+- Modify: `examples/watch-recommender/src/types.ts`
+- Modify: `examples/watch-recommender/src/keys.ts`
+
+**In types.ts, add after `QueueItem`:**
+
+```typescript
+export interface SeenEntry {
+  tmdbId: number;
+  title: string;
+  type: 'movie' | 'tv';
+}
+```
+
+**In keys.ts, add after `queuePrefix`:**
+
+```typescript
+export function seenKey(userId: string, tmdbId: number): string {
+  return `${userId}/seen/${tmdbId}`;
+}
+
+export function seenPrefix(userId: string): string {
+  return `${userId}/seen/`;
+}
+```
+
+Commit these alongside the Task 1 commit (or as a separate commit if Task 1 is already done):
+
+```bash
+git add examples/watch-recommender/src/types.ts examples/watch-recommender/src/keys.ts
+git commit -m "feat(local-history): add SeenEntry type and seen storage keys"
+```
+
+---
+
+## Task 3 Addendum: watch-queue add checks seen/
+
+In `handleAdd` within `watch-queue.ts`, after the watched check and before the dismissed check, add:
+
+```typescript
+  // Check if already seen (imported history)
+  const seen = await ctx.storage.get<SeenEntry>(seenKey(ctx.userId, resolved.id));
+  if (seen) {
+    return {
+      content: [{ type: 'text', text: `"${resolved.title}" is already in your seen history.` }],
+    };
+  }
+```
+
+Add import: `import type { SeenEntry } from '../types.js';`
+Add import: `import { seenKey } from '../keys.js';`
+
+Add a test for this case in `watch-queue.test.ts`:
+
+```typescript
+it('warns if title is already in seen history', async () => {
+  const ctx = makeCtx(storage);
+  const seen: SeenEntry = { tmdbId: 550, title: 'Fight Club', type: 'movie' };
+  await storage.put('user-1/seen/550', seen);
+
+  mockTmdbSearch([MOCK_MOVIE]);
+  const result = await watchQueueTool.handler({ action: 'add', title: 'Fight Club' }, ctx);
+  const text = (result.content[0] as { type: string; text: string }).text;
+  expect(text).toContain('seen history');
+});
+```
+
+Add import: `import type { SeenEntry } from '../types.js';` to the test file.
+
+---
+
+## Task 16: watch-seen-bulk Tool — Test + Implementation
+
+**Files:**
+- Create: `examples/watch-recommender/src/tools/watch-seen-bulk.ts`
+- Create: `examples/watch-recommender/src/__tests__/watch-seen-bulk.test.ts`
+- Modify: `examples/watch-recommender/src/tools.ts`
+
+**Step 1: Write failing tests**
+
+```typescript
+import { describe, it, expect, beforeEach } from 'vitest';
+import { InMemoryAdapter } from '@voygent/scaffold-core';
+import { watchSeenBulkTool } from '../tools/watch-seen-bulk.js';
+import type { ToolContext } from '@voygent/scaffold-core';
+import type { SeenEntry } from '../types.js';
+
+function makeCtx(storage: InMemoryAdapter): ToolContext {
+  return {
+    authKeyHash: 'hash', userId: 'user-1', isAdmin: false,
+    storage, env: { TMDB_API_KEY: 'test-key' }, debugMode: false, requestId: 'req-1',
+  };
+}
+
+describe('watch-seen-bulk', () => {
+  let storage: InMemoryAdapter;
+
+  beforeEach(() => {
+    storage = new InMemoryAdapter();
+  });
+
+  it('stores an array of seen entries', async () => {
+    const ctx = makeCtx(storage);
+    const entries = [
+      { tmdbId: 550, title: 'Fight Club', type: 'movie' },
+      { tmdbId: 1399, title: 'Breaking Bad', type: 'tv' },
+    ];
+    const result = await watchSeenBulkTool.handler({ entries }, ctx);
+    const text = (result.content[0] as { type: string; text: string }).text;
+    expect(text).toContain('2');
+    expect(result.isError).toBeFalsy();
+
+    const fc = await storage.get<SeenEntry>('user-1/seen/550');
+    expect(fc).toBeDefined();
+    expect(fc!.title).toBe('Fight Club');
+    expect(fc!.type).toBe('movie');
+
+    const bb = await storage.get<SeenEntry>('user-1/seen/1399');
+    expect(bb).toBeDefined();
+    expect(bb!.title).toBe('Breaking Bad');
+  });
+
+  it('skips duplicates without error', async () => {
+    const ctx = makeCtx(storage);
+    const existing: SeenEntry = { tmdbId: 550, title: 'Fight Club', type: 'movie' };
+    await storage.put('user-1/seen/550', existing);
+
+    const entries = [
+      { tmdbId: 550, title: 'Fight Club', type: 'movie' },
+      { tmdbId: 1399, title: 'Breaking Bad', type: 'tv' },
+    ];
+    const result = await watchSeenBulkTool.handler({ entries }, ctx);
+    const text = (result.content[0] as { type: string; text: string }).text;
+    expect(text).toContain('1 new');
+    expect(text).toContain('1 skipped');
+  });
+
+  it('returns error for empty entries array', async () => {
+    const ctx = makeCtx(storage);
+    const result = await watchSeenBulkTool.handler({ entries: [] }, ctx);
+    expect(result.isError).toBe(true);
+  });
+});
+```
+
+**Step 2: Run to verify they fail**
+
+Run: `cd examples/watch-recommender && npx vitest run src/__tests__/watch-seen-bulk.test.ts`
+Expected: FAIL — cannot resolve module
+
+**Step 3: Implement watch-seen-bulk**
+
+```typescript
+import type { ScaffoldTool, ToolContext, ToolResult } from '@voygent/scaffold-core';
+import type { SeenEntry } from '../types.js';
+import { seenKey } from '../keys.js';
+
+export const watchSeenBulkTool: ScaffoldTool = {
+  name: 'watch-seen-bulk',
+  description:
+    'Bulk-store slim seen entries for dedup. Used by the admin dashboard after client-side CSV parsing. Each entry is {tmdbId, title, type}.',
+  inputSchema: {
+    type: 'object',
+    properties: {
+      entries: {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: {
+            tmdbId: { type: 'number' },
+            title: { type: 'string' },
+            type: { type: 'string' },
+          },
+          required: ['tmdbId', 'title', 'type'],
+        },
+        description: 'Array of {tmdbId, title, type} entries to store',
+      },
+    },
+    required: ['entries'],
+  },
+  handler: async (input: unknown, ctx: ToolContext): Promise<ToolResult> => {
+    const { entries } = input as { entries: { tmdbId: number; title: string; type: 'movie' | 'tv' }[] };
+
+    if (!entries || entries.length === 0) {
+      return {
+        content: [{ type: 'text', text: 'No entries provided.' }],
+        isError: true,
+      };
+    }
+
+    let added = 0;
+    let skipped = 0;
+
+    for (const entry of entries) {
+      const existing = await ctx.storage.get<SeenEntry>(seenKey(ctx.userId, entry.tmdbId));
+      if (existing) {
+        skipped++;
+        continue;
+      }
+
+      const seen: SeenEntry = {
+        tmdbId: entry.tmdbId,
+        title: entry.title,
+        type: entry.type,
+      };
+      await ctx.storage.put(seenKey(ctx.userId, entry.tmdbId), seen);
+      added++;
+    }
+
+    return {
+      content: [{ type: 'text', text: `Stored ${added} new seen entries (${skipped} skipped as duplicates).` }],
+    };
+  },
+};
+```
+
+**Step 4: Register in tools.ts**
+
+Add import:
+```typescript
+import { watchSeenBulkTool } from './tools/watch-seen-bulk.js';
+```
+
+Add to `watchTools` array:
+```typescript
+watchSeenBulkTool,
+```
+
+**Step 5: Run tests to verify they pass**
+
+Run: `cd examples/watch-recommender && npx vitest run src/__tests__/watch-seen-bulk.test.ts`
+Expected: All tests PASS
+
+**Step 6: Commit**
+
+```bash
+git add examples/watch-recommender/src/tools/watch-seen-bulk.ts examples/watch-recommender/src/__tests__/watch-seen-bulk.test.ts examples/watch-recommender/src/tools.ts
+git commit -m "feat(local-history): add watch-seen-bulk tool for slim dedup entries"
+```
+
+---
+
+## Task 17: One-Time Migration — Test + Implementation
+
+**Files:**
+- Create: `examples/watch-recommender/src/migrate.ts`
+- Create: `examples/watch-recommender/src/__tests__/migrate.test.ts`
+
+**Step 1: Write failing tests**
+
+```typescript
+import { describe, it, expect, beforeEach } from 'vitest';
+import { InMemoryAdapter } from '@voygent/scaffold-core';
+import { migrateNetflixHistory } from '../migrate.js';
+import type { WatchRecord, SeenEntry } from '../types.js';
+
+describe('migrateNetflixHistory', () => {
+  let storage: InMemoryAdapter;
+
+  beforeEach(() => {
+    storage = new InMemoryAdapter();
+  });
+
+  it('compacts netflix-sourced records to slim seen entries', async () => {
+    const record: WatchRecord = {
+      tmdbId: 550, title: 'Fight Club', type: 'movie',
+      watchedDate: '2025-01-01', source: 'netflix', genres: ['Drama'],
+      overview: 'An insomniac...', posterPath: '/poster.jpg',
+    };
+    await storage.put('user-1/watched/550', record);
+
+    const result = await migrateNetflixHistory(storage, 'user-1');
+    expect(result.migrated).toBe(1);
+    expect(result.skipped).toBe(0);
+
+    // Full record should be gone
+    const gone = await storage.get('user-1/watched/550');
+    expect(gone).toBeNull();
+
+    // Slim entry should exist
+    const seen = await storage.get<SeenEntry>('user-1/seen/550');
+    expect(seen).toBeDefined();
+    expect(seen!.tmdbId).toBe(550);
+    expect(seen!.title).toBe('Fight Club');
+    expect(seen!.type).toBe('movie');
+  });
+
+  it('leaves manual logs untouched', async () => {
+    const record: WatchRecord = {
+      tmdbId: 550, title: 'Fight Club', type: 'movie',
+      watchedDate: '2025-01-01', source: 'manual', rating: 5,
+      genres: ['Drama'], overview: 'An insomniac...', posterPath: '/poster.jpg',
+    };
+    await storage.put('user-1/watched/550', record);
+
+    const result = await migrateNetflixHistory(storage, 'user-1');
+    expect(result.migrated).toBe(0);
+    expect(result.skipped).toBe(1);
+
+    // Full record should still exist
+    const still = await storage.get<WatchRecord>('user-1/watched/550');
+    expect(still).toBeDefined();
+    expect(still!.rating).toBe(5);
+
+    // No slim entry created
+    const seen = await storage.get('user-1/seen/550');
+    expect(seen).toBeNull();
+  });
+
+  it('skips if seen entry already exists', async () => {
+    const record: WatchRecord = {
+      tmdbId: 550, title: 'Fight Club', type: 'movie',
+      source: 'netflix', genres: ['Drama'], overview: '...',
+    };
+    await storage.put('user-1/watched/550', record);
+
+    const existing: SeenEntry = { tmdbId: 550, title: 'Fight Club', type: 'movie' };
+    await storage.put('user-1/seen/550', existing);
+
+    const result = await migrateNetflixHistory(storage, 'user-1');
+    expect(result.migrated).toBe(0);
+
+    // Full record should still be deleted (was netflix-sourced)
+    const gone = await storage.get('user-1/watched/550');
+    expect(gone).toBeNull();
+  });
+
+  it('handles empty history', async () => {
+    const result = await migrateNetflixHistory(storage, 'user-1');
+    expect(result.migrated).toBe(0);
+    expect(result.skipped).toBe(0);
+  });
+});
+```
+
+**Step 2: Run to verify they fail**
+
+Run: `cd examples/watch-recommender && npx vitest run src/__tests__/migrate.test.ts`
+Expected: FAIL — cannot resolve module
+
+**Step 3: Implement migration**
+
+```typescript
+import type { StorageAdapter } from '@voygent/scaffold-core';
+import { storage as storageUtils } from '@voygent/scaffold-core';
+import type { WatchRecord, SeenEntry } from './types.js';
+import { watchedPrefix, seenKey } from './keys.js';
+
+export interface MigrationResult {
+  migrated: number;
+  skipped: number;
+}
+
+export async function migrateNetflixHistory(
+  storage: StorageAdapter,
+  userId: string,
+): Promise<MigrationResult> {
+  const listResult = await storage.list(watchedPrefix(userId));
+  if (listResult.keys.length === 0) {
+    return { migrated: 0, skipped: 0 };
+  }
+
+  const records = await storageUtils.batchGet<WatchRecord>(storage, listResult.keys);
+  let migrated = 0;
+  let skipped = 0;
+
+  for (const [key, record] of Object.entries(records)) {
+    if (!record || record.source !== 'netflix') {
+      skipped++;
+      continue;
+    }
+
+    // Create slim seen entry if it doesn't already exist
+    const existing = await storage.get<SeenEntry>(seenKey(userId, record.tmdbId));
+    if (!existing) {
+      const seen: SeenEntry = {
+        tmdbId: record.tmdbId,
+        title: record.title,
+        type: record.type,
+      };
+      await storage.put(seenKey(userId, record.tmdbId), seen);
+      migrated++;
+    }
+
+    // Delete the full record regardless (it's netflix-sourced)
+    await storage.delete(key);
+  }
+
+  return { migrated, skipped };
+}
+```
+
+**Step 4: Run tests to verify they pass**
+
+Run: `cd examples/watch-recommender && npx vitest run src/__tests__/migrate.test.ts`
+Expected: All tests PASS
+
+**Step 5: Commit**
+
+```bash
+git add examples/watch-recommender/src/migrate.ts examples/watch-recommender/src/__tests__/migrate.test.ts
+git commit -m "feat(local-history): one-time migration compacts netflix records to slim seen entries"
+```
+
+---
+
+## Task 18: Remove Server-Side Import Tools
+
+**Files:**
+- Delete: `examples/watch-recommender/src/tools/watch-import.ts`
+- Delete: `examples/watch-recommender/src/tools/watch-history-upload.ts`
+- Delete: `examples/watch-recommender/src/__tests__/watch-import.test.ts` (if exists)
+- Modify: `examples/watch-recommender/src/tools.ts`
+
+**Step 1: Remove imports and registrations from tools.ts**
+
+Remove these lines:
+```typescript
+import { watchImportTool } from './tools/watch-import.js';
+import { watchHistoryUploadTool } from './tools/watch-history-upload.js';
+```
+
+Remove `watchImportTool` and `watchHistoryUploadTool` from the `watchTools` array.
+
+**Step 2: Delete the tool files**
+
+```bash
+rm examples/watch-recommender/src/tools/watch-import.ts
+rm examples/watch-recommender/src/tools/watch-history-upload.ts
+rm -f examples/watch-recommender/src/__tests__/watch-import.test.ts
+```
+
+**Step 3: Run full test suite**
+
+Run: `cd examples/watch-recommender && npx vitest run`
+Expected: All tests PASS (removed tests no longer run, no remaining references)
+
+**Step 4: Commit**
+
+```bash
+git add -A
+git commit -m "feat(local-history): remove server-side watch-import and watch-history-upload tools"
+```
+
+---
+
+## Task 19: Admin Import Tab — Client-Side CSV Parsing
+
+**Files:**
+- Modify: `examples/watch-recommender/src/admin-page.ts`
+
+**Step 1: Rewrite the Import tab**
+
+Replace the existing Import tab content (which uploaded CSVs to the server) with client-side-only parsing:
+
+```html
+<div id="tab-import" class="tab-content">
+  <p style="color:var(--text-secondary); margin-bottom:16px;">
+    Select your Netflix viewing history CSV. The file is parsed entirely in your browser — nothing is uploaded to the server.
+  </p>
+  <input type="file" id="csv-file" accept=".csv" style="margin-bottom:16px;" />
+  <div id="import-progress" style="display:none;">
+    <div style="background:var(--bg-secondary); border-radius:4px; overflow:hidden; height:8px; margin-bottom:8px;">
+      <div id="progress-bar" style="height:100%; background:var(--accent); width:0%; transition:width 0.3s;"></div>
+    </div>
+    <p id="progress-text" style="color:var(--text-secondary); font-size:0.85rem;">Processing...</p>
+  </div>
+  <div id="import-result" style="display:none;"></div>
+</div>
+```
+
+**Step 2: Add client-side CSV parsing JavaScript**
+
+```javascript
+document.getElementById('csv-file').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  const progressDiv = document.getElementById('import-progress');
+  const progressBar = document.getElementById('progress-bar');
+  const progressText = document.getElementById('progress-text');
+  const resultDiv = document.getElementById('import-result');
+
+  progressDiv.style.display = 'block';
+  resultDiv.style.display = 'none';
+  progressText.textContent = 'Reading file...';
+  progressBar.style.width = '5%';
+
+  const text = await file.text();
+  const lines = text.split('\\n').filter(l => l.trim());
+  const titles = parseNetflixCsv(lines);
+  progressBar.style.width = '15%';
+  progressText.textContent = `Found ${titles.length} titles. Looking up on TMDB...`;
+
+  // Look up each title on TMDB (from browser)
+  const TMDB_KEY = ''; // User must provide or we read from a meta tag
+  // Alternative: proxy TMDB lookups through the MCP server
+  const seenEntries = [];
+  const genreFreq = {};
+
+  for (let i = 0; i < titles.length; i++) {
+    try {
+      const res = await fetch(
+        'https://api.themoviedb.org/3/search/multi?query=' + encodeURIComponent(titles[i]) + '&language=en-US&page=1',
+        { headers: { Authorization: 'Bearer ' + tmdbKey } }
+      );
+      const data = await res.json();
+      const match = data.results?.find(r => r.media_type === 'movie' || r.media_type === 'tv');
+      if (match) {
+        seenEntries.push({
+          tmdbId: match.id,
+          title: match.title || match.name,
+          type: match.media_type,
+        });
+        // Count genres for profile
+        (match.genre_ids || []).forEach(g => { genreFreq[g] = (genreFreq[g] || 0) + 1; });
+      }
+    } catch (err) { /* skip failed lookups */ }
+
+    const pct = 15 + Math.round((i / titles.length) * 70);
+    progressBar.style.width = pct + '%';
+    progressText.textContent = `Looking up ${i + 1}/${titles.length}...`;
+  }
+
+  progressBar.style.width = '90%';
+  progressText.textContent = 'Saving seen entries...';
+
+  // Send slim entries in chunks of 50
+  for (let i = 0; i < seenEntries.length; i += 50) {
+    const chunk = seenEntries.slice(i, i + 50);
+    await callTool('watch-seen-bulk', { entries: chunk });
+  }
+
+  progressBar.style.width = '95%';
+  progressText.textContent = 'Generating taste profile...';
+
+  // Build profile data from genre frequencies and save
+  // The profile generation still happens server-side via watch-profile generate
+  await callTool('watch-profile', { action: 'generate' });
+
+  progressBar.style.width = '100%';
+  progressText.textContent = 'Done!';
+  resultDiv.style.display = 'block';
+  resultDiv.innerHTML = '<p style="color:var(--accent);">Imported ' + seenEntries.length + ' titles and generated your taste profile.</p>';
+});
+
+function parseNetflixCsv(lines) {
+  // Netflix CSV format: "Title","Date"
+  // Skip header row
+  return lines.slice(1).map(line => {
+    const match = line.match(/"([^"]+)"/);
+    if (!match) return null;
+    // Strip episode info — Netflix formats as "Show: Season X: Episode Title"
+    const raw = match[1];
+    const colonIdx = raw.indexOf(':');
+    return colonIdx > 0 ? raw.substring(0, colonIdx).trim() : raw.trim();
+  }).filter(Boolean);
+}
+```
+
+**Note on TMDB API key:** The browser needs the TMDB API key for lookups. Options:
+- Inject it as a `<meta>` tag in the admin page HTML (read from `env.TMDB_API_KEY`)
+- Or proxy TMDB calls through the MCP server (cleaner but adds a new endpoint)
+
+Recommended: Inject via meta tag. In `adminPageHtml()`, accept the TMDB key as a parameter and embed:
+```html
+<meta name="tmdb-key" content="${tmdbKey}" />
+```
+
+The JS reads: `const tmdbKey = document.querySelector('meta[name="tmdb-key"]').content;`
+
+Update `index.ts` and `serve.ts` to pass the TMDB key to `adminPageHtml()`.
+
+**Step 3: Verify manually**
+
+Run: `cd examples/watch-recommender && npx tsx src/serve.ts`
+Test CSV import with a sample Netflix export. Verify:
+- File is selected and parsed
+- Progress bar advances during TMDB lookups
+- Seen entries are stored (check KV via admin or MCP)
+- Taste profile is generated
+- No file data sent to server (check Network tab)
+
+**Step 4: Commit**
+
+```bash
+git add examples/watch-recommender/src/admin-page.ts examples/watch-recommender/src/index.ts examples/watch-recommender/src/serve.ts
+git commit -m "feat(local-history): client-side CSV parsing in admin Import tab"
+```
+
+---
+
+## Task 20: Integration — watch-check and watch-recommend seen/ support
+
+**Files:**
+- Modify: `examples/watch-recommender/src/tools/watch-check.ts`
+- Modify: `examples/watch-recommender/src/tools/watch-recommend.ts`
+- Modify: `examples/watch-recommender/src/__tests__/watch-check.test.ts`
+- Modify: `examples/watch-recommender/src/__tests__/watch-recommend.test.ts`
+
+**Step 1: Add failing test — watch-check flags seen entries**
+
+In `watch-check.test.ts`, add:
+
+```typescript
+it('flags titles that are in the seen history', async () => {
+  const seen: SeenEntry = { tmdbId: 123, title: 'The Bear', type: 'tv' };
+  await storage.put('user-1/seen/123', seen);
+
+  const ctx = makeCtx(storage);
+  const result = await watchCheckTool.handler({ titles: ['The Bear'] }, ctx);
+  const text = (result.content[0] as { type: string; text: string }).text;
+  expect(text).toContain('The Bear');
+  expect(text).toContain('seen');
+});
+```
+
+Add import: `import type { SeenEntry } from '../types.js';`
+
+**Step 2: Run to verify it fails**
+
+Run: `cd examples/watch-recommender && npx vitest run src/__tests__/watch-check.test.ts`
+Expected: New test FAILS
+
+**Step 3: Add seen/ check to watch-check.ts**
+
+Add imports:
+```typescript
+import type { SeenEntry } from '../types.js';
+import { seenPrefix } from '../keys.js';
+```
+
+In the handler, after loading queue data:
+```typescript
+    const seenResult = await ctx.storage.list(seenPrefix(ctx.userId));
+    const seenMap = await storage.batchGet<SeenEntry>(ctx.storage, seenResult.keys);
+```
+
+Add seen entries to the matching logic alongside watched, dismissed, and queue.
+
+**Step 4: Add failing test — watch-recommend counts seen entries**
+
+In `watch-recommend.test.ts`, add:
+
+```typescript
+it('includes seen count in recommendation context', async () => {
+  const seen: SeenEntry = { tmdbId: 550, title: 'Fight Club', type: 'movie' };
+  await storage.put('user-1/seen/550', seen);
+
+  const ctx = makeCtx(storage);
+  const result = await watchRecommendTool.handler({ mood: 'anything' }, ctx);
+  const text = (result.content[0] as { type: string; text: string }).text;
+  // Should count seen entries in total
+  expect(text).toMatch(/watched.*1|1.*watched|seen.*1|1.*seen/i);
+});
+```
+
+Add import: `import type { SeenEntry } from '../types.js';`
+
+**Step 5: Add seen count to watch-recommend.ts**
+
+Add imports:
+```typescript
+import { seenPrefix } from '../keys.js';
+```
+
+After loading watched count:
+```typescript
+    const seenResult = await ctx.storage.list(seenPrefix(ctx.userId));
+    const totalWatched = watchedCount + seenResult.keys.length;
+```
+
+Use `totalWatched` instead of `watchedCount` in the output text.
+
+**Step 6: Run all tests**
+
+Run: `cd examples/watch-recommender && npx vitest run`
+Expected: All tests PASS
+
+**Step 7: Commit**
+
+```bash
+git add examples/watch-recommender/src/tools/watch-check.ts examples/watch-recommender/src/tools/watch-recommend.ts examples/watch-recommender/src/__tests__/watch-check.test.ts examples/watch-recommender/src/__tests__/watch-recommend.test.ts
+git commit -m "feat(local-history): watch-check and watch-recommend support seen/ prefix"
+```
+
+---
+
 ## Summary of Files Changed
 
 | File | Action | Description |
@@ -1540,5 +2246,11 @@ git commit -m "fix: resolve test failures from queue integration"
 | `src/admin-page.ts` | Modified | Theme system + Watchlist tab |
 | `src/__tests__/watch-queue.test.ts` | Created | Full test coverage for queue tool |
 | `src/__tests__/watch-log.test.ts` | Modified | Auto-cleanup test |
-| `src/__tests__/watch-check.test.ts` | Modified | Queue dedup test |
-| `src/__tests__/watch-recommend.test.ts` | Modified | Queue context test |
+| `src/__tests__/watch-check.test.ts` | Modified | Queue + seen dedup tests |
+| `src/__tests__/watch-recommend.test.ts` | Modified | Queue context + seen count tests |
+| `src/tools/watch-seen-bulk.ts` | Created | Bulk store slim seen entries for dedup |
+| `src/__tests__/watch-seen-bulk.test.ts` | Created | Tests for seen-bulk tool |
+| `src/migrate.ts` | Created | One-time migration: compact netflix records to slim seen entries |
+| `src/__tests__/migrate.test.ts` | Created | Migration tests |
+| `src/tools/watch-import.ts` | Deleted | Server-side CSV processing removed |
+| `src/tools/watch-history-upload.ts` | Deleted | Server-side file upload removed |
