@@ -17,6 +17,25 @@ export interface Dismissal {
   date: string;
 }
 
+export interface QueueItem {
+  tmdbId: number;
+  title: string;
+  type: 'movie' | 'tv';
+  addedDate: string;
+  priority: 'high' | 'medium' | 'low';
+  tags: string[];
+  source: string;
+  genres: string[];
+  overview: string;
+  posterPath?: string;
+}
+
+export interface SeenEntry {
+  tmdbId: number;
+  title: string;
+  type: 'movie' | 'tv';
+}
+
 export interface Preferences {
   statements: PreferenceStatement[];
   streamingServices: string[];

@@ -14,6 +14,22 @@ export function dismissedPrefix(userId: string): string {
   return `${userId}/dismissed/`;
 }
 
+export function queueKey(userId: string, tmdbId: number): string {
+  return `${userId}/queue/${tmdbId}`;
+}
+
+export function queuePrefix(userId: string): string {
+  return `${userId}/queue/`;
+}
+
+export function seenKey(userId: string, tmdbId: number): string {
+  return `${userId}/seen/${tmdbId}`;
+}
+
+export function seenPrefix(userId: string): string {
+  return `${userId}/seen/`;
+}
+
 export function preferencesKey(userId: string): string {
   return `${userId}/preferences`;
 }
