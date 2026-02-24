@@ -1,6 +1,7 @@
 import type { ScaffoldTool, ToolContext, ToolResult } from '@voygent/scaffold-core';
-import type { TasteProfile, Preferences } from '../types.js';
-import { watchedPrefix, dismissedPrefix, tasteProfileKey, preferencesKey } from '../keys.js';
+import { storage as storageUtils } from '@voygent/scaffold-core';
+import type { TasteProfile, Preferences, QueueItem } from '../types.js';
+import { watchedPrefix, dismissedPrefix, queuePrefix, tasteProfileKey, preferencesKey, seenPrefix } from '../keys.js';
 
 export const watchRecommendTool: ScaffoldTool = {
   name: 'watch-recommend',
@@ -28,6 +29,9 @@ export const watchRecommendTool: ScaffoldTool = {
     const dismissedResult = await ctx.storage.list(dismissedPrefix(ctx.userId));
     const dismissedCount = dismissedResult.keys.length;
 
+    const seenResult = await ctx.storage.list(seenPrefix(ctx.userId));
+    const seenCount = seenResult.keys.length;
+
     // Build context block
     const sections: string[] = [];
 
@@ -54,17 +58,32 @@ export const watchRecommendTool: ScaffoldTool = {
       }
     }
 
-    const isEmpty = !profile && watchedCount === 0 && (!prefs?.statements?.length);
+    const isEmpty = !profile && watchedCount === 0 && seenCount === 0 && (!prefs?.statements?.length);
     if (isEmpty) {
       sections.push('No profile, history, or preferences. Suggest running watch-onboard action=check first for better results.');
     }
 
-    if (watchedCount > 0 || dismissedCount > 0) {
+    const totalWatched = watchedCount + seenCount;
+    if (totalWatched > 0 || dismissedCount > 0) {
       const counts = [
-        watchedCount > 0 ? `${watchedCount} watched` : '',
+        totalWatched > 0 ? `${totalWatched} watched` : '',
         dismissedCount > 0 ? `${dismissedCount} dismissed` : '',
       ].filter(Boolean).join(', ');
       sections.push(`History: ${counts}. After suggesting, call watch-check to verify no duplicates.`);
+    }
+
+    // Load queue items for recommendation context
+    const queueResult = await ctx.storage.list(queuePrefix(ctx.userId));
+    if (queueResult.keys.length > 0) {
+      const queueItems = await storageUtils.batchGet<QueueItem>(ctx.storage, queueResult.keys);
+      const queueList = Array.from(queueItems.values())
+        .filter((item): item is QueueItem => item !== null)
+        .map(item => {
+          const tagText = item.tags.length > 0 ? ` [${item.tags.join(', ')}]` : '';
+          return `  - ${item.title} (${item.type}, ${item.priority} priority${tagText})`;
+        })
+        .join('\n');
+      sections.push(`\nUser's queue (titles they want to watch — suggest these first if they match the mood):\n${queueList}`);
     }
 
     sections.push('Suggest 5-8 titles with year and one-sentence rationale. Then call watch-check, then watch-lookup for streaming.');

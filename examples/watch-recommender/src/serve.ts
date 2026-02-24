@@ -31,7 +31,7 @@ const server = new ScaffoldServer({
 });
 
 server.route('GET', '/app', async () => {
-  return new Response(adminPageHtml(), {
+  return new Response(adminPageHtml(envVars['TMDB_API_KEY'] as string), {
     headers: { 'Content-Type': 'text/html; charset=utf-8' },
   });
 });

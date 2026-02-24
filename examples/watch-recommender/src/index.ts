@@ -19,7 +19,7 @@ export default {
     });
 
     server.route('GET', '/app', async () => {
-      return new Response(adminPageHtml(), {
+      return new Response(adminPageHtml(env.TMDB_API_KEY), {
         headers: { 'Content-Type': 'text/html; charset=utf-8' },
       });
     });

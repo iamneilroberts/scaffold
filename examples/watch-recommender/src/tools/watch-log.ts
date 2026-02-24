@@ -1,7 +1,8 @@
 import type { ScaffoldTool, ToolContext, ToolResult } from '@voygent/scaffold-core';
 import type { WatchRecord } from '../types.js';
 import { TmdbClient } from '../tmdb.js';
-import { watchedKey } from '../keys.js';
+import { watchedKey, queueKey } from '../keys.js';
+import type { QueueItem } from '../types.js';
 
 export const watchLogTool: ScaffoldTool = {
   name: 'watch-log',
@@ -40,9 +41,17 @@ export const watchLogTool: ScaffoldTool = {
 
     await ctx.storage.put(watchedKey(ctx.userId, match.id), record);
 
+    // Auto-cleanup: remove from queue if present
+    let queueNote = '';
+    const queued = await ctx.storage.get<QueueItem>(queueKey(ctx.userId, match.id));
+    if (queued) {
+      await ctx.storage.delete(queueKey(ctx.userId, match.id));
+      queueNote = ' Removed from your queue.';
+    }
+
     const ratingText = rating ? ` (rated ${rating}/5)` : '';
     return {
-      content: [{ type: 'text', text: `Logged "${displayTitle}" (${match.media_type})${ratingText} — TMDB ID ${match.id}` }],
+      content: [{ type: 'text', text: `Logged "${displayTitle}" (${match.media_type})${ratingText} — TMDB ID ${match.id}${queueNote}` }],
     };
   },
 };

@@ -2,7 +2,8 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { InMemoryAdapter } from '@voygent/scaffold-core';
 import { watchCheckTool } from '../tools/watch-check.js';
 import type { ToolContext } from '@voygent/scaffold-core';
-import type { WatchRecord, Dismissal } from '../types.js';
+import type { WatchRecord, Dismissal, SeenEntry } from '../types.js';
+import type { QueueItem } from '../types.js';
 
 function makeCtx(storage: InMemoryAdapter): ToolContext {
   return {
@@ -87,6 +88,32 @@ describe('watch-check', () => {
     expect(text).toContain('Clear to recommend (2)');
     expect(text).toContain('Severance');
     expect(text).toContain('Dark');
+  });
+
+  it('flags titles that are already in the queue', async () => {
+    const queueItem: QueueItem = {
+      tmdbId: 123, title: 'The Bear', type: 'tv', addedDate: '2026-01-01',
+      priority: 'high', tags: [], source: 'manual', genres: ['Drama'],
+      overview: '...',
+    };
+    await storage.put('user-1/queue/123', queueItem);
+
+    const ctx = makeCtx(storage);
+    const result = await watchCheckTool.handler({ titles: ['The Bear'] }, ctx);
+    const text = (result.content[0] as { type: string; text: string }).text;
+    expect(text).toContain('The Bear');
+    expect(text).toContain('queue');
+  });
+
+  it('flags titles that are in the seen history', async () => {
+    const seen: SeenEntry = { tmdbId: 123, title: 'The Bear', type: 'tv' };
+    await storage.put('user-1/seen/123', seen);
+
+    const ctx = makeCtx(storage);
+    const result = await watchCheckTool.handler({ titles: ['The Bear'] }, ctx);
+    const text = (result.content[0] as { type: string; text: string }).text;
+    expect(text).toContain('The Bear');
+    expect(text).toContain('seen');
   });
 
   it('handles empty history gracefully', async () => {

@@ -5,9 +5,9 @@ import { watchProfileTool } from './tools/watch-profile.js';
 import { watchRecommendTool } from './tools/watch-recommend.js';
 import { watchCheckTool } from './tools/watch-check.js';
 import { watchLookupTool } from './tools/watch-lookup.js';
-import { watchImportTool } from './tools/watch-import.js';
 import { watchOnboardTool } from './tools/watch-onboard.js';
-import { watchHistoryUploadTool } from './tools/watch-history-upload.js';
+import { watchQueueTool } from './tools/watch-queue.js';
+import { watchSeenBulkTool } from './tools/watch-seen-bulk.js';
 import type { ScaffoldTool } from '@voygent/scaffold-core';
 
 export const watchTools: ScaffoldTool[] = [
@@ -18,7 +18,7 @@ export const watchTools: ScaffoldTool[] = [
   watchRecommendTool,
   watchCheckTool,
   watchLookupTool,
-  watchImportTool,
   watchOnboardTool,
-  watchHistoryUploadTool,
+  watchQueueTool,
+  watchSeenBulkTool,
 ];
