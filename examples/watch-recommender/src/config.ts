@@ -39,7 +39,7 @@ export const config: ScaffoldConfig = {
     resetCycle: 'monthly',
     trackedTools: [
       'watch-log', 'watch-dismiss', 'watch-lookup',
-      'watch-recommend', 'watch-check', 'watch-screen',
+      'watch-queue', 'watch-screen',
     ],
   },
   onUserCreate: (userId: string) => [
@@ -50,7 +50,7 @@ export const config: ScaffoldConfig = {
       value: {
         tmdbUsageCap: 500,
         tmdbUsageCount: 0,
-        tmdbUsageResetAt: new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1).toISOString(),
+        tmdbUsageResetAt: new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth() + 1, 1)).toISOString(),
         personalTmdbKey: null,
       },
     },

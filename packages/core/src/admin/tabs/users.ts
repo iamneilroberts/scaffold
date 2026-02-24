@@ -14,6 +14,8 @@ import type {
   AuthIndexEntry,
 } from '../../types/public-api.js';
 import { escapeHtml, escapeJs } from '../security.js';
+import { hashKeyAsync } from '../../auth/key-hash.js';
+import { buildAuthIndex } from '../../auth/index-builder.js';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -103,11 +105,9 @@ async function handleCreateUser(
       .join('');
 
     // Derive userId via SHA-256 hash
-    const { hashKeyAsync } = await import('../../auth/key-hash.js');
     const userId = await hashKeyAsync(authToken);
 
     // Create auth index entry
-    const { buildAuthIndex } = await import('../../auth/index-builder.js');
     await buildAuthIndex(userId, authToken, ctx.storage, {
       name,
       email,

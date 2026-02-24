@@ -54,7 +54,7 @@ export const watchSettingsTool: ScaffoldTool = {
       const settings = await ctx.storage.get<UserSettings>(sKey) ?? {
         tmdbUsageCap: 500,
         tmdbUsageCount: 0,
-        tmdbUsageResetAt: new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1).toISOString(),
+        tmdbUsageResetAt: new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth() + 1, 1)).toISOString(),
         personalTmdbKey: null,
       };
 

@@ -474,9 +474,15 @@ export function adminPageHtml(tmdbKey?: string): string {
       try {
         const result = await callTool('watch-settings', { action: 'view' });
         const text = result.content[0].text;
-        usageEl.innerHTML = '<pre style="white-space:pre-wrap; color:var(--text-secondary); margin:0;">' + text + '</pre>';
+        const pre = document.createElement('pre');
+        pre.style.whiteSpace = 'pre-wrap';
+        pre.style.color = 'var(--text-secondary)';
+        pre.style.margin = '0';
+        pre.textContent = text;
+        usageEl.innerHTML = '';
+        usageEl.appendChild(pre);
       } catch (e) {
-        usageEl.innerHTML = '<span style="color:var(--error-text);">' + e.message + '</span>';
+        usageEl.textContent = e.message;
       }
     }
 

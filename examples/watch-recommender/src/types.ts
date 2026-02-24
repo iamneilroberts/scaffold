@@ -60,12 +60,7 @@ export interface OnboardingState {
   lastRunAt?: string;
 }
 
-export interface UserSettings {
-  tmdbUsageCap: number;
-  tmdbUsageCount: number;
-  tmdbUsageResetAt: string;
-  personalTmdbKey: string | null;
-}
+export type { UserSettings } from '@voygent/scaffold-core';
 
 export interface TmdbSearchResult {
   id: number;
