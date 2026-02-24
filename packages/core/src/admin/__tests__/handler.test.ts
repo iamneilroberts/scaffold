@@ -616,3 +616,93 @@ describe('AdminHandler route dispatch', () => {
     expect(usersHandler).not.toHaveBeenCalled();
   });
 });
+
+describe('AdminHandler context injection', () => {
+  it('injects onUserCreate hook into ctx.env', async () => {
+    const storage = new InMemoryAdapter();
+    const onUserCreate = (userId: string) => [
+      { key: `users/${userId}/prefs`, value: { theme: 'dark' } },
+    ];
+    const config = createTestConfig({ onUserCreate });
+
+    let capturedEnv: Record<string, unknown> | undefined;
+
+    const probeTab: AdminTab = {
+      id: 'probe',
+      label: 'Probe',
+      order: 99,
+      render: async () => ({ html: '' }),
+      routes: [
+        {
+          method: 'GET',
+          path: '/probe-env',
+          handler: async (_req: Request, ctx: AdminContext) => {
+            capturedEnv = ctx.env;
+            return secureJsonResponse({ ok: true });
+          },
+        },
+      ],
+    };
+
+    const handler = new AdminHandler({
+      config,
+      storage,
+      customTabs: [probeTab],
+    });
+
+    const request = new Request('http://localhost/admin/probe-env', {
+      headers: { 'X-Admin-Key': 'admin-key' },
+    });
+
+    await handler.handle(request, { EXISTING: 'value' });
+
+    expect(capturedEnv).toBeDefined();
+    expect(capturedEnv!.__onUserCreate).toBe(onUserCreate);
+    expect(capturedEnv!.__appName).toBe('Test App');
+    expect(capturedEnv!.__workerUrl).toBeUndefined();
+    // Original env values are preserved
+    expect(capturedEnv!.EXISTING).toBe('value');
+  });
+
+  it('injects appMeta.workerUrl when present', async () => {
+    const storage = new InMemoryAdapter();
+    const config = createTestConfig({
+      appMeta: { workerUrl: 'https://my-app.workers.dev' },
+    });
+
+    let capturedEnv: Record<string, unknown> | undefined;
+
+    const probeTab: AdminTab = {
+      id: 'probe',
+      label: 'Probe',
+      order: 99,
+      render: async () => ({ html: '' }),
+      routes: [
+        {
+          method: 'GET',
+          path: '/probe-env',
+          handler: async (_req: Request, ctx: AdminContext) => {
+            capturedEnv = ctx.env;
+            return secureJsonResponse({ ok: true });
+          },
+        },
+      ],
+    };
+
+    const handler = new AdminHandler({
+      config,
+      storage,
+      customTabs: [probeTab],
+    });
+
+    const request = new Request('http://localhost/admin/probe-env', {
+      headers: { 'X-Admin-Key': 'admin-key' },
+    });
+
+    await handler.handle(request, {});
+
+    expect(capturedEnv).toBeDefined();
+    expect(capturedEnv!.__workerUrl).toBe('https://my-app.workers.dev');
+    expect(capturedEnv!.__appName).toBe('Test App');
+  });
+});

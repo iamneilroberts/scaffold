@@ -166,7 +166,12 @@ export class AdminHandler {
     const ctx: AdminContext = {
       isAdmin: true,
       storage: this.storage,
-      env,
+      env: {
+        ...env,
+        __onUserCreate: this.config.onUserCreate,
+        __appName: this.config.app.name,
+        __workerUrl: this.config.appMeta?.workerUrl,
+      },
       requestId: crypto.randomUUID(),
     };
 
