@@ -151,3 +151,102 @@ describe('watch-queue add', () => {
     expect(result.isError).toBe(true);
   });
 });
+
+describe('watch-queue list', () => {
+  let storage: InMemoryAdapter;
+
+  beforeEach(() => {
+    storage = new InMemoryAdapter();
+    mockFetch.mockReset();
+  });
+
+  async function seedQueue(s: InMemoryAdapter, items: Partial<QueueItem>[]) {
+    for (const item of items) {
+      const full: QueueItem = {
+        tmdbId: item.tmdbId ?? 0,
+        title: item.title ?? 'Test',
+        type: item.type ?? 'movie',
+        addedDate: item.addedDate ?? '2026-01-01',
+        priority: item.priority ?? 'medium',
+        tags: item.tags ?? [],
+        source: item.source ?? 'manual',
+        genres: item.genres ?? [],
+        overview: item.overview ?? '',
+        posterPath: item.posterPath,
+      };
+      await s.put(`user-1/queue/${full.tmdbId}`, full);
+    }
+  }
+
+  it('lists items sorted by priority then addedDate', async () => {
+    await seedQueue(storage, [
+      { tmdbId: 1, title: 'Low Old', priority: 'low', addedDate: '2026-01-01' },
+      { tmdbId: 2, title: 'High New', priority: 'high', addedDate: '2026-02-01' },
+      { tmdbId: 3, title: 'Medium', priority: 'medium', addedDate: '2026-01-15' },
+      { tmdbId: 4, title: 'High Old', priority: 'high', addedDate: '2026-01-10' },
+    ]);
+
+    const ctx = makeCtx(storage);
+    const result = await watchQueueTool.handler({ action: 'list' }, ctx);
+    const text = (result.content[0] as { type: string; text: string }).text;
+
+    const highNewIdx = text.indexOf('High New');
+    const highOldIdx = text.indexOf('High Old');
+    const mediumIdx = text.indexOf('Medium');
+    const lowIdx = text.indexOf('Low Old');
+
+    expect(highNewIdx).toBeLessThan(mediumIdx);
+    expect(highOldIdx).toBeLessThan(mediumIdx);
+    expect(mediumIdx).toBeLessThan(lowIdx);
+    expect(highNewIdx).toBeLessThan(highOldIdx);
+  });
+
+  it('filters by priority', async () => {
+    await seedQueue(storage, [
+      { tmdbId: 1, title: 'High One', priority: 'high' },
+      { tmdbId: 2, title: 'Low One', priority: 'low' },
+    ]);
+
+    const ctx = makeCtx(storage);
+    const result = await watchQueueTool.handler({ action: 'list', filterPriority: 'high' }, ctx);
+    const text = (result.content[0] as { type: string; text: string }).text;
+
+    expect(text).toContain('High One');
+    expect(text).not.toContain('Low One');
+  });
+
+  it('filters by tag', async () => {
+    await seedQueue(storage, [
+      { tmdbId: 1, title: 'Date Movie', tags: ['date night'] },
+      { tmdbId: 2, title: 'Solo Movie', tags: ['solo'] },
+    ]);
+
+    const ctx = makeCtx(storage);
+    const result = await watchQueueTool.handler({ action: 'list', filterTag: 'date night' }, ctx);
+    const text = (result.content[0] as { type: string; text: string }).text;
+
+    expect(text).toContain('Date Movie');
+    expect(text).not.toContain('Solo Movie');
+  });
+
+  it('filters by type', async () => {
+    await seedQueue(storage, [
+      { tmdbId: 1, title: 'A Movie', type: 'movie' },
+      { tmdbId: 2, title: 'A Show', type: 'tv' },
+    ]);
+
+    const ctx = makeCtx(storage);
+    const result = await watchQueueTool.handler({ action: 'list', filterType: 'tv' }, ctx);
+    const text = (result.content[0] as { type: string; text: string }).text;
+
+    expect(text).toContain('A Show');
+    expect(text).not.toContain('A Movie');
+  });
+
+  it('returns empty message when queue is empty', async () => {
+    const ctx = makeCtx(storage);
+    const result = await watchQueueTool.handler({ action: 'list' }, ctx);
+    const text = (result.content[0] as { type: string; text: string }).text;
+    expect(text).toContain('empty');
+  });
+});

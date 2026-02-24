@@ -1,4 +1,5 @@
 import type { ScaffoldTool, ToolContext, ToolResult } from '@voygent/scaffold-core';
+import { storage as storageUtils } from '@voygent/scaffold-core';
 import type { QueueItem, WatchRecord, Dismissal, SeenEntry } from '../types.js';
 import { TmdbClient } from '../tmdb.js';
 import { queueKey, queuePrefix, watchedKey, dismissedKey, seenKey } from '../keys.js';
@@ -212,8 +213,52 @@ async function handleList(
   args: { filterPriority?: string; filterTag?: string; filterType?: string; _raw?: boolean },
   ctx: ToolContext,
 ): Promise<ToolResult> {
-  // Stub — implemented in a later task
-  return { content: [{ type: 'text', text: 'Not yet implemented.' }] };
+  const listResult = await ctx.storage.list(queuePrefix(ctx.userId));
+
+  if (listResult.keys.length === 0) {
+    return { content: [{ type: 'text', text: 'Your queue is empty.' }] };
+  }
+
+  const items = await storageUtils.batchGet<QueueItem>(ctx.storage, listResult.keys);
+  let queue = Array.from(items.values());
+
+  // Apply filters
+  if (args.filterPriority) {
+    queue = queue.filter(item => item.priority === args.filterPriority);
+  }
+  if (args.filterTag) {
+    queue = queue.filter(item => item.tags.includes(args.filterTag!));
+  }
+  if (args.filterType) {
+    queue = queue.filter(item => item.type === args.filterType);
+  }
+
+  if (queue.length === 0) {
+    return { content: [{ type: 'text', text: 'No items match your filters.' }] };
+  }
+
+  // Sort: priority tier (high > medium > low), then newest first within tier
+  const priorityOrder: Record<string, number> = { high: 0, medium: 1, low: 2 };
+  queue.sort((a, b) => {
+    const pDiff = priorityOrder[a.priority] - priorityOrder[b.priority];
+    if (pDiff !== 0) return pDiff;
+    return b.addedDate.localeCompare(a.addedDate);
+  });
+
+  if (args._raw) {
+    return {
+      content: [{ type: 'text', text: JSON.stringify(queue) }],
+    };
+  }
+
+  const lines = queue.map(item => {
+    const tagText = item.tags.length > 0 ? ` [${item.tags.join(', ')}]` : '';
+    return `- **${item.title}** (${item.type}) — ${item.priority} priority${tagText} — added ${item.addedDate}`;
+  });
+
+  return {
+    content: [{ type: 'text', text: `Your queue (${queue.length} items):\n\n${lines.join('\n')}` }],
+  };
 }
 
 async function handleRemove(
