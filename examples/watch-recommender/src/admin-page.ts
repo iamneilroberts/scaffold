@@ -79,6 +79,20 @@ export function adminPageHtml(): string {
     .loading { opacity: 0.5; pointer-events: none; }
     .services-grid { display: flex; flex-wrap: wrap; gap: 0.5rem; margin: 0.5rem 0; }
     .services-grid label { display: flex; align-items: center; gap: 0.25rem; padding: 0.25rem 0.5rem; background: var(--input-bg); border-radius: 4px; cursor: pointer; }
+
+    @media (max-width: 639px) {
+      #filter-bar { display: none; }
+      .mobile-filter-toggle { display: block !important; }
+      #filter-bar.show { display: flex !important; flex-direction: column; width: 100%; }
+    }
+
+    @media (min-width: 640px) and (max-width: 1023px) {
+      #queue-list { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    @media (min-width: 1024px) {
+      #queue-list { grid-template-columns: repeat(3, 1fr); }
+    }
   </style>
 </head>
 <body>
@@ -90,6 +104,7 @@ export function adminPageHtml(): string {
     <div class="tab active" data-tab="import">Import</div>
     <div class="tab" data-tab="history">History</div>
     <div class="tab" data-tab="preferences">Preferences</div>
+    <div class="tab" data-tab="watchlist">Watchlist</div>
   </div>
 
   <div class="content" id="tab-import">
@@ -138,6 +153,28 @@ export function adminPageHtml(): string {
     </div>
   </div>
 
+  <div class="content hidden" id="tab-watchlist">
+    <div id="queue-filters" style="display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap;">
+      <button id="filter-toggle" class="mobile-filter-toggle" style="display:none; background:var(--accent); color:#fff; border:none; padding:8px 16px; border-radius:6px; cursor:pointer;">Filter</button>
+      <div id="filter-bar" style="display:flex; gap:8px; flex-wrap:wrap;">
+        <select id="filter-priority" style="padding:8px; border-radius:6px; border:1px solid var(--border); background:var(--input-bg); color:var(--text-primary);">
+          <option value="">All Priorities</option>
+          <option value="high">High</option>
+          <option value="medium">Medium</option>
+          <option value="low">Low</option>
+        </select>
+        <select id="filter-type" style="padding:8px; border-radius:6px; border:1px solid var(--border); background:var(--input-bg); color:var(--text-primary);">
+          <option value="">All Types</option>
+          <option value="movie">Movies</option>
+          <option value="tv">TV Shows</option>
+        </select>
+        <input id="filter-tag" type="text" placeholder="Filter by tag..." style="padding:8px; border-radius:6px; border:1px solid var(--border); background:var(--input-bg); color:var(--text-primary); min-width:140px;" />
+      </div>
+    </div>
+    <div id="queue-list" style="display:grid; gap:12px;"></div>
+    <p id="queue-empty" style="display:none; color:var(--text-secondary); text-align:center; padding:40px 0;">Your watchlist is empty. Save titles to watch later using the watch-queue tool.</p>
+  </div>
+
   <script>
     (function initTheme() {
       const saved = localStorage.getItem('watch-theme');
@@ -183,6 +220,7 @@ export function adminPageHtml(): string {
         document.getElementById('tab-' + tab.dataset.tab).classList.remove('hidden');
         if (tab.dataset.tab === 'history') loadHistory();
         if (tab.dataset.tab === 'preferences') loadPreferences();
+        if (tab.dataset.tab === 'watchlist') loadQueue();
       });
     });
 
@@ -316,6 +354,115 @@ export function adminPageHtml(): string {
 
     function filterHistory() {
       // Placeholder for future search
+    }
+
+    // Watchlist tab
+    let queueData = [];
+
+    async function loadQueue() {
+      try {
+        const result = await callTool('watch-queue', { action: 'list', _raw: true });
+        const text = result.content[0].text;
+        try {
+          queueData = JSON.parse(text);
+        } catch {
+          queueData = [];
+        }
+        renderQueue();
+      } catch (err) {
+        console.error('Failed to load queue:', err);
+        queueData = [];
+        renderQueue();
+      }
+    }
+
+    function renderQueue() {
+      const list = document.getElementById('queue-list');
+      const empty = document.getElementById('queue-empty');
+
+      // Apply client-side filters
+      let filtered = queueData;
+      const fp = document.getElementById('filter-priority').value;
+      const ft = document.getElementById('filter-type').value;
+      const ftag = document.getElementById('filter-tag').value.trim().toLowerCase();
+
+      if (fp) filtered = filtered.filter(i => i.priority === fp);
+      if (ft) filtered = filtered.filter(i => i.type === ft);
+      if (ftag) filtered = filtered.filter(i => i.tags.some(t => t.toLowerCase().includes(ftag)));
+
+      if (filtered.length === 0) {
+        list.innerHTML = '';
+        empty.style.display = 'block';
+        empty.textContent = queueData.length === 0
+          ? 'Your watchlist is empty. Save titles to watch later using the watch-queue tool.'
+          : 'No items match your filters.';
+        return;
+      }
+
+      empty.style.display = 'none';
+      list.innerHTML = filtered.map(item => {
+        const poster = item.posterPath
+          ? '<img src="https://image.tmdb.org/t/p/w92' + item.posterPath + '" style="width:60px; height:90px; border-radius:4px; object-fit:cover; flex-shrink:0;" />'
+          : '<div style="width:60px; height:90px; background:var(--bg-secondary); border-radius:4px; flex-shrink:0;"></div>';
+        const tags = (item.tags || []).map(t =>
+          '<span style="font-size:0.7rem; padding:2px 8px; border-radius:10px; background:var(--tag-bg); color:var(--tag-text);">' + t + '</span>'
+        ).join(' ');
+        return '<div class="queue-card" data-tmdb-id="' + item.tmdbId + '" data-priority="' + item.priority + '" style="display:flex; gap:12px; background:var(--bg-card); border:1px solid var(--border); border-radius:8px; padding:12px; align-items:flex-start;">'
+          + poster
+          + '<div style="flex:1; min-width:0;">'
+          + '<div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">'
+          + '<strong style="color:var(--text-primary);">' + item.title + '</strong>'
+          + '<span style="font-size:0.75rem; padding:2px 6px; border-radius:4px; background:var(--bg-secondary); color:var(--text-secondary);">' + item.type + '</span>'
+          + '<span style="font-size:0.75rem; padding:2px 6px; border-radius:4px; color:#fff; background:var(--priority-' + item.priority + '); cursor:pointer;" onclick="cyclePriority(' + item.tmdbId + ')">' + item.priority + '</span>'
+          + '</div>'
+          + (tags ? '<div style="margin-top:4px; display:flex; gap:4px; flex-wrap:wrap;">' + tags + '</div>' : '')
+          + '<div style="margin-top:6px; font-size:0.8rem; color:var(--text-secondary);">Added ' + item.addedDate + '</div>'
+          + '</div>'
+          + '<button onclick="removeFromQueue(' + item.tmdbId + ')" style="background:none; border:none; cursor:pointer; color:var(--text-secondary); font-size:1.2rem; padding:8px; min-width:44px; min-height:44px; display:flex; align-items:center; justify-content:center;" aria-label="Remove">&times;</button>'
+          + '</div>';
+      }).join('');
+    }
+
+    async function removeFromQueue(tmdbId) {
+      await callTool('watch-queue', { action: 'remove', tmdbId: tmdbId });
+      await loadQueue();
+    }
+
+    async function cyclePriority(tmdbId) {
+      const priorities = ['low', 'medium', 'high'];
+      const card = document.querySelector('.queue-card[data-tmdb-id="' + tmdbId + '"]');
+      if (!card) return;
+      const current = card.dataset.priority;
+      const next = priorities[(priorities.indexOf(current) + 1) % 3];
+      await callTool('watch-queue', { action: 'update', tmdbId: tmdbId, priority: next });
+      await loadQueue();
+    }
+
+    // Filter event listeners
+    document.getElementById('filter-priority').addEventListener('change', renderQueue);
+    document.getElementById('filter-type').addEventListener('change', renderQueue);
+    document.getElementById('filter-tag').addEventListener('input', renderQueue);
+    document.getElementById('filter-toggle')?.addEventListener('click', function() {
+      document.getElementById('filter-bar').classList.toggle('show');
+    });
+
+    // Swipe-to-delete for mobile
+    let touchStartX = 0;
+    const queueList = document.getElementById('queue-list');
+    if (queueList) {
+      queueList.addEventListener('touchstart', function(e) {
+        const card = e.target.closest('.queue-card');
+        if (card) touchStartX = e.touches[0].clientX;
+      });
+      queueList.addEventListener('touchend', function(e) {
+        const card = e.target.closest('.queue-card');
+        if (!card) return;
+        const diff = touchStartX - e.changedTouches[0].clientX;
+        if (diff > 80) {
+          const tmdbId = card.dataset.tmdbId;
+          if (tmdbId) removeFromQueue(parseInt(tmdbId));
+        }
+      });
     }
   </script>
 </body>
