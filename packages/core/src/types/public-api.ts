@@ -721,6 +721,12 @@ export interface AuthIndexEntry {
   isAdmin: boolean;
   debugMode?: boolean;
   createdAt: string;
+  /** Display name for admin UI */
+  name?: string;
+  /** Email address (for setup email generation) */
+  email?: string;
+  /** Who created this entry */
+  createdBy?: string;
 }
 
 // ============================================================================
