@@ -96,6 +96,52 @@ describe('TmdbClient', () => {
     });
   });
 
+  describe('getCredits', () => {
+    it('fetches cast (top 15) and key crew', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          cast: [
+            { id: 1, name: 'Actor One', character: 'Hero', order: 0 },
+            { id: 2, name: 'Actor Two', character: 'Villain', order: 1 },
+          ],
+          crew: [
+            { id: 10, name: 'Dir Person', job: 'Director', department: 'Directing' },
+            { id: 11, name: 'Writer Person', job: 'Writer', department: 'Writing' },
+            { id: 12, name: 'Random Grip', job: 'Grip', department: 'Crew' },
+            { id: 13, name: 'Composer Person', job: 'Original Music Composer', department: 'Sound' },
+          ],
+        }),
+      });
+
+      const credits = await client.getCredits(120, 'movie');
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        'https://api.themoviedb.org/3/movie/120/credits',
+        { headers: { Authorization: 'Bearer test-api-key', 'Content-Type': 'application/json' } },
+      );
+      expect(credits.cast).toHaveLength(2);
+      expect(credits.cast[0]).toEqual({ personId: 1, name: 'Actor One', character: 'Hero' });
+      // Grip should be filtered out; Director, Writer, Composer kept
+      expect(credits.crew).toHaveLength(3);
+      expect(credits.crew.find(c => c.job === 'Grip')).toBeUndefined();
+      expect(credits.crew.find(c => c.job === 'Director')).toBeTruthy();
+    });
+
+    it('caps cast at 15 entries', async () => {
+      const bigCast = Array.from({ length: 30 }, (_, i) => ({
+        id: i, name: `Actor ${i}`, character: `Char ${i}`, order: i,
+      }));
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ cast: bigCast, crew: [] }),
+      });
+
+      const credits = await client.getCredits(120, 'movie');
+      expect(credits.cast).toHaveLength(15);
+    });
+  });
+
   describe('getDetails', () => {
     it('fetches movie details', async () => {
       mockFetch.mockResolvedValueOnce({

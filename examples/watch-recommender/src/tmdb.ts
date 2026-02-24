@@ -37,6 +37,17 @@ export interface TmdbDetails {
   createdBy?: string[];
 }
 
+export interface TmdbCredits {
+  cast: Array<{ personId: number; name: string; character: string }>;
+  crew: Array<{ personId: number; name: string; job: string; department: string }>;
+}
+
+const KEY_CREW_JOBS = new Set([
+  'Director', 'Writer', 'Screenplay', 'Cinematography',
+  'Director of Photography', 'Original Music Composer', 'Composer',
+  'Executive Producer', 'Creator',
+]);
+
 export class TmdbClient {
   private apiKey: string;
 
@@ -90,6 +101,26 @@ export class TmdbClient {
       createdBy: data.created_by
         ? (data.created_by as Array<{ name: string }>).map(c => c.name)
         : undefined,
+    };
+  }
+
+  async getCredits(tmdbId: number, type: 'movie' | 'tv'): Promise<TmdbCredits> {
+    const url = `${BASE_URL}/${type}/${tmdbId}/credits`;
+    const res = await fetch(url, { headers: this.headers() });
+    if (!res.ok) throw new Error(`TMDB credits failed: ${res.status}`);
+    const data = await res.json() as {
+      cast: Array<{ id: number; name: string; character: string; order: number }>;
+      crew: Array<{ id: number; name: string; job: string; department: string }>;
+    };
+
+    return {
+      cast: data.cast
+        .sort((a, b) => a.order - b.order)
+        .slice(0, 15)
+        .map(c => ({ personId: c.id, name: c.name, character: c.character })),
+      crew: data.crew
+        .filter(c => KEY_CREW_JOBS.has(c.job))
+        .map(c => ({ personId: c.id, name: c.name, job: c.job, department: c.department })),
     };
   }
 
