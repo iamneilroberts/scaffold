@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>watch-rec Quick Start Guide</title>
+  <style>
+    :root {
+      --bg: #0f0f0f;
+      --surface: #1a1a1a;
+      --border: #2a2a2a;
+      --text: #e0e0e0;
+      --text-muted: #888;
+      --accent: #6d9eeb;
+      --accent-dim: #3d6ebb;
+      --code-bg: #141414;
+      --highlight: #f4c542;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.7;
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 48px 24px;
+    }
+
+    h1 {
+      font-size: 2rem;
+      font-weight: 700;
+      margin-bottom: 8px;
+      color: #fff;
+    }
+
+    h1 + p {
+      color: var(--text-muted);
+      font-size: 1.05rem;
+      margin-bottom: 32px;
+    }
+
+    h2 {
+      font-size: 1.35rem;
+      font-weight: 600;
+      color: #fff;
+      margin-top: 48px;
+      margin-bottom: 16px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    h3 {
+      font-size: 1.05rem;
+      font-weight: 600;
+      color: var(--accent);
+      margin-top: 28px;
+      margin-bottom: 12px;
+    }
+
+    p { margin-bottom: 14px; }
+
+    a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+
+    a:hover { text-decoration: underline; }
+
+    ol, ul {
+      margin-bottom: 14px;
+      padding-left: 24px;
+    }
+
+    li { margin-bottom: 6px; }
+
+    code {
+      font-family: "SF Mono", Menlo, Consolas, monospace;
+      font-size: 0.85em;
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 2px 6px;
+    }
+
+    pre {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px 20px;
+      overflow-x: auto;
+      margin: 12px 0 20px;
+      font-size: 0.85rem;
+      line-height: 1.6;
+    }
+
+    pre code {
+      background: none;
+      border: none;
+      padding: 0;
+    }
+
+    blockquote {
+      border-left: 3px solid var(--accent-dim);
+      background: var(--surface);
+      padding: 10px 16px;
+      margin: 12px 0;
+      border-radius: 0 6px 6px 0;
+      font-style: italic;
+      color: #ccc;
+    }
+
+    blockquote strong { color: #fff; font-style: normal; }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 12px 0 20px;
+      font-size: 0.9rem;
+    }
+
+    th {
+      text-align: left;
+      padding: 10px 12px;
+      border-bottom: 2px solid var(--border);
+      color: var(--text-muted);
+      font-weight: 600;
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    td {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: top;
+    }
+
+    td code {
+      color: var(--highlight);
+      background: rgba(244, 197, 66, 0.08);
+      border-color: rgba(244, 197, 66, 0.15);
+    }
+
+    tr:last-child td { border-bottom: none; }
+
+    .badge {
+      display: inline-block;
+      font-size: 0.75rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 2px 8px;
+      color: var(--text-muted);
+      margin-top: 8px;
+    }
+
+    .tip {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px 18px;
+      margin-bottom: 10px;
+    }
+
+    .tip strong { color: var(--accent); }
+
+    hr {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 40px 0;
+    }
+  </style>
+</head>
+<body>
+
+<h1>watch-rec Quick Start Guide</h1>
+<p>AI-powered movie and TV recommendations through natural conversation with ChatGPT or Claude.</p>
+
+<h2>Setup</h2>
+<p>You need two things: a connection to the MCP server and an auth token. Your auth token is provided when your account is created.</p>
+
+<h3>Claude (claude.ai)</h3>
+<ol>
+  <li>Click your <strong>profile icon</strong> (bottom-left) and select <strong>Settings</strong></li>
+  <li>Click <strong>Connectors</strong> in the sidebar</li>
+  <li>Scroll down and click <strong>Add custom connector</strong></li>
+  <li>Enter the URL: <code>https://scaffold-watch-rec.somotravel.workers.dev/?token=YOUR_AUTH_TOKEN</code></li>
+  <li>Click <strong>Connect</strong></li>
+</ol>
+<p>Once connected, you'll see watch-rec listed under your connectors. Start a new chat and the tools are available immediately. You can also click the <strong>+</strong> button next to the chat input and select watch-rec to ensure it's used in that conversation.</p>
+<p class="badge">Requires: Claude Pro, Max, Team, or Enterprise plan</p>
+
+<h3>ChatGPT</h3>
+<ol>
+  <li>Open <strong>Settings</strong> (gear icon)</li>
+  <li>Go to <strong>Apps</strong></li>
+  <li>Click <strong>Advanced</strong>, then enable <strong>Developer Mode</strong></li>
+  <li>Click <strong>Create</strong> to add a new app</li>
+  <li>Enter a name like <code>watch-rec</code> and a description like <code>Movie and TV recommendations</code></li>
+  <li>For <strong>Connector URL</strong>, enter: <code>https://scaffold-watch-rec.somotravel.workers.dev/?token=YOUR_AUTH_TOKEN</code></li>
+  <li>Uncheck the <strong>OAuth</strong> checkbox</li>
+  <li>Click through the warning about custom connectors</li>
+  <li>Save and close</li>
+</ol>
+<p>You can also click the <strong>+</strong> button next to the chat input and select watch-rec to ensure it's used in that conversation.</p>
+<p class="badge">Requires: ChatGPT Plus, Pro, Business, Enterprise, or Education plan</p>
+
+<h3>Claude Code / Claude Desktop</h3>
+<p>Add to your MCP config (<code>~/.claude.json</code>, <code>claude_desktop_config.json</code>, or project <code>.mcp.json</code>):</p>
+<pre><code>{
+  "mcpServers": {
+    "watch-rec": {
+      "type": "url",
+      "url": "https://scaffold-watch-rec.somotravel.workers.dev/mcp",
+      "headers": {
+        "Authorization": "Bearer YOUR_AUTH_TOKEN"
+      }
+    }
+  }
+}</code></pre>
+
+<hr>
+
+<h2>Onboarding</h2>
+<p>Start a new conversation and say:</p>
+<blockquote><strong>"Let's set up watch-rec"</strong></blockquote>
+<p>The AI runs the onboarding flow, which walks you through four steps:</p>
+<ol>
+  <li><strong>Streaming services</strong> &mdash; which platforms you subscribe to (Netflix, Hulu, Max, etc.)</li>
+  <li><strong>Watch history import</strong> &mdash; upload a Netflix CSV export via the web UI, or skip this</li>
+  <li><strong>Taste discovery</strong> &mdash; rate 20 curated titles (1&ndash;5) so the system learns what you like</li>
+  <li><strong>Preference questions</strong> &mdash; answer a few follow-ups about your viewing habits</li>
+</ol>
+<p>The whole process takes about 5 minutes. After onboarding, a taste profile is generated automatically.</p>
+<p>You can redo this anytime by saying <strong>"Refine my taste profile"</strong>.</p>
+
+<hr>
+
+<h2>Getting Recommendations</h2>
+<p>Once onboarded, just describe what you're in the mood for:</p>
+<blockquote><strong>"I want something like Severance &mdash; smart, slow-burn, keeps you guessing"</strong></blockquote>
+<blockquote><strong>"Recommend a comfort comedy for tonight"</strong></blockquote>
+<blockquote><strong>"What should I watch with my kids this weekend?"</strong></blockquote>
+<p>The AI will suggest 5&ndash;8 titles based on your taste profile, check them against your history (so you won't see repeats), and show where each one is streaming.</p>
+
+<hr>
+
+<h2>Managing Your Watchlist</h2>
+<p>Save titles for later, browse your queue, or change priorities.</p>
+
+<table>
+  <thead>
+    <tr><th>What you say</th><th>What happens</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>"Add Zodiac to my watchlist"</td><td>Saves it to your queue (medium priority)</td></tr>
+    <tr><td>"Add The Bear to my queue, high priority, tag it 'solo night'"</td><td>Saves with priority and tags</td></tr>
+    <tr><td>"Show my watchlist"</td><td>Lists everything sorted by priority</td></tr>
+    <tr><td>"Show my high priority queue"</td><td>Filters by priority</td></tr>
+    <tr><td>"Remove Zodiac from my queue"</td><td>Deletes it</td></tr>
+    <tr><td>"Change Zodiac to low priority"</td><td>Updates priority</td></tr>
+  </tbody>
+</table>
+
+<p>If a title is blocked because you've already watched or dismissed it, say:</p>
+<blockquote><strong>"Add Zodiac to my queue, force it"</strong></blockquote>
+<p>This clears the old state and re-adds it.</p>
+
+<hr>
+
+<h2>Logging What You've Watched</h2>
+<p>When you finish something, tell the AI:</p>
+<blockquote><strong>"I just watched The Brutalist, I'd give it a 4 out of 5"</strong></blockquote>
+<blockquote><strong>"Mark Nosferatu as watched"</strong></blockquote>
+<p>This logs it to your history, removes it from your queue if it was there, and improves future recommendations.</p>
+
+<hr>
+
+<h2>Dismissing Titles</h2>
+<p>If you've already seen something or just aren't interested:</p>
+<blockquote><strong>"I've already seen Oppenheimer"</strong></blockquote>
+<blockquote><strong>"Not interested in that one"</strong></blockquote>
+<p>Dismissed titles won't be recommended again.</p>
+
+<hr>
+
+<h2>Second Screen Mode</h2>
+<p>Watching something right now? Use the second screen feature for live companion info:</p>
+<blockquote><strong>"I'm watching Severance S2E4"</strong></blockquote>
+<p>You'll get:</p>
+<ul>
+  <li>Episode synopsis (spoiler-aware for current episode only)</li>
+  <li>Full cast and key crew</li>
+  <li>Character names and actors</li>
+  <li>Background context, filming locations, trivia</li>
+</ul>
+<p>Use single-letter shortcuts to jump to specific info:</p>
+<table>
+  <thead>
+    <tr><th>Shortcut</th><th>What it shows</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><strong>n</strong></td><td>Next interesting fact</td></tr>
+    <tr><td><strong>c</strong></td><td>Cast (actors and characters)</td></tr>
+    <tr><td><strong>w</strong></td><td>Writers and directors</td></tr>
+    <tr><td><strong>t</strong></td><td>Trivia</td></tr>
+    <tr><td><strong>l</strong></td><td>Filming locations</td></tr>
+    <tr><td><strong>h</strong></td><td>History and timeline</td></tr>
+  </tbody>
+</table>
+<p>Examples:</p>
+<blockquote><strong>"c"</strong> &mdash; show the cast</blockquote>
+<blockquote><strong>"t"</strong> &mdash; give me trivia</blockquote>
+<blockquote><strong>"n"</strong> &mdash; tell me something interesting</blockquote>
+<p>You can also ask freeform questions:</p>
+<blockquote><strong>"Who plays Helly?"</strong></blockquote>
+<blockquote><strong>"Tell me about the director"</strong></blockquote>
+<p>This works for movies too:</p>
+<blockquote><strong>"I'm watching There Will Be Blood"</strong></blockquote>
+
+<hr>
+
+<h2>Streaming Lookup</h2>
+<p>Check where any title is available:</p>
+<blockquote><strong>"Where can I watch Conclave?"</strong></blockquote>
+<p>Returns streaming (included with subscription), rental, and purchase options for your region.</p>
+
+<hr>
+
+<h2>Preferences</h2>
+<p>Your preferences shape recommendations. State them naturally:</p>
+<blockquote><strong>"I love slow-burn thrillers but hate slasher horror"</strong></blockquote>
+<blockquote><strong>"I prefer movies under 2 hours"</strong></blockquote>
+<blockquote><strong>"Add HBO Max and Apple TV+ to my streaming services"</strong></blockquote>
+<p>View everything stored:</p>
+<blockquote><strong>"Show my preferences"</strong></blockquote>
+
+<hr>
+
+<h2>Taste Profile</h2>
+<p>Your taste profile is a summary of your viewing patterns, generated from your ratings and history. View it:</p>
+<blockquote><strong>"Show my taste profile"</strong></blockquote>
+<p>Regenerate it after logging more titles:</p>
+<blockquote><strong>"Regenerate my taste profile"</strong></blockquote>
+
+<hr>
+
+<h2>All Tools Reference</h2>
+<table>
+  <thead>
+    <tr><th>Tool</th><th>What it does</th><th>Example</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>watch-onboard</code></td><td>Interactive setup and taste discovery</td><td>"Let's set up watch-rec"</td></tr>
+    <tr><td><code>watch-recommend</code></td><td>Get personalized suggestions by mood</td><td>"Something intense and cerebral"</td></tr>
+    <tr><td><code>watch-queue</code></td><td>Manage your watchlist (add/list/remove/update)</td><td>"Add Zodiac to my queue"</td></tr>
+    <tr><td><code>watch-log</code></td><td>Log a title as watched with optional rating</td><td>"I watched The Bear, 5/5"</td></tr>
+    <tr><td><code>watch-dismiss</code></td><td>Exclude a title from recommendations</td><td>"Already seen Oppenheimer"</td></tr>
+    <tr><td><code>watch-screen</code></td><td>Second screen companion while watching</td><td>"I'm watching Severance S2E4"</td></tr>
+    <tr><td><code>watch-lookup</code></td><td>Check streaming availability</td><td>"Where can I stream Conclave?"</td></tr>
+    <tr><td><code>watch-check</code></td><td>Cross-reference titles against your history</td><td>(used automatically)</td></tr>
+    <tr><td><code>watch-preference</code></td><td>Store taste preferences and streaming services</td><td>"I love documentary films"</td></tr>
+    <tr><td><code>watch-profile</code></td><td>View or regenerate your taste profile</td><td>"Show my taste profile"</td></tr>
+    <tr><td><code>watch-settings</code></td><td>View usage stats or set a personal TMDB key</td><td>"Show my settings"</td></tr>
+    <tr><td><code>watch-seen-bulk</code></td><td>Bulk import seen titles (via admin UI)</td><td>(used by the web dashboard)</td></tr>
+  </tbody>
+</table>
+
+<hr>
+
+<h2>Admin Dashboard</h2>
+<p>Access the web UI at:</p>
+<pre><code>https://scaffold-watch-rec.somotravel.workers.dev/app?token=YOUR_AUTH_TOKEN</code></pre>
+<p>From here you can:</p>
+<ul>
+  <li>Upload Netflix CSV exports</li>
+  <li>View your watched titles and queue</li>
+  <li>Manage preferences and settings</li>
+</ul>
+
+<hr>
+
+<h2>Tips</h2>
+<div class="tip"><strong>Be specific about mood</strong> &mdash; "something like early Coen brothers" works better than "a good movie"</div>
+<div class="tip"><strong>Rate titles during onboarding honestly</strong> &mdash; even rating things you disliked helps the system</div>
+<div class="tip"><strong>Use tags on queue items</strong> &mdash; "date night", "solo", "family" make it easy to filter later</div>
+<div class="tip"><strong>Force-add when correcting mistakes</strong> &mdash; if something was wrongly marked as watched, force-add it back to your queue</div>
+<div class="tip"><strong>Use second screen for TV</strong> &mdash; include the season and episode number for episode-specific context</div>
+
+</body>
+</html>
