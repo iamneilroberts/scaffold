@@ -439,14 +439,14 @@ describe('AdminHandler route dispatch', () => {
     );
 
     const tab: AdminTab = {
-      id: 'custom-users',
-      label: 'Custom Users',
+      id: 'custom-items',
+      label: 'Custom Items',
       order: 100,
-      render: async () => ({ html: '<p>Users</p>' }),
+      render: async () => ({ html: '<p>Items</p>' }),
       routes: [
         {
           method: 'POST',
-          path: '/users',
+          path: '/items',
           handler: routeHandler,
         },
       ],
@@ -458,7 +458,7 @@ describe('AdminHandler route dispatch', () => {
       customTabs: [tab],
     });
 
-    const request = new Request('http://localhost/admin/users', {
+    const request = new Request('http://localhost/admin/items', {
       method: 'POST',
       headers: {
         'X-Admin-Key': 'admin-key',
@@ -487,14 +487,14 @@ describe('AdminHandler route dispatch', () => {
     );
 
     const tab: AdminTab = {
-      id: 'custom-users',
-      label: 'Custom Users',
+      id: 'custom-items',
+      label: 'Custom Items',
       order: 100,
-      render: async () => ({ html: '<p>Users</p>' }),
+      render: async () => ({ html: '<p>Items</p>' }),
       routes: [
         {
           method: 'DELETE',
-          path: '/users/:hash',
+          path: '/items/:id',
           handler: routeHandler,
         },
       ],
@@ -506,7 +506,7 @@ describe('AdminHandler route dispatch', () => {
       customTabs: [tab],
     });
 
-    const request = new Request('http://localhost/admin/users/abc123', {
+    const request = new Request('http://localhost/admin/items/abc123', {
       method: 'DELETE',
       headers: { 'X-Admin-Key': 'admin-key' },
     });
@@ -539,14 +539,14 @@ describe('AdminHandler route dispatch', () => {
     );
 
     const tab: AdminTab = {
-      id: 'custom-users',
-      label: 'Custom Users',
+      id: 'custom-items',
+      label: 'Custom Items',
       order: 100,
-      render: async () => ({ html: '<p>Users</p>' }),
+      render: async () => ({ html: '<p>Items</p>' }),
       routes: [
         {
           method: 'POST',
-          path: '/users',
+          path: '/items',
           handler: routeHandler,
         },
       ],
@@ -559,7 +559,7 @@ describe('AdminHandler route dispatch', () => {
     });
 
     // Send GET instead of POST — should not match the POST route
-    const request = new Request('http://localhost/admin/users', {
+    const request = new Request('http://localhost/admin/items', {
       headers: { 'X-Admin-Key': 'admin-key' },
     });
 
