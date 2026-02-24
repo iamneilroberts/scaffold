@@ -71,6 +71,24 @@ export class AdminHandler {
   }
 
   /**
+   * Match a route pattern against a sub-path
+   *
+   * Supports exact matches and parameterized segments (e.g., `/users/:id`).
+   */
+  private matchRoute(pattern: string, subPath: string): boolean {
+    if (pattern === subPath) return true;
+
+    const patternParts = pattern.split('/');
+    const pathParts = subPath.split('/');
+
+    if (patternParts.length !== pathParts.length) return false;
+
+    return patternParts.every((part, i) =>
+      part.startsWith(':') || part === pathParts[i]
+    );
+  }
+
+  /**
    * Check if a request is to localhost (where Secure cookies are rejected by browsers)
    */
   private isLocalhost(request: Request): boolean {
@@ -151,6 +169,19 @@ export class AdminHandler {
       env,
       requestId: crypto.randomUUID(),
     };
+
+    // Check tab routes for API endpoints
+    if (subPath !== '/' && subPath !== '') {
+      for (const tab of this.tabs) {
+        if (!tab.routes) continue;
+        for (const route of tab.routes) {
+          if (request.method !== route.method) continue;
+          if (this.matchRoute(route.path, subPath)) {
+            return route.handler(request, ctx);
+          }
+        }
+      }
+    }
 
     // Route to dashboard
     if (subPath === '/' || subPath === '') {

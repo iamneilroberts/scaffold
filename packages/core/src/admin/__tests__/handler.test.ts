@@ -1,7 +1,8 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { AdminHandler } from '../handler.js';
 import { InMemoryAdapter } from '../../storage/in-memory.js';
-import type { ScaffoldConfig, ScaffoldTool, AdminTab } from '../../types/public-api.js';
+import { secureJsonResponse } from '../security.js';
+import type { ScaffoldConfig, ScaffoldTool, AdminTab, AdminContext } from '../../types/public-api.js';
 
 function createTestConfig(overrides?: Partial<ScaffoldConfig>): ScaffoldConfig {
   return {
@@ -420,5 +421,198 @@ describe('AdminHandler cookie security', () => {
     // Cookie should be scoped to admin path, not root
     expect(cookie).toContain('Path=/custom-admin');
     expect(cookie).not.toContain('Path=/;');
+  });
+});
+
+describe('AdminHandler route dispatch', () => {
+  let storage: InMemoryAdapter;
+  let config: ScaffoldConfig;
+
+  beforeEach(() => {
+    storage = new InMemoryAdapter();
+    config = createTestConfig();
+  });
+
+  it('dispatches POST to tab route handler', async () => {
+    const routeHandler = vi.fn(async (_req: Request, _ctx: AdminContext) =>
+      secureJsonResponse({ created: true }, 201)
+    );
+
+    const tab: AdminTab = {
+      id: 'custom-users',
+      label: 'Custom Users',
+      order: 100,
+      render: async () => ({ html: '<p>Users</p>' }),
+      routes: [
+        {
+          method: 'POST',
+          path: '/users',
+          handler: routeHandler,
+        },
+      ],
+    };
+
+    const handler = new AdminHandler({
+      config,
+      storage,
+      customTabs: [tab],
+    });
+
+    const request = new Request('http://localhost/admin/users', {
+      method: 'POST',
+      headers: {
+        'X-Admin-Key': 'admin-key',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ name: 'test' }),
+    });
+
+    const response = await handler.handle(request, {});
+
+    expect(response.status).toBe(201);
+    const body = await response.json();
+    expect(body).toEqual({ created: true });
+    expect(routeHandler).toHaveBeenCalledOnce();
+
+    // Verify the handler received a valid AdminContext
+    const ctx = routeHandler.mock.calls[0][1];
+    expect(ctx.isAdmin).toBe(true);
+    expect(ctx.storage).toBe(storage);
+    expect(ctx.requestId).toBeDefined();
+  });
+
+  it('dispatches to parameterized routes', async () => {
+    const routeHandler = vi.fn(async (_req: Request, _ctx: AdminContext) =>
+      secureJsonResponse({ deleted: true })
+    );
+
+    const tab: AdminTab = {
+      id: 'custom-users',
+      label: 'Custom Users',
+      order: 100,
+      render: async () => ({ html: '<p>Users</p>' }),
+      routes: [
+        {
+          method: 'DELETE',
+          path: '/users/:hash',
+          handler: routeHandler,
+        },
+      ],
+    };
+
+    const handler = new AdminHandler({
+      config,
+      storage,
+      customTabs: [tab],
+    });
+
+    const request = new Request('http://localhost/admin/users/abc123', {
+      method: 'DELETE',
+      headers: { 'X-Admin-Key': 'admin-key' },
+    });
+
+    const response = await handler.handle(request, {});
+
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body).toEqual({ deleted: true });
+    expect(routeHandler).toHaveBeenCalledOnce();
+  });
+
+  it('returns 404 for unmatched sub-routes', async () => {
+    const handler = new AdminHandler({ config, storage });
+
+    const request = new Request('http://localhost/admin/nonexistent', {
+      headers: { 'X-Admin-Key': 'admin-key' },
+    });
+
+    const response = await handler.handle(request, {});
+
+    expect(response.status).toBe(404);
+    const html = await response.text();
+    expect(html).toContain('Not Found');
+  });
+
+  it('does not dispatch when HTTP method does not match', async () => {
+    const routeHandler = vi.fn(async (_req: Request, _ctx: AdminContext) =>
+      secureJsonResponse({ ok: true })
+    );
+
+    const tab: AdminTab = {
+      id: 'custom-users',
+      label: 'Custom Users',
+      order: 100,
+      render: async () => ({ html: '<p>Users</p>' }),
+      routes: [
+        {
+          method: 'POST',
+          path: '/users',
+          handler: routeHandler,
+        },
+      ],
+    };
+
+    const handler = new AdminHandler({
+      config,
+      storage,
+      customTabs: [tab],
+    });
+
+    // Send GET instead of POST — should not match the POST route
+    const request = new Request('http://localhost/admin/users', {
+      headers: { 'X-Admin-Key': 'admin-key' },
+    });
+
+    const response = await handler.handle(request, {});
+
+    expect(response.status).toBe(404);
+    expect(routeHandler).not.toHaveBeenCalled();
+  });
+
+  it('matches routes across multiple tabs', async () => {
+    const usersHandler = vi.fn(async (_req: Request, _ctx: AdminContext) =>
+      secureJsonResponse({ source: 'users' })
+    );
+    const settingsHandler = vi.fn(async (_req: Request, _ctx: AdminContext) =>
+      secureJsonResponse({ source: 'settings' })
+    );
+
+    const usersTab: AdminTab = {
+      id: 'api-users',
+      label: 'API Users',
+      order: 100,
+      render: async () => ({ html: '<p>Users</p>' }),
+      routes: [
+        { method: 'GET', path: '/api/users', handler: usersHandler },
+      ],
+    };
+
+    const settingsTab: AdminTab = {
+      id: 'api-settings',
+      label: 'API Settings',
+      order: 101,
+      render: async () => ({ html: '<p>Settings</p>' }),
+      routes: [
+        { method: 'GET', path: '/api/settings', handler: settingsHandler },
+      ],
+    };
+
+    const handler = new AdminHandler({
+      config,
+      storage,
+      customTabs: [usersTab, settingsTab],
+    });
+
+    const request = new Request('http://localhost/admin/api/settings', {
+      headers: { 'X-Admin-Key': 'admin-key' },
+    });
+
+    const response = await handler.handle(request, {});
+
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body).toEqual({ source: 'settings' });
+    expect(settingsHandler).toHaveBeenCalledOnce();
+    expect(usersHandler).not.toHaveBeenCalled();
   });
 });
