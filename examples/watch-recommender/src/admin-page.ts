@@ -106,6 +106,7 @@ export function adminPageHtml(tmdbKey?: string): string {
     <div class="tab" data-tab="history">History</div>
     <div class="tab" data-tab="preferences">Preferences</div>
     <div class="tab" data-tab="watchlist">Watchlist</div>
+    <div class="tab" data-tab="settings">Settings</div>
   </div>
 
   <div class="content" id="tab-import">
@@ -179,6 +180,26 @@ export function adminPageHtml(tmdbKey?: string): string {
     <p id="queue-empty" style="display:none; color:var(--text-secondary); text-align:center; padding:40px 0;">Your watchlist is empty. Save titles to watch later using the watch-queue tool.</p>
   </div>
 
+  <div class="content hidden" id="tab-settings">
+    <div class="card">
+      <h3>TMDB API Key</h3>
+      <p style="color:var(--text-secondary); margin: 0.5rem 0; font-size:0.85rem;">
+        Add your own free TMDB API key for unlimited lookups.
+        <a href="https://www.themoviedb.org/signup" target="_blank" style="color:var(--accent);">Sign up at TMDB</a>,
+        then go to Settings &gt; API and copy your Read Access Token.
+      </p>
+      <div style="display:flex; gap:0.5rem; margin-top:0.75rem;">
+        <input type="text" id="tmdb-key-input" placeholder="Paste your TMDB Read Access Token">
+        <button onclick="saveTmdbKey()">Save</button>
+      </div>
+      <div id="settings-key-status" class="hidden" style="margin-top:0.5rem;"></div>
+    </div>
+    <div class="card" style="margin-top:1rem">
+      <h3>Usage</h3>
+      <div id="settings-usage" style="color:var(--text-secondary)">Loading...</div>
+    </div>
+  </div>
+
   <script>
     (function initTheme() {
       const saved = localStorage.getItem('watch-theme');
@@ -225,6 +246,7 @@ export function adminPageHtml(tmdbKey?: string): string {
         if (tab.dataset.tab === 'history') loadHistory();
         if (tab.dataset.tab === 'preferences') loadPreferences();
         if (tab.dataset.tab === 'watchlist') loadQueue();
+        if (tab.dataset.tab === 'settings') loadSettings();
       });
     });
 
@@ -425,6 +447,37 @@ export function adminPageHtml(tmdbKey?: string): string {
 
     function filterHistory() {
       // Placeholder for future search
+    }
+
+    // Settings tab
+    async function saveTmdbKey() {
+      const input = document.getElementById('tmdb-key-input');
+      const status = document.getElementById('settings-key-status');
+      const key = input.value.trim();
+      if (!key) return;
+      try {
+        const result = await callTool('watch-settings', { action: 'set-tmdb-key', key: key });
+        status.className = 'status success';
+        status.textContent = result.content[0].text;
+        status.classList.remove('hidden');
+        input.value = '';
+        loadSettings();
+      } catch (e) {
+        status.className = 'status error';
+        status.textContent = e.message;
+        status.classList.remove('hidden');
+      }
+    }
+
+    async function loadSettings() {
+      const usageEl = document.getElementById('settings-usage');
+      try {
+        const result = await callTool('watch-settings', { action: 'view' });
+        const text = result.content[0].text;
+        usageEl.innerHTML = '<pre style="white-space:pre-wrap; color:var(--text-secondary); margin:0;">' + text + '</pre>';
+      } catch (e) {
+        usageEl.innerHTML = '<span style="color:var(--error-text);">' + e.message + '</span>';
+      }
     }
 
     // Watchlist tab
