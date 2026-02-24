@@ -276,6 +276,38 @@ describe('TmdbClient', () => {
     });
   });
 
+  describe('getPersonCredits', () => {
+    it('fetches combined credits sorted by popularity', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          cast: [
+            { id: 1396, title: undefined, name: 'Breaking Bad', media_type: 'tv', character: 'Walter White', popularity: 90, first_air_date: '2008-01-20' },
+            { id: 500, title: 'Godzilla', name: undefined, media_type: 'movie', character: 'Joe Brody', popularity: 30, release_date: '2014-05-16' },
+          ],
+          crew: [
+            { id: 999, title: 'Some Movie', name: undefined, media_type: 'movie', job: 'Director', popularity: 10, release_date: '2020-01-01' },
+          ],
+        }),
+      });
+
+      const credits = await client.getPersonCredits(17419);
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        'https://api.themoviedb.org/3/person/17419/combined_credits',
+        { headers: { Authorization: 'Bearer test-api-key', 'Content-Type': 'application/json' } },
+      );
+      // Sorted by popularity descending
+      expect(credits[0].title).toBe('Breaking Bad');
+      expect(credits[0].type).toBe('tv');
+      expect(credits[0].role).toBe('Walter White');
+      expect(credits[1].title).toBe('Godzilla');
+      expect(credits[1].role).toBe('Joe Brody');
+      expect(credits[2].title).toBe('Some Movie');
+      expect(credits[2].role).toBe('Director');
+    });
+  });
+
   describe('getKeywords', () => {
     it('fetches keywords for a movie (uses "keywords" key)', async () => {
       mockFetch.mockResolvedValueOnce({

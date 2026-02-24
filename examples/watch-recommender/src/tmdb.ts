@@ -62,6 +62,14 @@ export interface TmdbPersonDetails {
   knownForDepartment: string;
 }
 
+export interface TmdbPersonCredit {
+  tmdbId: number;
+  title: string;
+  type: 'movie' | 'tv';
+  role: string;
+  year?: string;
+}
+
 const KEY_CREW_JOBS = new Set([
   'Director', 'Writer', 'Screenplay', 'Cinematography',
   'Director of Photography', 'Original Music Composer', 'Composer',
@@ -190,6 +198,42 @@ export class TmdbClient {
       placeOfBirth: (data.place_of_birth as string) || undefined,
       knownForDepartment: data.known_for_department as string,
     };
+  }
+
+  async getPersonCredits(personId: number): Promise<TmdbPersonCredit[]> {
+    const url = `${BASE_URL}/person/${personId}/combined_credits`;
+    const res = await fetch(url, { headers: this.headers() });
+    if (!res.ok) throw new Error(`TMDB person credits failed: ${res.status}`);
+    const data = await res.json() as {
+      cast: Array<{ id: number; title?: string; name?: string; media_type: string; character: string; popularity: number; release_date?: string; first_air_date?: string }>;
+      crew: Array<{ id: number; title?: string; name?: string; media_type: string; job: string; popularity: number; release_date?: string; first_air_date?: string }>;
+    };
+
+    const castCredits: (TmdbPersonCredit & { popularity: number })[] = data.cast
+      .filter(c => c.media_type === 'movie' || c.media_type === 'tv')
+      .map(c => ({
+        tmdbId: c.id,
+        title: (c.title ?? c.name) as string,
+        type: c.media_type as 'movie' | 'tv',
+        role: c.character,
+        year: (c.release_date ?? c.first_air_date ?? '').split('-')[0] || undefined,
+        popularity: c.popularity,
+      }));
+
+    const crewCredits: (TmdbPersonCredit & { popularity: number })[] = data.crew
+      .filter(c => c.media_type === 'movie' || c.media_type === 'tv')
+      .map(c => ({
+        tmdbId: c.id,
+        title: (c.title ?? c.name) as string,
+        type: c.media_type as 'movie' | 'tv',
+        role: c.job,
+        year: (c.release_date ?? c.first_air_date ?? '').split('-')[0] || undefined,
+        popularity: c.popularity,
+      }));
+
+    return [...castCredits, ...crewCredits]
+      .sort((a, b) => b.popularity - a.popularity)
+      .map(({ popularity, ...credit }) => credit);
   }
 
   genreNames(genreIds: number[]): string[] {
