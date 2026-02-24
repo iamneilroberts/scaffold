@@ -115,7 +115,7 @@ async function handleCreateUser(
     });
 
     // Run onUserCreate hook if available
-    const onUserCreate = ctx.env.__onUserCreate as
+    const onUserCreate = ctx.env['__onUserCreate'] as
       | ((userId: string) => Array<{ key: string; value: unknown }>)
       | undefined;
     if (typeof onUserCreate === 'function') {
@@ -180,8 +180,8 @@ async function handleGetEmail(
       return Response.json({ error: 'User not found' }, { status: 404 });
     }
 
-    const appName = (ctx.env.__appName as string) || 'App';
-    const workerUrl = (ctx.env.__workerUrl as string) || '';
+    const appName = (ctx.env['__appName'] as string) || 'App';
+    const workerUrl = (ctx.env['__workerUrl'] as string) || '';
 
     return Response.json({
       name: entry.name,

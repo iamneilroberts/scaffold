@@ -8,7 +8,7 @@
  * @packageDocumentation
  */
 
-import type { ToolContext, ToolResult } from '../../types/public-api.js';
+import type { ToolContext, ToolResult } from '../types/public-api.js';
 
 /**
  * Configuration for usage tracking
