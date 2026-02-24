@@ -250,3 +250,112 @@ describe('watch-queue list', () => {
     expect(text).toContain('empty');
   });
 });
+
+describe('watch-queue remove', () => {
+  let storage: InMemoryAdapter;
+
+  beforeEach(() => {
+    storage = new InMemoryAdapter();
+    mockFetch.mockReset();
+  });
+
+  it('removes a title by tmdbId', async () => {
+    const item: QueueItem = {
+      tmdbId: 550, title: 'Fight Club', type: 'movie', addedDate: '2026-01-01',
+      priority: 'medium', tags: [], source: 'manual', genres: ['Drama'], overview: '...',
+    };
+    await storage.put('user-1/queue/550', item);
+
+    const ctx = makeCtx(storage);
+    const result = await watchQueueTool.handler({ action: 'remove', tmdbId: 550 }, ctx);
+    const text = (result.content[0] as { type: string; text: string }).text;
+    expect(text).toContain('Removed');
+    expect(text).toContain('Fight Club');
+
+    const gone = await storage.get('user-1/queue/550');
+    expect(gone).toBeNull();
+  });
+
+  it('removes a title by search', async () => {
+    const item: QueueItem = {
+      tmdbId: 550, title: 'Fight Club', type: 'movie', addedDate: '2026-01-01',
+      priority: 'medium', tags: [], source: 'manual', genres: ['Drama'], overview: '...',
+    };
+    await storage.put('user-1/queue/550', item);
+
+    mockTmdbSearch([MOCK_MOVIE]);
+    const ctx = makeCtx(storage);
+    const result = await watchQueueTool.handler({ action: 'remove', title: 'Fight Club' }, ctx);
+    const text = (result.content[0] as { type: string; text: string }).text;
+    expect(text).toContain('Removed');
+
+    const gone = await storage.get('user-1/queue/550');
+    expect(gone).toBeNull();
+  });
+
+  it('returns error if title not in queue', async () => {
+    mockTmdbSearch([MOCK_MOVIE]);
+    const ctx = makeCtx(storage);
+    const result = await watchQueueTool.handler({ action: 'remove', title: 'Fight Club' }, ctx);
+    const text = (result.content[0] as { type: string; text: string }).text;
+    expect(text).toContain('not in your queue');
+  });
+});
+
+describe('watch-queue update', () => {
+  let storage: InMemoryAdapter;
+
+  beforeEach(() => {
+    storage = new InMemoryAdapter();
+    mockFetch.mockReset();
+  });
+
+  it('updates priority', async () => {
+    const item: QueueItem = {
+      tmdbId: 550, title: 'Fight Club', type: 'movie', addedDate: '2026-01-01',
+      priority: 'medium', tags: [], source: 'manual', genres: ['Drama'], overview: '...',
+    };
+    await storage.put('user-1/queue/550', item);
+
+    const ctx = makeCtx(storage);
+    await watchQueueTool.handler({ action: 'update', tmdbId: 550, priority: 'high' }, ctx);
+
+    const updated = await storage.get<QueueItem>('user-1/queue/550');
+    expect(updated!.priority).toBe('high');
+  });
+
+  it('adds new tags', async () => {
+    const item: QueueItem = {
+      tmdbId: 550, title: 'Fight Club', type: 'movie', addedDate: '2026-01-01',
+      priority: 'medium', tags: ['classic'], source: 'manual', genres: ['Drama'], overview: '...',
+    };
+    await storage.put('user-1/queue/550', item);
+
+    const ctx = makeCtx(storage);
+    await watchQueueTool.handler({ action: 'update', tmdbId: 550, tags: ['date night'] }, ctx);
+
+    const updated = await storage.get<QueueItem>('user-1/queue/550');
+    expect(updated!.tags).toEqual(['classic', 'date night']);
+  });
+
+  it('removes tags', async () => {
+    const item: QueueItem = {
+      tmdbId: 550, title: 'Fight Club', type: 'movie', addedDate: '2026-01-01',
+      priority: 'medium', tags: ['classic', 'date night'], source: 'manual', genres: ['Drama'], overview: '...',
+    };
+    await storage.put('user-1/queue/550', item);
+
+    const ctx = makeCtx(storage);
+    await watchQueueTool.handler({ action: 'update', tmdbId: 550, removeTags: ['classic'] }, ctx);
+
+    const updated = await storage.get<QueueItem>('user-1/queue/550');
+    expect(updated!.tags).toEqual(['date night']);
+  });
+
+  it('returns error if title not in queue', async () => {
+    mockTmdbSearch([MOCK_MOVIE]);
+    const ctx = makeCtx(storage);
+    const result = await watchQueueTool.handler({ action: 'update', title: 'Fight Club', priority: 'high' }, ctx);
+    expect(result.isError).toBe(true);
+  });
+});

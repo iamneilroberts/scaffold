@@ -265,14 +265,86 @@ async function handleRemove(
   args: { title?: string; tmdbId?: number },
   ctx: ToolContext,
 ): Promise<ToolResult> {
-  // Stub — implemented in a later task
-  return { content: [{ type: 'text', text: 'Not yet implemented.' }] };
+  let resolvedId = args.tmdbId;
+  let resolvedTitle = args.title ?? '';
+
+  if (resolvedId) {
+    const existing = await ctx.storage.get<QueueItem>(queueKey(ctx.userId, resolvedId));
+    if (!existing) {
+      return {
+        content: [{ type: 'text', text: `TMDB ID ${resolvedId} is not in your queue.` }],
+        isError: true,
+      };
+    }
+    resolvedTitle = existing.title;
+  } else {
+    const resolved = await resolveTitle(args, ctx);
+    if ('content' in resolved) return resolved as ToolResult;
+    resolvedId = resolved.id;
+    resolvedTitle = resolved.title;
+
+    const existing = await ctx.storage.get<QueueItem>(queueKey(ctx.userId, resolvedId));
+    if (!existing) {
+      return {
+        content: [{ type: 'text', text: `"${resolvedTitle}" is not in your queue.` }],
+        isError: true,
+      };
+    }
+  }
+
+  await ctx.storage.delete(queueKey(ctx.userId, resolvedId));
+  return {
+    content: [{ type: 'text', text: `Removed "${resolvedTitle}" from your queue.` }],
+  };
 }
 
 async function handleUpdate(
   args: { title?: string; tmdbId?: number; priority?: string; tags?: string[]; removeTags?: string[] },
   ctx: ToolContext,
 ): Promise<ToolResult> {
-  // Stub — implemented in a later task
-  return { content: [{ type: 'text', text: 'Not yet implemented.' }] };
+  let resolvedId = args.tmdbId;
+
+  if (!resolvedId) {
+    const resolved = await resolveTitle(args, ctx);
+    if ('content' in resolved) return resolved as ToolResult;
+    resolvedId = resolved.id;
+  }
+
+  const existing = await ctx.storage.get<QueueItem>(queueKey(ctx.userId, resolvedId));
+  if (!existing) {
+    const label = args.title ?? `TMDB ID ${resolvedId}`;
+    return {
+      content: [{ type: 'text', text: `"${label}" is not in your queue.` }],
+      isError: true,
+    };
+  }
+
+  // Update priority if provided and valid
+  const validPriorities = ['high', 'medium', 'low'];
+  if (args.priority && validPriorities.includes(args.priority)) {
+    existing.priority = args.priority as 'high' | 'medium' | 'low';
+  }
+
+  // Add new tags (deduplicated)
+  if (args.tags && args.tags.length > 0) {
+    const newTags = args.tags.filter(t => !existing.tags.includes(t));
+    existing.tags = [...existing.tags, ...newTags];
+  }
+
+  // Remove tags
+  if (args.removeTags && args.removeTags.length > 0) {
+    existing.tags = existing.tags.filter(t => !args.removeTags!.includes(t));
+  }
+
+  await ctx.storage.put(queueKey(ctx.userId, resolvedId), existing);
+
+  const tagText = existing.tags.length > 0 ? ` [${existing.tags.join(', ')}]` : '';
+  return {
+    content: [
+      {
+        type: 'text',
+        text: `Updated "${existing.title}" — priority: ${existing.priority}${tagText}.`,
+      },
+    ],
+  };
 }
