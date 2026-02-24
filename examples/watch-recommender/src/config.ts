@@ -10,7 +10,7 @@ import type { ScaffoldConfig } from '@voygent/scaffold-core';
 export const config: ScaffoldConfig = {
   app: {
     name: 'WatchRec',
-    description: 'Personal movie & TV recommendation assistant with taste profiling',
+    description: 'AI-powered movie & TV recommendations',
     version: '0.0.1',
   },
   mcp: {
@@ -20,7 +20,7 @@ export const config: ScaffoldConfig = {
   auth: {
     adminKey: undefined,
     requireAuth: true,
-    enableKeyIndex: false,
+    enableKeyIndex: true,
     enableFallbackScan: false,
     fallbackScanRateLimit: 0,
     fallbackScanBudget: 0,
@@ -28,4 +28,31 @@ export const config: ScaffoldConfig = {
   admin: {
     path: '/admin',
   },
+  appMeta: {
+    icon: '\uD83C\uDFAC',
+    description: 'AI-powered movie & TV recommendations',
+    workerUrl: 'https://scaffold-watch-rec.somotravel.workers.dev',
+  },
+  usage: {
+    resource: 'tmdb',
+    defaultCap: 500,
+    resetCycle: 'monthly',
+    trackedTools: [
+      'watch-log', 'watch-dismiss', 'watch-lookup',
+      'watch-recommend', 'watch-check', 'watch-screen',
+    ],
+  },
+  onUserCreate: (userId: string) => [
+    { key: `${userId}/preferences`, value: { statements: [], streamingServices: [] } },
+    { key: `${userId}/onboarding`, value: { completedPhases: [], lastRunAt: null } },
+    {
+      key: `${userId}/settings`,
+      value: {
+        tmdbUsageCap: 500,
+        tmdbUsageCount: 0,
+        tmdbUsageResetAt: new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1).toISOString(),
+        personalTmdbKey: null,
+      },
+    },
+  ],
 };
