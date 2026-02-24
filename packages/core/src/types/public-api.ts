@@ -228,6 +228,31 @@ export interface ScaffoldConfig {
     /** Default TTL for cached data (seconds) */
     defaultTTL?: number;
   };
+
+  /** User provisioning hook — returns KV entries to seed for new users */
+  onUserCreate?: (userId: string) => Array<{ key: string; value: unknown }>;
+
+  /** Usage tracking configuration */
+  usage?: {
+    /** Resource name being tracked (e.g., "tmdb") */
+    resource: string;
+    /** Default monthly request cap per user */
+    defaultCap: number;
+    /** Reset cycle */
+    resetCycle: 'monthly';
+    /** Tool names that count toward the cap */
+    trackedTools: string[];
+  };
+
+  /** App metadata for admin catalog */
+  appMeta?: {
+    /** Short description for catalog card */
+    description?: string;
+    /** Emoji icon for catalog */
+    icon?: string;
+    /** Deployed worker URL */
+    workerUrl?: string;
+  };
 }
 
 /**
