@@ -101,7 +101,7 @@ describe('watch-screen', () => {
       );
 
       expect(result.isError).toBeFalsy();
-      const text = result.content[0].text as string;
+      const text = (result.content[0] as { type: string; text: string }).text;
       // Should contain the context blob as JSON (pretty-printed with spaces)
       expect(text).toContain('"tmdbId": 500');
       expect(text).toContain('"title": "Inception"');
@@ -230,7 +230,7 @@ describe('watch-screen', () => {
       );
 
       expect(result.isError).toBeFalsy();
-      const text = result.content[0].text as string;
+      const text = (result.content[0] as { type: string; text: string }).text;
       expect(text).toContain('"name": "Ozymandias"');
       expect(text).toContain('Rian Johnson');
       expect(text).toContain('S5E14');
@@ -248,7 +248,7 @@ describe('watch-screen', () => {
       );
 
       expect(result.isError).toBe(true);
-      expect(result.content[0].text).toContain('No results found');
+      expect((result.content[0] as { type: string; text: string }).text).toContain('No results found');
     });
   });
 
@@ -284,7 +284,7 @@ describe('watch-screen', () => {
       );
 
       expect(result.isError).toBeFalsy();
-      const text = result.content[0].text as string;
+      const text = (result.content[0] as { type: string; text: string }).text;
       expect(text).toContain('Bryan Cranston');
       expect(text).toContain('American actor');
       expect(text).toContain('Breaking Bad');
@@ -299,7 +299,7 @@ describe('watch-screen', () => {
       );
 
       expect(result.isError).toBe(true);
-      expect(result.content[0].text).toContain('personId is required');
+      expect((result.content[0] as { type: string; text: string }).text).toContain('personId is required');
     });
   });
 });
