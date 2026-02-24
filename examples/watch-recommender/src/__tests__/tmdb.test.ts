@@ -95,4 +95,71 @@ describe('TmdbClient', () => {
       expect(client.genreNames([28, 99999])).toEqual(['Action']);
     });
   });
+
+  describe('getDetails', () => {
+    it('fetches movie details', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          id: 120,
+          title: 'The Lord of the Rings',
+          overview: 'A meek Hobbit sets out...',
+          tagline: 'One ring to rule them all.',
+          genres: [{ id: 12, name: 'Adventure' }, { id: 14, name: 'Fantasy' }],
+          release_date: '2001-12-19',
+          runtime: 178,
+          production_countries: [{ iso_3166_1: 'NZ', name: 'New Zealand' }, { iso_3166_1: 'US', name: 'United States' }],
+          spoken_languages: [{ english_name: 'English' }],
+        }),
+      });
+
+      const details = await client.getDetails(120, 'movie');
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        'https://api.themoviedb.org/3/movie/120',
+        { headers: { Authorization: 'Bearer test-api-key', 'Content-Type': 'application/json' } },
+      );
+      expect(details.title).toBe('The Lord of the Rings');
+      expect(details.tagline).toBe('One ring to rule them all.');
+      expect(details.runtime).toBe(178);
+      expect(details.genres).toEqual(['Adventure', 'Fantasy']);
+      expect(details.countries).toEqual(['New Zealand', 'United States']);
+      expect(details.languages).toEqual(['English']);
+      expect(details.releaseDate).toBe('2001-12-19');
+    });
+
+    it('fetches TV show details', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          id: 1396,
+          name: 'Breaking Bad',
+          overview: 'A chemistry teacher diagnosed with cancer...',
+          genres: [{ id: 18, name: 'Drama' }],
+          first_air_date: '2008-01-20',
+          last_air_date: '2013-09-29',
+          number_of_seasons: 5,
+          number_of_episodes: 62,
+          created_by: [{ name: 'Vince Gilligan' }],
+          status: 'Ended',
+          production_countries: [{ iso_3166_1: 'US', name: 'United States' }],
+          spoken_languages: [{ english_name: 'English' }, { english_name: 'Spanish' }],
+        }),
+      });
+
+      const details = await client.getDetails(1396, 'tv');
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        'https://api.themoviedb.org/3/tv/1396',
+        { headers: { Authorization: 'Bearer test-api-key', 'Content-Type': 'application/json' } },
+      );
+      expect(details.title).toBe('Breaking Bad');
+      expect(details.seasons).toBe(5);
+      expect(details.episodes).toBe(62);
+      expect(details.createdBy).toEqual(['Vince Gilligan']);
+      expect(details.status).toBe('Ended');
+      expect(details.releaseDate).toBe('2008-01-20');
+      expect(details.languages).toEqual(['English', 'Spanish']);
+    });
+  });
 });

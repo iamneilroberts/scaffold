@@ -20,6 +20,23 @@ export interface WatchProviderResult {
   buy?: TmdbProvider[];
 }
 
+export interface TmdbDetails {
+  tmdbId: number;
+  title: string;
+  type: 'movie' | 'tv';
+  overview: string;
+  genres: string[];
+  releaseDate: string;
+  runtime?: number;
+  seasons?: number;
+  episodes?: number;
+  status?: string;
+  tagline?: string;
+  languages: string[];
+  countries: string[];
+  createdBy?: string[];
+}
+
 export class TmdbClient {
   private apiKey: string;
 
@@ -48,6 +65,32 @@ export class TmdbClient {
     if (!res.ok) throw new Error(`TMDB providers failed: ${res.status}`);
     const data = await res.json() as { results: Record<string, WatchProviderResult> };
     return data.results[region] ?? {};
+  }
+
+  async getDetails(tmdbId: number, type: 'movie' | 'tv'): Promise<TmdbDetails> {
+    const url = `${BASE_URL}/${type}/${tmdbId}`;
+    const res = await fetch(url, { headers: this.headers() });
+    if (!res.ok) throw new Error(`TMDB details failed: ${res.status}`);
+    const data = await res.json() as Record<string, unknown>;
+
+    return {
+      tmdbId,
+      title: (data.title ?? data.name) as string,
+      type,
+      overview: data.overview as string,
+      genres: (data.genres as Array<{ id: number; name: string }>).map(g => g.name),
+      releaseDate: (data.release_date ?? data.first_air_date) as string,
+      runtime: data.runtime as number | undefined,
+      seasons: data.number_of_seasons as number | undefined,
+      episodes: data.number_of_episodes as number | undefined,
+      status: data.status as string | undefined,
+      tagline: data.tagline as string | undefined,
+      languages: (data.spoken_languages as Array<{ english_name: string }>).map(l => l.english_name),
+      countries: (data.production_countries as Array<{ name: string }>).map(c => c.name),
+      createdBy: data.created_by
+        ? (data.created_by as Array<{ name: string }>).map(c => c.name)
+        : undefined,
+    };
   }
 
   genreNames(genreIds: number[]): string[] {
