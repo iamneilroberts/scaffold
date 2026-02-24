@@ -208,4 +208,46 @@ describe('TmdbClient', () => {
       expect(details.languages).toEqual(['English', 'Spanish']);
     });
   });
+
+  describe('getKeywords', () => {
+    it('fetches keywords for a movie (uses "keywords" key)', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          keywords: [
+            { id: 1, name: 'dream' },
+            { id: 2, name: 'heist' },
+          ],
+        }),
+      });
+
+      const keywords = await client.getKeywords(120, 'movie');
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        'https://api.themoviedb.org/3/movie/120/keywords',
+        { headers: { Authorization: 'Bearer test-api-key', 'Content-Type': 'application/json' } },
+      );
+      expect(keywords).toEqual(['dream', 'heist']);
+    });
+
+    it('fetches keywords for TV (uses "results" key)', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          results: [
+            { id: 1, name: 'crime' },
+            { id: 2, name: 'meth' },
+          ],
+        }),
+      });
+
+      const keywords = await client.getKeywords(1396, 'tv');
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        'https://api.themoviedb.org/3/tv/1396/keywords',
+        { headers: { Authorization: 'Bearer test-api-key', 'Content-Type': 'application/json' } },
+      );
+      expect(keywords).toEqual(['crime', 'meth']);
+    });
+  });
 });

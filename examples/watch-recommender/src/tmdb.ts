@@ -124,6 +124,17 @@ export class TmdbClient {
     };
   }
 
+  async getKeywords(tmdbId: number, type: 'movie' | 'tv'): Promise<string[]> {
+    const url = `${BASE_URL}/${type}/${tmdbId}/keywords`;
+    const res = await fetch(url, { headers: this.headers() });
+    if (!res.ok) throw new Error(`TMDB keywords failed: ${res.status}`);
+    const data = await res.json() as Record<string, unknown>;
+
+    // TMDB returns "keywords" for movies, "results" for TV
+    const items = (data.keywords ?? data.results) as Array<{ id: number; name: string }>;
+    return items.map(k => k.name);
+  }
+
   genreNames(genreIds: number[]): string[] {
     return genreIds.map(id => GENRE_MAP[id]).filter(Boolean);
   }
