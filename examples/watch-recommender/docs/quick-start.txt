@@ -196,6 +196,7 @@ You can also ask freeform questions:
 
   "Who plays Helly?"
   "Tell me about the director"
+  "What else has that actor been in?"
 
 This works for movies too:
 

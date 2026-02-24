@@ -171,6 +171,8 @@ You can also ask freeform questions:
 
 > **"Tell me about the director"**
 
+> **"What else has that actor been in?"**
+
 This works for movies too:
 
 > **"I'm watching There Will Be Blood"**
