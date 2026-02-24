@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { InMemoryAdapter } from '@voygent/scaffold-core';
 import { watchLogTool } from '../tools/watch-log.js';
 import type { ToolContext } from '@voygent/scaffold-core';
-import type { WatchRecord } from '../types.js';
+import type { WatchRecord, QueueItem } from '../types.js';
 
 const mockFetch = vi.fn();
 vi.stubGlobal('fetch', mockFetch);
@@ -75,5 +75,33 @@ describe('watch-log', () => {
 
     const result = await watchLogTool.handler({ title: 'xyznonexistent' }, makeCtx(storage));
     expect(result.isError).toBe(true);
+  });
+
+  it('removes title from queue when logging as watched', async () => {
+    const queueItem: QueueItem = {
+      tmdbId: 550, title: 'Fight Club', type: 'movie', addedDate: '2026-01-01',
+      priority: 'high', tags: ['classic'], source: 'manual', genres: ['Drama'],
+      overview: '...', posterPath: '/poster.jpg',
+    };
+    await storage.put('user-1/queue/550', queueItem);
+
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        results: [{
+          id: 550, title: 'Fight Club', media_type: 'movie', overview: 'An insomniac...',
+          genre_ids: [18, 53], poster_path: '/poster.jpg', release_date: '1999-10-15', vote_average: 8.4,
+        }],
+      }),
+    });
+
+    const ctx = makeCtx(storage);
+    const result = await watchLogTool.handler({ title: 'Fight Club', rating: 4 }, ctx);
+    const text = (result.content[0] as { type: string; text: string }).text;
+    expect(text).toContain('Fight Club');
+    expect(text).toContain('queue');
+
+    const gone = await storage.get('user-1/queue/550');
+    expect(gone).toBeNull();
   });
 });
