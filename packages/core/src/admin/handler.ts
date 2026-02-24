@@ -19,6 +19,7 @@ import { loginPage, dashboardLayout, errorPage } from './templates.js';
 import { overviewTab } from './tabs/overview.js';
 import { usersTab } from './tabs/users.js';
 import { createToolsTab } from './tabs/tools.js';
+import { createAppsTab } from './tabs/apps.js';
 
 /**
  * Admin handler options
@@ -66,6 +67,7 @@ export class AdminHandler {
       overviewTab,
       usersTab,
       createToolsTab(options.tools ?? new Map()),
+      createAppsTab(options.config),
       ...(options.customTabs ?? []),
     ];
   }
