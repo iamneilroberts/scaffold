@@ -92,7 +92,7 @@ describe('watch-check', () => {
 
   it('flags titles that are already in the queue', async () => {
     const queueItem: QueueItem = {
-      tmdbId: 123, title: 'The Bear', type: 'tv', addedDate: '2026-01-01',
+      tmdbId: 123, title: 'The Bear', type: 'tv', status: 'resolved', addedDate: '2026-01-01',
       priority: 'high', tags: [], source: 'manual', genres: ['Drama'],
       overview: '...',
     };

@@ -51,7 +51,7 @@ describe('watch-recommend', () => {
 
   it('includes queue items in recommendation context', async () => {
     const queueItem: QueueItem = {
-      tmdbId: 550, title: 'Fight Club', type: 'movie', addedDate: '2026-01-01',
+      tmdbId: 550, title: 'Fight Club', type: 'movie', status: 'resolved', addedDate: '2026-01-01',
       priority: 'high', tags: ['thriller night'], source: 'manual',
       genres: ['Drama', 'Thriller'], overview: '...',
     };

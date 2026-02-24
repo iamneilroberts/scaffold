@@ -2,7 +2,7 @@ import type { ScaffoldTool, ToolContext, ToolResult } from '@voygent/scaffold-co
 import { storage as storageUtils } from '@voygent/scaffold-core';
 import type { QueueItem, WatchRecord, Dismissal, SeenEntry } from '../types.js';
 import { getTmdbClient } from '../tmdb.js';
-import { queueKey, queuePrefix, watchedKey, dismissedKey, seenKey } from '../keys.js';
+import { queueKey, queuePrefix, watchedKey, dismissedKey, seenKey, pendingQueueKey, generateId } from '../keys.js';
 
 export const watchQueueTool: ScaffoldTool = {
   name: 'watch-queue',
@@ -90,10 +90,21 @@ export const watchQueueTool: ScaffoldTool = {
   },
 };
 
+interface ResolvedTitle {
+  id?: number;
+  pendingId?: string;
+  title: string;
+  type: 'movie' | 'tv' | 'unknown';
+  overview: string;
+  genres: string[];
+  posterPath?: string;
+  status: 'resolved' | 'pending';
+}
+
 async function resolveTitle(
   args: { title?: string; tmdbId?: number },
   ctx: ToolContext,
-): Promise<{ id: number; title: string; type: 'movie' | 'tv'; overview: string; genres: string[]; posterPath?: string } | ToolResult> {
+): Promise<ResolvedTitle | ToolResult> {
   if (args.tmdbId) {
     const existing = await ctx.storage.get<QueueItem>(queueKey(ctx.userId, args.tmdbId));
     if (existing) {
@@ -104,6 +115,7 @@ async function resolveTitle(
         overview: existing.overview,
         genres: existing.genres,
         posterPath: existing.posterPath,
+        status: 'resolved',
       };
     }
     if (!args.title) {
@@ -121,24 +133,37 @@ async function resolveTitle(
     };
   }
 
-  const tmdb = await getTmdbClient(ctx);
-  const results = await tmdb.searchMulti(args.title);
-  if (results.length === 0) {
+  try {
+    const tmdb = await getTmdbClient(ctx);
+    const results = await tmdb.searchMulti(args.title);
+    if (results.length === 0) {
+      return {
+        content: [{ type: 'text', text: `No results found for "${args.title}".` }],
+        isError: true,
+      };
+    }
+
+    const match = results[0];
     return {
-      content: [{ type: 'text', text: `No results found for "${args.title}".` }],
-      isError: true,
+      id: match.id,
+      title: match.title ?? match.name ?? args.title,
+      type: match.media_type as 'movie' | 'tv',
+      overview: match.overview,
+      genres: tmdb.genreNames(match.genre_ids),
+      posterPath: match.poster_path ?? undefined,
+      status: 'resolved',
+    };
+  } catch {
+    // TMDB unavailable — return pending result so the item can still be queued
+    return {
+      pendingId: generateId(),
+      title: args.title,
+      type: 'unknown',
+      overview: '',
+      genres: [],
+      status: 'pending',
     };
   }
-
-  const match = results[0];
-  return {
-    id: match.id,
-    title: match.title ?? match.name ?? args.title,
-    type: match.media_type as 'movie' | 'tv',
-    overview: match.overview,
-    genres: tmdb.genreNames(match.genre_ids),
-    posterPath: match.poster_path ?? undefined,
-  };
 }
 
 async function handleAdd(
@@ -148,36 +173,39 @@ async function handleAdd(
   const resolved = await resolveTitle(args, ctx);
   if ('content' in resolved) return resolved as ToolResult;
 
-  // Check if already in queue
-  const existing = await ctx.storage.get<QueueItem>(queueKey(ctx.userId, resolved.id));
-  if (existing) {
-    return {
-      content: [{ type: 'text', text: `"${resolved.title}" is already in your queue (priority: ${existing.priority}).` }],
-    };
-  }
+  // Pending items skip duplicate checks (no tmdbId to check against)
+  if (resolved.status === 'resolved' && resolved.id != null) {
+    // Check if already in queue
+    const existing = await ctx.storage.get<QueueItem>(queueKey(ctx.userId, resolved.id));
+    if (existing) {
+      return {
+        content: [{ type: 'text', text: `"${resolved.title}" is already in your queue (priority: ${existing.priority}).` }],
+      };
+    }
 
-  // Check if already watched
-  const watched = await ctx.storage.get<WatchRecord>(watchedKey(ctx.userId, resolved.id));
-  if (watched) {
-    return {
-      content: [{ type: 'text', text: `"${resolved.title}" is already watched${watched.rating ? ` (rated ${watched.rating}/5)` : ''}.` }],
-    };
-  }
+    // Check if already watched
+    const watched = await ctx.storage.get<WatchRecord>(watchedKey(ctx.userId, resolved.id));
+    if (watched) {
+      return {
+        content: [{ type: 'text', text: `"${resolved.title}" is already watched${watched.rating ? ` (rated ${watched.rating}/5)` : ''}.` }],
+      };
+    }
 
-  // Check if already seen (imported history)
-  const seen = await ctx.storage.get<SeenEntry>(seenKey(ctx.userId, resolved.id));
-  if (seen) {
-    return {
-      content: [{ type: 'text', text: `"${resolved.title}" is already in your seen history.` }],
-    };
-  }
+    // Check if already seen (imported history)
+    const seen = await ctx.storage.get<SeenEntry>(seenKey(ctx.userId, resolved.id));
+    if (seen) {
+      return {
+        content: [{ type: 'text', text: `"${resolved.title}" is already in your seen history.` }],
+      };
+    }
 
-  // Check if dismissed
-  const dismissed = await ctx.storage.get<Dismissal>(dismissedKey(ctx.userId, resolved.id));
-  if (dismissed) {
-    return {
-      content: [{ type: 'text', text: `"${resolved.title}" was dismissed as "${dismissed.reason}".` }],
-    };
+    // Check if dismissed
+    const dismissed = await ctx.storage.get<Dismissal>(dismissedKey(ctx.userId, resolved.id));
+    if (dismissed) {
+      return {
+        content: [{ type: 'text', text: `"${resolved.title}" was dismissed as "${dismissed.reason}".` }],
+      };
+    }
   }
 
   const validPriorities = ['high', 'medium', 'low'];
@@ -185,8 +213,10 @@ async function handleAdd(
 
   const item: QueueItem = {
     tmdbId: resolved.id,
+    pendingId: resolved.pendingId,
     title: resolved.title,
     type: resolved.type,
+    status: resolved.status,
     addedDate: new Date().toISOString().split('T')[0],
     priority: priority as 'high' | 'medium' | 'low',
     tags: args.tags ?? [],
@@ -196,14 +226,22 @@ async function handleAdd(
     posterPath: resolved.posterPath,
   };
 
-  await ctx.storage.put(queueKey(ctx.userId, resolved.id), item);
+  // Use tmdbId key for resolved items, pendingId key for pending
+  const storageKey = resolved.id != null
+    ? queueKey(ctx.userId, resolved.id)
+    : pendingQueueKey(ctx.userId, resolved.pendingId!);
+
+  await ctx.storage.put(storageKey, item);
 
   const tagText = item.tags.length > 0 ? ` [${item.tags.join(', ')}]` : '';
+
   return {
     content: [
       {
         type: 'text',
-        text: `Added "${resolved.title}" (${resolved.type}) to your queue — priority: ${priority}${tagText}.`,
+        text: resolved.status === 'resolved'
+          ? `Added "${resolved.title}" (${resolved.type}) to your queue — priority: ${priority}${tagText}.`
+          : `Added "${resolved.title}" to your queue — priority: ${priority}${tagText}. ⚠️ TMDB lookup failed; metadata will be enriched when available.`,
       },
     ],
   };
@@ -280,6 +318,12 @@ async function handleRemove(
   } else {
     const resolved = await resolveTitle(args, ctx);
     if ('content' in resolved) return resolved as ToolResult;
+    if (resolved.id == null) {
+      return {
+        content: [{ type: 'text', text: `Could not resolve "${args.title}" — TMDB is unavailable. Try again with a tmdbId.` }],
+        isError: true,
+      };
+    }
     resolvedId = resolved.id;
     resolvedTitle = resolved.title;
 
@@ -307,6 +351,12 @@ async function handleUpdate(
   if (!resolvedId) {
     const resolved = await resolveTitle(args, ctx);
     if ('content' in resolved) return resolved as ToolResult;
+    if (resolved.id == null) {
+      return {
+        content: [{ type: 'text', text: `Could not resolve "${args.title}" — TMDB is unavailable. Try again with a tmdbId.` }],
+        isError: true,
+      };
+    }
     resolvedId = resolved.id;
   }
 

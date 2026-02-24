@@ -94,7 +94,7 @@ describe('watch-queue add', () => {
   it('warns if title is already in queue', async () => {
     const ctx = makeCtx(storage);
     const existing: QueueItem = {
-      tmdbId: 550, title: 'Fight Club', type: 'movie', addedDate: '2026-01-01',
+      tmdbId: 550, title: 'Fight Club', type: 'movie', status: 'resolved', addedDate: '2026-01-01',
       priority: 'medium', tags: [], source: 'manual', genres: ['Drama'], overview: '...',
     };
     await storage.put('user-1/queue/550', existing);
@@ -152,6 +152,95 @@ describe('watch-queue add', () => {
   });
 });
 
+describe('watch-queue add — TMDB degradation', () => {
+  let storage: InMemoryAdapter;
+
+  beforeEach(() => {
+    storage = new InMemoryAdapter();
+    mockFetch.mockReset();
+  });
+
+  it('stores a pending item when TMDB returns 401', async () => {
+    mockFetch.mockResolvedValueOnce({ ok: false, status: 401 });
+    const ctx = makeCtx(storage);
+    const result = await watchQueueTool.handler(
+      { action: 'add', title: 'Zodiac' },
+      ctx,
+    );
+
+    const text = (result.content[0] as { type: string; text: string }).text;
+    expect(result.isError).toBeFalsy();
+    expect(text).toContain('Zodiac');
+    expect(text).toContain('queue');
+    expect(text).toContain('TMDB lookup failed');
+  });
+
+  it('stores a pending item when TMDB network fails', async () => {
+    mockFetch.mockRejectedValueOnce(new Error('fetch failed'));
+    const ctx = makeCtx(storage);
+    const result = await watchQueueTool.handler(
+      { action: 'add', title: 'Zodiac' },
+      ctx,
+    );
+
+    expect(result.isError).toBeFalsy();
+    const text = (result.content[0] as { type: string; text: string }).text;
+    expect(text).toContain('Zodiac');
+    expect(text).toContain('TMDB lookup failed');
+  });
+
+  it('pending item appears in queue list', async () => {
+    mockFetch.mockRejectedValueOnce(new Error('fetch failed'));
+    const ctx = makeCtx(storage);
+    await watchQueueTool.handler(
+      { action: 'add', title: 'Zodiac' },
+      ctx,
+    );
+
+    const listResult = await watchQueueTool.handler({ action: 'list' }, ctx);
+    const listText = (listResult.content[0] as { type: string; text: string }).text;
+    expect(listText).toContain('Zodiac');
+  });
+
+  it('pending item has correct shape', async () => {
+    mockFetch.mockRejectedValueOnce(new Error('fetch failed'));
+    const ctx = makeCtx(storage);
+    await watchQueueTool.handler(
+      { action: 'add', title: 'Zodiac', priority: 'high', tags: ['thriller'] },
+      ctx,
+    );
+
+    // Find the pending item in storage
+    const listResult = await storage.list('user-1/queue/');
+    const pendingKey = listResult.keys.find(k => k.includes('pending-'));
+    expect(pendingKey).toBeDefined();
+
+    const item = await storage.get<QueueItem>(pendingKey!);
+    expect(item).toBeDefined();
+    expect(item!.title).toBe('Zodiac');
+    expect(item!.type).toBe('unknown');
+    expect(item!.status).toBe('pending');
+    expect(item!.tmdbId).toBeUndefined();
+    expect(item!.pendingId).toBeDefined();
+    expect(item!.priority).toBe('high');
+    expect(item!.tags).toEqual(['thriller']);
+  });
+
+  it('resolved item gets correct status field', async () => {
+    mockTmdbSearch([MOCK_MOVIE]);
+    const ctx = makeCtx(storage);
+    await watchQueueTool.handler(
+      { action: 'add', title: 'Fight Club' },
+      ctx,
+    );
+
+    const item = await storage.get<QueueItem>('user-1/queue/550');
+    expect(item!.status).toBe('resolved');
+    expect(item!.tmdbId).toBe(550);
+    expect(item!.pendingId).toBeUndefined();
+  });
+});
+
 describe('watch-queue list', () => {
   let storage: InMemoryAdapter;
 
@@ -166,6 +255,7 @@ describe('watch-queue list', () => {
         tmdbId: item.tmdbId ?? 0,
         title: item.title ?? 'Test',
         type: item.type ?? 'movie',
+        status: item.status ?? 'resolved',
         addedDate: item.addedDate ?? '2026-01-01',
         priority: item.priority ?? 'medium',
         tags: item.tags ?? [],
@@ -261,7 +351,7 @@ describe('watch-queue remove', () => {
 
   it('removes a title by tmdbId', async () => {
     const item: QueueItem = {
-      tmdbId: 550, title: 'Fight Club', type: 'movie', addedDate: '2026-01-01',
+      tmdbId: 550, title: 'Fight Club', type: 'movie', status: 'resolved', addedDate: '2026-01-01',
       priority: 'medium', tags: [], source: 'manual', genres: ['Drama'], overview: '...',
     };
     await storage.put('user-1/queue/550', item);
@@ -278,7 +368,7 @@ describe('watch-queue remove', () => {
 
   it('removes a title by search', async () => {
     const item: QueueItem = {
-      tmdbId: 550, title: 'Fight Club', type: 'movie', addedDate: '2026-01-01',
+      tmdbId: 550, title: 'Fight Club', type: 'movie', status: 'resolved', addedDate: '2026-01-01',
       priority: 'medium', tags: [], source: 'manual', genres: ['Drama'], overview: '...',
     };
     await storage.put('user-1/queue/550', item);
@@ -312,7 +402,7 @@ describe('watch-queue update', () => {
 
   it('updates priority', async () => {
     const item: QueueItem = {
-      tmdbId: 550, title: 'Fight Club', type: 'movie', addedDate: '2026-01-01',
+      tmdbId: 550, title: 'Fight Club', type: 'movie', status: 'resolved', addedDate: '2026-01-01',
       priority: 'medium', tags: [], source: 'manual', genres: ['Drama'], overview: '...',
     };
     await storage.put('user-1/queue/550', item);
@@ -326,7 +416,7 @@ describe('watch-queue update', () => {
 
   it('adds new tags', async () => {
     const item: QueueItem = {
-      tmdbId: 550, title: 'Fight Club', type: 'movie', addedDate: '2026-01-01',
+      tmdbId: 550, title: 'Fight Club', type: 'movie', status: 'resolved', addedDate: '2026-01-01',
       priority: 'medium', tags: ['classic'], source: 'manual', genres: ['Drama'], overview: '...',
     };
     await storage.put('user-1/queue/550', item);
@@ -340,7 +430,7 @@ describe('watch-queue update', () => {
 
   it('removes tags', async () => {
     const item: QueueItem = {
-      tmdbId: 550, title: 'Fight Club', type: 'movie', addedDate: '2026-01-01',
+      tmdbId: 550, title: 'Fight Club', type: 'movie', status: 'resolved', addedDate: '2026-01-01',
       priority: 'medium', tags: ['classic', 'date night'], source: 'manual', genres: ['Drama'], overview: '...',
     };
     await storage.put('user-1/queue/550', item);

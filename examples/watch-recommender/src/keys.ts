@@ -22,6 +22,10 @@ export function queuePrefix(userId: string): string {
   return `${userId}/queue/`;
 }
 
+export function pendingQueueKey(userId: string, pendingId: string): string {
+  return `${userId}/queue/pending-${pendingId}`;
+}
+
 export function seenKey(userId: string, tmdbId: number): string {
   return `${userId}/seen/${tmdbId}`;
 }

@@ -18,9 +18,11 @@ export interface Dismissal {
 }
 
 export interface QueueItem {
-  tmdbId: number;
+  tmdbId?: number;
+  pendingId?: string;
   title: string;
-  type: 'movie' | 'tv';
+  type: 'movie' | 'tv' | 'unknown';
+  status: 'resolved' | 'pending';
   addedDate: string;
   priority: 'high' | 'medium' | 'low';
   tags: string[];

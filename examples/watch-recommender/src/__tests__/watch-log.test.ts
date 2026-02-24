@@ -79,7 +79,7 @@ describe('watch-log', () => {
 
   it('removes title from queue when logging as watched', async () => {
     const queueItem: QueueItem = {
-      tmdbId: 550, title: 'Fight Club', type: 'movie', addedDate: '2026-01-01',
+      tmdbId: 550, title: 'Fight Club', type: 'movie', status: 'resolved', addedDate: '2026-01-01',
       priority: 'high', tags: ['classic'], source: 'manual', genres: ['Drama'],
       overview: '...', posterPath: '/poster.jpg',
     };
