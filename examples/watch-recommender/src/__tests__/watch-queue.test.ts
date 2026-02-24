@@ -106,7 +106,7 @@ describe('watch-queue add', () => {
     expect(text).toContain('queue');
   });
 
-  it('warns if title is already watched', async () => {
+  it('warns if title is already watched and suggests force', async () => {
     const ctx = makeCtx(storage);
     const watched: WatchRecord = {
       tmdbId: 550, title: 'Fight Club', type: 'movie', genres: ['Drama'],
@@ -118,9 +118,10 @@ describe('watch-queue add', () => {
     const result = await watchQueueTool.handler({ action: 'add', title: 'Fight Club' }, ctx);
     const text = (result.content[0] as { type: string; text: string }).text;
     expect(text).toContain('already watched');
+    expect(text).toContain('force');
   });
 
-  it('warns if title is dismissed', async () => {
+  it('warns if title is dismissed and suggests force', async () => {
     const ctx = makeCtx(storage);
     const dismissed: Dismissal = {
       tmdbId: 550, title: 'Fight Club', reason: 'not-interested', date: '2026-01-01',
@@ -131,9 +132,10 @@ describe('watch-queue add', () => {
     const result = await watchQueueTool.handler({ action: 'add', title: 'Fight Club' }, ctx);
     const text = (result.content[0] as { type: string; text: string }).text;
     expect(text).toContain('dismissed');
+    expect(text).toContain('force');
   });
 
-  it('warns if title is already in seen history', async () => {
+  it('warns if title is already in seen history and suggests force', async () => {
     const ctx = makeCtx(storage);
     const seen: SeenEntry = { tmdbId: 550, title: 'Fight Club', type: 'movie' };
     await storage.put('user-1/seen/550', seen);
@@ -142,6 +144,7 @@ describe('watch-queue add', () => {
     const result = await watchQueueTool.handler({ action: 'add', title: 'Fight Club' }, ctx);
     const text = (result.content[0] as { type: string; text: string }).text;
     expect(text).toContain('seen');
+    expect(text).toContain('force');
   });
 
   it('returns error when TMDB finds no results', async () => {
@@ -238,6 +241,127 @@ describe('watch-queue add — TMDB degradation', () => {
     expect(item!.status).toBe('resolved');
     expect(item!.tmdbId).toBe(550);
     expect(item!.pendingId).toBeUndefined();
+  });
+});
+
+describe('watch-queue add — force override', () => {
+  let storage: InMemoryAdapter;
+
+  beforeEach(() => {
+    storage = new InMemoryAdapter();
+    mockFetch.mockReset();
+  });
+
+  it('force-adds a watched title, removing it from watched store', async () => {
+    const ctx = makeCtx(storage);
+    const watched: WatchRecord = {
+      tmdbId: 550, title: 'Fight Club', type: 'movie', genres: ['Drama'],
+      overview: '...', source: 'manual', rating: 4,
+    };
+    await storage.put('user-1/watched/550', watched);
+
+    mockTmdbSearch([MOCK_MOVIE]);
+    const result = await watchQueueTool.handler(
+      { action: 'add', title: 'Fight Club', force: true },
+      ctx,
+    );
+
+    const text = (result.content[0] as { type: string; text: string }).text;
+    expect(result.isError).toBeFalsy();
+    expect(text).toContain('Added');
+    expect(text).toContain('Fight Club');
+    expect(text).toContain('reset: watched');
+
+    // Watched record should be deleted
+    const gone = await storage.get('user-1/watched/550');
+    expect(gone).toBeNull();
+
+    // Queue item should exist
+    const item = await storage.get<QueueItem>('user-1/queue/550');
+    expect(item).toBeDefined();
+    expect(item!.tmdbId).toBe(550);
+  });
+
+  it('force-adds a seen title, removing it from seen store', async () => {
+    const ctx = makeCtx(storage);
+    const seen: SeenEntry = { tmdbId: 550, title: 'Fight Club', type: 'movie' };
+    await storage.put('user-1/seen/550', seen);
+
+    mockTmdbSearch([MOCK_MOVIE]);
+    const result = await watchQueueTool.handler(
+      { action: 'add', title: 'Fight Club', force: true },
+      ctx,
+    );
+
+    const text = (result.content[0] as { type: string; text: string }).text;
+    expect(result.isError).toBeFalsy();
+    expect(text).toContain('reset: seen');
+
+    const gone = await storage.get('user-1/seen/550');
+    expect(gone).toBeNull();
+
+    const item = await storage.get<QueueItem>('user-1/queue/550');
+    expect(item).toBeDefined();
+  });
+
+  it('force-adds a dismissed title, removing it from dismissed store', async () => {
+    const ctx = makeCtx(storage);
+    const dismissed: Dismissal = {
+      tmdbId: 550, title: 'Fight Club', reason: 'not-interested', date: '2026-01-01',
+    };
+    await storage.put('user-1/dismissed/550', dismissed);
+
+    mockTmdbSearch([MOCK_MOVIE]);
+    const result = await watchQueueTool.handler(
+      { action: 'add', title: 'Fight Club', force: true },
+      ctx,
+    );
+
+    const text = (result.content[0] as { type: string; text: string }).text;
+    expect(result.isError).toBeFalsy();
+    expect(text).toContain('reset: dismissed');
+
+    const gone = await storage.get('user-1/dismissed/550');
+    expect(gone).toBeNull();
+  });
+
+  it('force-adds clears multiple conflicting states at once', async () => {
+    const ctx = makeCtx(storage);
+    await storage.put('user-1/watched/550', {
+      tmdbId: 550, title: 'Fight Club', type: 'movie', genres: ['Drama'],
+      overview: '...', source: 'manual',
+    } as WatchRecord);
+    await storage.put('user-1/dismissed/550', {
+      tmdbId: 550, title: 'Fight Club', reason: 'seen', date: '2026-01-01',
+    } as Dismissal);
+
+    mockTmdbSearch([MOCK_MOVIE]);
+    const result = await watchQueueTool.handler(
+      { action: 'add', title: 'Fight Club', force: true },
+      ctx,
+    );
+
+    const text = (result.content[0] as { type: string; text: string }).text;
+    expect(result.isError).toBeFalsy();
+    expect(text).toContain('reset: watched, dismissed');
+
+    expect(await storage.get('user-1/watched/550')).toBeNull();
+    expect(await storage.get('user-1/dismissed/550')).toBeNull();
+    expect(await storage.get<QueueItem>('user-1/queue/550')).toBeDefined();
+  });
+
+  it('force has no effect when there are no conflicts', async () => {
+    mockTmdbSearch([MOCK_MOVIE]);
+    const ctx = makeCtx(storage);
+    const result = await watchQueueTool.handler(
+      { action: 'add', title: 'Fight Club', force: true },
+      ctx,
+    );
+
+    const text = (result.content[0] as { type: string; text: string }).text;
+    expect(result.isError).toBeFalsy();
+    expect(text).toContain('Added');
+    expect(text).not.toContain('reset');
   });
 });
 

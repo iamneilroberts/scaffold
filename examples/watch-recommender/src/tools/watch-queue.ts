@@ -53,6 +53,10 @@ export const watchQueueTool: ScaffoldTool = {
         type: 'string',
         description: 'Filter list by type: "movie" or "tv"',
       },
+      force: {
+        type: 'boolean',
+        description: 'Force add even if already watched/seen/dismissed — resets prior state (used by add)',
+      },
       _raw: { type: 'boolean', description: 'Return raw JSON (for admin UI)' },
     },
     required: ['action'],
@@ -69,6 +73,7 @@ export const watchQueueTool: ScaffoldTool = {
       filterPriority?: string;
       filterTag?: string;
       filterType?: string;
+      force?: boolean;
       _raw?: boolean;
     };
 
@@ -167,11 +172,13 @@ async function resolveTitle(
 }
 
 async function handleAdd(
-  args: { title?: string; tmdbId?: number; priority?: string; tags?: string[]; source?: string },
+  args: { title?: string; tmdbId?: number; priority?: string; tags?: string[]; source?: string; force?: boolean },
   ctx: ToolContext,
 ): Promise<ToolResult> {
   const resolved = await resolveTitle(args, ctx);
   if ('content' in resolved) return resolved as ToolResult;
+
+  const resetStates: string[] = [];
 
   // Pending items skip duplicate checks (no tmdbId to check against)
   if (resolved.status === 'resolved' && resolved.id != null) {
@@ -186,25 +193,37 @@ async function handleAdd(
     // Check if already watched
     const watched = await ctx.storage.get<WatchRecord>(watchedKey(ctx.userId, resolved.id));
     if (watched) {
-      return {
-        content: [{ type: 'text', text: `"${resolved.title}" is already watched${watched.rating ? ` (rated ${watched.rating}/5)` : ''}.` }],
-      };
+      if (!args.force) {
+        return {
+          content: [{ type: 'text', text: `"${resolved.title}" is already watched${watched.rating ? ` (rated ${watched.rating}/5)` : ''}. Use force: true to override.` }],
+        };
+      }
+      await ctx.storage.delete(watchedKey(ctx.userId, resolved.id));
+      resetStates.push('watched');
     }
 
     // Check if already seen (imported history)
     const seen = await ctx.storage.get<SeenEntry>(seenKey(ctx.userId, resolved.id));
     if (seen) {
-      return {
-        content: [{ type: 'text', text: `"${resolved.title}" is already in your seen history.` }],
-      };
+      if (!args.force) {
+        return {
+          content: [{ type: 'text', text: `"${resolved.title}" is already in your seen history. Use force: true to override.` }],
+        };
+      }
+      await ctx.storage.delete(seenKey(ctx.userId, resolved.id));
+      resetStates.push('seen');
     }
 
     // Check if dismissed
     const dismissed = await ctx.storage.get<Dismissal>(dismissedKey(ctx.userId, resolved.id));
     if (dismissed) {
-      return {
-        content: [{ type: 'text', text: `"${resolved.title}" was dismissed as "${dismissed.reason}".` }],
-      };
+      if (!args.force) {
+        return {
+          content: [{ type: 'text', text: `"${resolved.title}" was dismissed as "${dismissed.reason}". Use force: true to override.` }],
+        };
+      }
+      await ctx.storage.delete(dismissedKey(ctx.userId, resolved.id));
+      resetStates.push('dismissed');
     }
   }
 
@@ -234,13 +253,16 @@ async function handleAdd(
   await ctx.storage.put(storageKey, item);
 
   const tagText = item.tags.length > 0 ? ` [${item.tags.join(', ')}]` : '';
+  const resetNote = resetStates.length > 0
+    ? ` (reset: ${resetStates.join(', ')})`
+    : '';
 
   return {
     content: [
       {
         type: 'text',
         text: resolved.status === 'resolved'
-          ? `Added "${resolved.title}" (${resolved.type}) to your queue — priority: ${priority}${tagText}.`
+          ? `Added "${resolved.title}" (${resolved.type}) to your queue — priority: ${priority}${tagText}.${resetNote}`
           : `Added "${resolved.title}" to your queue — priority: ${priority}${tagText}. ⚠️ TMDB lookup failed; metadata will be enriched when available.`,
       },
     ],
