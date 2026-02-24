@@ -170,6 +170,72 @@ describe('watch-screen', () => {
       expect(result.isError).toBeFalsy();
     });
 
+    it('includes episode details when season and episode provided', async () => {
+      // 1. searchMulti
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          results: [{
+            id: 1396, name: 'Breaking Bad', media_type: 'tv',
+            overview: 'A chemistry teacher...', genre_ids: [18],
+            poster_path: '/bb.jpg', vote_average: 9.5, first_air_date: '2008-01-20',
+          }],
+        }),
+      });
+
+      // 2. getDetails
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          id: 1396, name: 'Breaking Bad', overview: 'A chemistry teacher...',
+          genres: [{ id: 18, name: 'Drama' }], first_air_date: '2008-01-20',
+          number_of_seasons: 5, number_of_episodes: 62, status: 'Ended',
+          spoken_languages: [{ english_name: 'English' }],
+          production_countries: [{ name: 'United States' }],
+          created_by: [{ name: 'Vince Gilligan' }],
+        }),
+      });
+
+      // 3. getCredits
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          cast: [{ id: 17419, name: 'Bryan Cranston', character: 'Walter White', order: 0 }],
+          crew: [{ id: 66633, name: 'Vince Gilligan', job: 'Executive Producer', department: 'Production' }],
+        }),
+      });
+
+      // 4. getKeywords
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          results: [{ id: 1, name: 'meth' }, { id: 2, name: 'crime' }],
+        }),
+      });
+
+      // 5. getEpisodeDetails
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          name: 'Ozymandias', overview: 'The most explosive episode...',
+          air_date: '2013-09-15', season_number: 5, episode_number: 14,
+          guest_stars: [{ id: 99, name: 'Guest Star', character: 'DEA Agent' }],
+          crew: [{ id: 88, name: 'Rian Johnson', job: 'Director' }],
+        }),
+      });
+
+      const result = await watchScreenTool.handler(
+        { action: 'start', title: 'Breaking Bad', season: 5, episode: 14 },
+        makeCtx(storage),
+      );
+
+      expect(result.isError).toBeFalsy();
+      const text = result.content[0].text as string;
+      expect(text).toContain('"name": "Ozymandias"');
+      expect(text).toContain('Rian Johnson');
+      expect(text).toContain('S5E14');
+    });
+
     it('returns error when title not found', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
@@ -183,6 +249,57 @@ describe('watch-screen', () => {
 
       expect(result.isError).toBe(true);
       expect(result.content[0].text).toContain('No results found');
+    });
+  });
+
+  describe('detail action', () => {
+    it('fetches person details and combined credits', async () => {
+      // 1. getPersonDetails
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          id: 17419, name: 'Bryan Cranston',
+          biography: 'Bryan Lee Cranston is an American actor...',
+          birthday: '1956-03-07', deathday: null,
+          place_of_birth: 'Canoga Park, California, USA',
+          known_for_department: 'Acting',
+        }),
+      });
+
+      // 2. getPersonCredits
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          cast: [
+            { id: 1396, name: 'Breaking Bad', media_type: 'tv', character: 'Walter White', popularity: 90, first_air_date: '2008-01-20' },
+            { id: 500, title: 'Godzilla', media_type: 'movie', character: 'Joe Brody', popularity: 30, release_date: '2014-05-16' },
+          ],
+          crew: [],
+        }),
+      });
+
+      const result = await watchScreenTool.handler(
+        { action: 'detail', personId: 17419 },
+        makeCtx(storage),
+      );
+
+      expect(result.isError).toBeFalsy();
+      const text = result.content[0].text as string;
+      expect(text).toContain('Bryan Cranston');
+      expect(text).toContain('American actor');
+      expect(text).toContain('Breaking Bad');
+      expect(text).toContain('Walter White');
+      expect(text).toContain('Godzilla');
+    });
+
+    it('returns error when personId missing', async () => {
+      const result = await watchScreenTool.handler(
+        { action: 'detail' },
+        makeCtx(storage),
+      );
+
+      expect(result.isError).toBe(true);
+      expect(result.content[0].text).toContain('personId is required');
     });
   });
 });
