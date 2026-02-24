@@ -8,6 +8,7 @@ import { watchLookupTool } from './tools/watch-lookup.js';
 import { watchImportTool } from './tools/watch-import.js';
 import { watchOnboardTool } from './tools/watch-onboard.js';
 import { watchHistoryUploadTool } from './tools/watch-history-upload.js';
+import { watchQueueTool } from './tools/watch-queue.js';
 import type { ScaffoldTool } from '@voygent/scaffold-core';
 
 export const watchTools: ScaffoldTool[] = [
@@ -21,4 +22,5 @@ export const watchTools: ScaffoldTool[] = [
   watchImportTool,
   watchOnboardTool,
   watchHistoryUploadTool,
+  watchQueueTool,
 ];
