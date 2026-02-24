@@ -1,9 +1,10 @@
-export function adminPageHtml(): string {
+export function adminPageHtml(tmdbKey?: string): string {
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  ${tmdbKey ? `<meta name="tmdb-key" content="${tmdbKey.replace(/"/g, '&quot;')}" />` : ''}
   <title>Watch Recommender</title>
   <style>
     :root {
@@ -111,11 +112,14 @@ export function adminPageHtml(): string {
     <div class="card">
       <h3>Import Watch History</h3>
       <p style="color:var(--text-secondary); margin: 0.5rem 0">Netflix: Account > Profile > Viewing Activity > Download</p>
+      <p style="color:var(--text-secondary); margin: 0.5rem 0; font-size:0.85rem;">
+        Your file is parsed entirely in the browser — nothing is uploaded to the server.
+      </p>
       <input type="file" id="csv-file" accept=".csv" style="margin: 1rem 0">
       <button id="import-btn" onclick="importCsv()">Import CSV</button>
       <div id="import-progress" class="hidden" style="margin-top:1rem">
         <div style="display:flex; justify-content:space-between; margin-bottom:0.25rem">
-          <span id="progress-label">Importing...</span>
+          <span id="progress-label">Processing...</span>
           <span id="progress-pct">0%</span>
         </div>
         <div style="background:var(--input-bg); border-radius:4px; height:8px; overflow:hidden">
@@ -229,21 +233,36 @@ export function adminPageHtml(): string {
       document.querySelector('[data-tab="import"]').click();
     }
 
-    // Import (chunked)
+    // Import — client-side CSV parsing + TMDB lookups
+    function parseNetflixCsv(lines) {
+      // Netflix CSV: "Title","Date" — skip header
+      const seen = new Set();
+      const titles = [];
+      for (let i = 1; i < lines.length; i++) {
+        const match = lines[i].match(/"([^"]+)"/);
+        if (!match) continue;
+        // Strip episode info: "Show: Season X: Episode Title" → "Show"
+        const raw = match[1];
+        const colonIdx = raw.indexOf(':');
+        const title = colonIdx > 0 ? raw.substring(0, colonIdx).trim() : raw.trim();
+        if (title && !seen.has(title.toLowerCase())) {
+          seen.add(title.toLowerCase());
+          titles.push(title);
+        }
+      }
+      return titles;
+    }
+
     async function importCsv() {
       const fileInput = document.getElementById('csv-file');
       const file = fileInput.files[0];
       if (!file) return;
-      const csv = await file.text();
-      const lines = csv.split('\\n').map(l => l.trim()).filter(Boolean);
-      if (lines.length < 2) { alert('CSV appears empty'); return; }
 
-      const header = lines[0];
-      const dataLines = lines.slice(1);
-      const CHUNK_SIZE = 50;
-      const chunks = [];
-      for (let i = 0; i < dataLines.length; i += CHUNK_SIZE) {
-        chunks.push(dataLines.slice(i, i + CHUNK_SIZE));
+      const tmdbKeyMeta = document.querySelector('meta[name="tmdb-key"]');
+      const tmdbKey = tmdbKeyMeta ? tmdbKeyMeta.content : '';
+      if (!tmdbKey) {
+        alert('TMDB API key not configured. Set TMDB_API_KEY in your environment.');
+        return;
       }
 
       const btn = document.getElementById('import-btn');
@@ -257,40 +276,92 @@ export function adminPageHtml(): string {
       progress.classList.remove('hidden');
       status.classList.add('hidden');
 
-      let totalImported = 0, totalSkipped = 0, totalFailed = 0;
+      progressLabel.textContent = 'Reading file...';
+      progressBar.style.width = '5%';
+      progressPct.textContent = '5%';
 
-      for (let i = 0; i < chunks.length; i++) {
-        const chunkCsv = header + '\\n' + chunks[i].join('\\n');
-        const pct = Math.round(((i + 1) / chunks.length) * 100);
-        progressLabel.textContent = 'Chunk ' + (i + 1) + ' of ' + chunks.length + '...';
-        progressPct.textContent = pct + '%';
-        progressBar.style.width = pct + '%';
-
-        try {
-          const result = await callTool('watch-import', { csv: chunkCsv, source: 'netflix' });
-          const text = result.content[0].text;
-          const impMatch = text.match(/(\\d+) titles imported/);
-          const skipMatch = text.match(/(\\d+) skipped/);
-          const failMatch = text.match(/(\\d+) failed/);
-          if (impMatch) totalImported += parseInt(impMatch[1]);
-          if (skipMatch) totalSkipped += parseInt(skipMatch[1]);
-          if (failMatch) totalFailed += parseInt(failMatch[1]);
-        } catch (e) {
-          totalFailed += chunks[i].length;
-        }
+      const csv = await file.text();
+      const lines = csv.split('\\n').map(l => l.trim()).filter(Boolean);
+      if (lines.length < 2) {
+        alert('CSV appears empty');
+        btn.disabled = false;
+        progress.classList.add('hidden');
+        return;
       }
 
+      const titles = parseNetflixCsv(lines);
+      progressBar.style.width = '10%';
+      progressPct.textContent = '10%';
+      progressLabel.textContent = 'Found ' + titles.length + ' unique titles. Looking up on TMDB...';
+
+      // TMDB lookups from browser
+      const seenEntries = [];
+      let lookupFailed = 0;
+
+      for (let i = 0; i < titles.length; i++) {
+        try {
+          const res = await fetch(
+            'https://api.themoviedb.org/3/search/multi?query=' + encodeURIComponent(titles[i]) + '&language=en-US&page=1',
+            { headers: { Authorization: 'Bearer ' + tmdbKey, 'Content-Type': 'application/json' } }
+          );
+          if (res.ok) {
+            const data = await res.json();
+            const hit = (data.results || []).find(r => r.media_type === 'movie' || r.media_type === 'tv');
+            if (hit) {
+              seenEntries.push({
+                tmdbId: hit.id,
+                title: hit.title || hit.name,
+                type: hit.media_type,
+              });
+            }
+          } else {
+            lookupFailed++;
+          }
+        } catch { lookupFailed++; }
+
+        const pct = 10 + Math.round((i / titles.length) * 70);
+        progressBar.style.width = pct + '%';
+        progressPct.textContent = pct + '%';
+        progressLabel.textContent = 'Looking up ' + (i + 1) + '/' + titles.length + '...';
+
+        // Throttle to stay under TMDB rate limit (~40 req/10s)
+        if ((i + 1) % 30 === 0) await new Promise(r => setTimeout(r, 1000));
+      }
+
+      progressBar.style.width = '85%';
+      progressPct.textContent = '85%';
+      progressLabel.textContent = 'Saving ' + seenEntries.length + ' titles...';
+
+      // Send in batches of 50 via watch-seen-bulk
+      let saveFailed = 0;
+      for (let i = 0; i < seenEntries.length; i += 50) {
+        const chunk = seenEntries.slice(i, i + 50);
+        try {
+          await callTool('watch-seen-bulk', { entries: chunk });
+        } catch { saveFailed += chunk.length; }
+      }
+
+      progressBar.style.width = '95%';
+      progressPct.textContent = '95%';
+      progressLabel.textContent = 'Generating taste profile...';
+
+      try {
+        await callTool('watch-profile', { action: 'generate' });
+      } catch { /* profile generation is optional */ }
+
       progressBar.style.width = '100%';
-      progressLabel.textContent = 'Done!';
       progressPct.textContent = '100%';
+      progressLabel.textContent = 'Done!';
       btn.disabled = false;
 
-      const parts = [totalImported + ' titles imported'];
-      if (totalSkipped > 0) parts.push(totalSkipped + ' skipped');
-      if (totalFailed > 0) parts.push(totalFailed + ' failed');
+      const parts = [seenEntries.length + ' titles imported'];
+      if (lookupFailed > 0) parts.push(lookupFailed + ' lookup failures');
+      const notFound = titles.length - seenEntries.length - lookupFailed;
+      if (notFound > 0) parts.push(notFound + ' not found on TMDB');
+      if (saveFailed > 0) parts.push(saveFailed + ' failed to save');
 
       status.className = 'status success';
-      status.innerHTML = '<strong>' + parts.join(', ') + '</strong><br><span style="color:var(--text-secondary);margin-top:0.5rem;display:block">You can now return to Claude to continue setup.</span>';
+      status.innerHTML = '<strong>' + parts.join(', ') + '</strong><br><span style="color:var(--text-secondary);margin-top:0.5rem;display:block">Your seen history and taste profile have been updated. You can now return to Claude to continue.</span>';
       status.classList.remove('hidden');
     }
 
