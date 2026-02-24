@@ -88,6 +88,35 @@ export interface TmdbProvider {
   logo_path: string;
 }
 
+export interface ScreenContext {
+  tmdbId: number;
+  title: string;
+  type: 'movie' | 'tv';
+  overview: string;
+  genres: string[];
+  releaseDate: string;
+  runtime?: number;
+  seasons?: number;
+  episodes?: number;
+  status?: string;
+  tagline?: string;
+  languages: string[];
+  countries: string[];
+  cast: Array<{ personId: number; name: string; character: string }>;
+  crew: Array<{ personId: number; name: string; job: string; department: string }>;
+  createdBy?: string[];
+  keywords: string[];
+  episode?: {
+    season: number;
+    episode: number;
+    name: string;
+    overview: string;
+    airDate: string;
+    guestStars: Array<{ personId: number; name: string; character: string }>;
+    crew: Array<{ personId: number; name: string; job: string }>;
+  };
+}
+
 export interface Env {
   DATA: KVNamespace;
   ADMIN_KEY: string;
