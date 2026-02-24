@@ -1,7 +1,7 @@
 import type { ScaffoldTool, ToolContext, ToolResult } from '@voygent/scaffold-core';
 import { storage } from '@voygent/scaffold-core';
-import type { WatchRecord, Dismissal } from '../types.js';
-import { watchedPrefix, dismissedPrefix } from '../keys.js';
+import type { WatchRecord, Dismissal, QueueItem } from '../types.js';
+import { watchedPrefix, dismissedPrefix, queuePrefix } from '../keys.js';
 
 function normalize(s: string): string {
   return s.toLowerCase().trim();
@@ -9,7 +9,7 @@ function normalize(s: string): string {
 
 export const watchCheckTool: ScaffoldTool = {
   name: 'watch-check',
-  description: 'Check if titles are already in the user\'s watched or dismissed list. Call this after generating recommendations to filter out duplicates before presenting them.',
+  description: 'Check if titles are already in the user\'s watched, dismissed, or queue list. Call this after generating recommendations to filter out duplicates before presenting them.',
   inputSchema: {
     type: 'object',
     properties: {
@@ -32,6 +32,10 @@ export const watchCheckTool: ScaffoldTool = {
     const dismissedResult = await ctx.storage.list(dismissedPrefix(ctx.userId));
     const dismissedMap = await storage.batchGet<Dismissal>(ctx.storage, dismissedResult.keys);
 
+    // Load all queue keys, then batch-fetch values
+    const queueResult = await ctx.storage.list(queuePrefix(ctx.userId));
+    const queueMap = await storage.batchGet<QueueItem>(ctx.storage, queueResult.keys);
+
     // Build normalized title sets
     const watchedTitles = new Map<string, string>(); // normalized → original
     for (const record of watchedMap.values()) {
@@ -41,6 +45,11 @@ export const watchCheckTool: ScaffoldTool = {
     const dismissedTitles = new Map<string, string>();
     for (const record of dismissedMap.values()) {
       dismissedTitles.set(normalize(record.title), record.title);
+    }
+
+    const queueTitles = new Map<string, string>();
+    for (const record of queueMap.values()) {
+      queueTitles.set(normalize(record.title), record.title);
     }
 
     const conflicts: { title: string; reason: string; matchedTitle: string }[] = [];
@@ -64,6 +73,16 @@ export const watchCheckTool: ScaffoldTool = {
       for (const [dismissedNorm, dismissedOriginal] of dismissedTitles) {
         if (norm.includes(dismissedNorm) || dismissedNorm.includes(norm)) {
           conflicts.push({ title, reason: 'dismissed', matchedTitle: dismissedOriginal });
+          found = true;
+          break;
+        }
+      }
+      if (found) continue;
+
+      // Check queue
+      for (const [queueNorm, queueOriginal] of queueTitles) {
+        if (norm.includes(queueNorm) || queueNorm.includes(norm)) {
+          conflicts.push({ title, reason: 'already in your queue', matchedTitle: queueOriginal });
           found = true;
           break;
         }
