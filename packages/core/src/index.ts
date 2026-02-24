@@ -99,3 +99,7 @@ export { ScaffoldServer, type ScaffoldServerOptions } from './server/index.js';
 // Re-export storage adapters (for examples and consumer apps)
 export { InMemoryAdapter } from './storage/in-memory.js';
 export { CloudflareKVAdapter, type KVNamespace } from './storage/cloudflare-kv.js';
+
+// Re-export usage tracking middleware
+export { createUsageTracker } from './middleware/usage-tracker.js';
+export type { UsageTracker, UsageConfig, UserSettings } from './middleware/usage-tracker.js';
