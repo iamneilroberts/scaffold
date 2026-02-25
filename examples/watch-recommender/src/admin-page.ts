@@ -107,7 +107,6 @@ export function adminPageHtml(tmdbKey?: string): string {
     <div class="tab" data-tab="preferences">Preferences</div>
     <div class="tab" data-tab="watchlist">Watchlist</div>
     <div class="tab" data-tab="settings">Settings</div>
-    <div class="tab" data-tab="feedback">Feedback</div>
   </div>
 
   <div class="content" id="tab-import">
@@ -201,20 +200,6 @@ export function adminPageHtml(tmdbKey?: string): string {
     </div>
   </div>
 
-  <div class="content hidden" id="tab-feedback">
-    <div class="card" style="display:flex; align-items:center; gap:1rem;">
-      <label for="feedback-status-filter" style="white-space:nowrap; font-weight:600;">Status:</label>
-      <select id="feedback-status-filter" style="max-width:200px;">
-        <option value="open">Open</option>
-        <option value="resolved">Resolved</option>
-        <option value="dismissed">Dismissed</option>
-        <option value="all">All</option>
-      </select>
-    </div>
-    <div id="feedback-list" style="display:grid; gap:12px; margin-top:1rem;"></div>
-    <p id="feedback-empty" style="display:none; color:var(--text-secondary); text-align:center; padding:40px 0;">No feedback to show.</p>
-  </div>
-
   <script>
     (function initTheme() {
       const saved = localStorage.getItem('watch-theme');
@@ -262,7 +247,6 @@ export function adminPageHtml(tmdbKey?: string): string {
         if (tab.dataset.tab === 'preferences') loadPreferences();
         if (tab.dataset.tab === 'watchlist') loadQueue();
         if (tab.dataset.tab === 'settings') loadSettings();
-        if (tab.dataset.tab === 'feedback') loadFeedback();
       });
     });
 
@@ -583,89 +567,6 @@ export function adminPageHtml(tmdbKey?: string): string {
       await callTool('watch-queue', { action: 'update', tmdbId: tmdbId, priority: next });
       await loadQueue();
     }
-
-    // Feedback tab
-    let feedbackData = [];
-
-    async function loadFeedback() {
-      try {
-        const result = await callTool('watch-feedback', { action: 'list', statusFilter: 'all', _raw: true });
-        const text = result.content[0].text;
-        try {
-          feedbackData = JSON.parse(text);
-        } catch {
-          feedbackData = [];
-        }
-        renderFeedback();
-      } catch (err) {
-        console.error('Failed to load feedback:', err);
-        feedbackData = [];
-        renderFeedback();
-      }
-    }
-
-    function renderFeedback() {
-      const list = document.getElementById('feedback-list');
-      const empty = document.getElementById('feedback-empty');
-      const filter = document.getElementById('feedback-status-filter').value;
-
-      const filtered = filter === 'all' ? feedbackData : feedbackData.filter(i => i.status === filter);
-
-      if (filtered.length === 0) {
-        list.innerHTML = '';
-        empty.style.display = 'block';
-        return;
-      }
-
-      empty.style.display = 'none';
-      list.innerHTML = filtered.map(item => {
-        const esc = (s) => { const el = document.createElement('span'); el.textContent = s; return el.innerHTML; };
-        const badgeColors = { bug: 'var(--danger)', feature: 'var(--accent)', general: 'var(--text-secondary)' };
-        const safeCat = esc(item.category);
-        const badgeColor = badgeColors[item.category] || 'var(--text-secondary)';
-        const safeMsg = esc(item.message);
-        const safeUser = esc(item.userId);
-        const safeStatus = esc(item.status);
-        const safeId = esc(item.id);
-        const date = new Date(item.createdAt).toLocaleString();
-
-        const actions = item.status === 'open'
-          ? '<div style="display:flex; gap:8px; margin-top:8px;">'
-            + '<button class="resolve-btn" data-id="' + safeId + '">Resolve</button>'
-            + '<button class="danger dismiss-btn" data-id="' + safeId + '">Dismiss</button>'
-            + '</div>'
-          : '<div style="margin-top:8px; font-size:0.8rem; text-transform:uppercase; color:var(--text-secondary);">' + safeStatus + '</div>';
-
-        return '<div class="card">'
-          + '<div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">'
-          + '<span style="font-size:0.75rem; padding:2px 8px; border-radius:10px; color:#fff; background:' + badgeColor + ';">' + safeCat + '</span>'
-          + '<span style="font-size:0.85rem; color:var(--text-secondary);">' + safeUser + '</span>'
-          + '<span style="font-size:0.8rem; color:var(--text-secondary); margin-left:auto;">' + date + '</span>'
-          + '</div>'
-          + '<div style="color:var(--text-primary); white-space:pre-wrap;">' + safeMsg + '</div>'
-          + actions
-          + '</div>';
-      }).join('');
-    }
-
-    async function resolveFeedback(id) {
-      await callTool('watch-feedback', { action: 'resolve', feedbackId: id });
-      await loadFeedback();
-    }
-
-    async function dismissFeedback(id) {
-      await callTool('watch-feedback', { action: 'dismiss', feedbackId: id });
-      await loadFeedback();
-    }
-
-    document.getElementById('feedback-status-filter').addEventListener('change', renderFeedback);
-    document.getElementById('feedback-list').addEventListener('click', async function(e) {
-      const btn = e.target.closest('[data-id]');
-      if (!btn) return;
-      const id = btn.dataset.id;
-      if (btn.classList.contains('resolve-btn')) await resolveFeedback(id);
-      if (btn.classList.contains('dismiss-btn')) await dismissFeedback(id);
-    });
 
     // Filter event listeners
     document.getElementById('filter-priority').addEventListener('change', renderQueue);

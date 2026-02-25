@@ -3,6 +3,7 @@ import type { ToolContext } from '@voygent/scaffold-core';
 import { watchTools } from './tools.js';
 import { adminPageHtml } from './admin-page.js';
 import { config } from './config.js';
+import { feedbackAdminTab } from './admin-feedback-tab.js';
 import type { Env } from './types.js';
 
 export default {
@@ -36,6 +37,8 @@ export default {
       storage,
       tools,
     });
+
+    server.registerAdminTab(feedbackAdminTab);
 
     server.route('GET', '/app', async () => {
       return new Response(adminPageHtml(env.TMDB_API_KEY), {

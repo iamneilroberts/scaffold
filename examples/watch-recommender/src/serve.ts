@@ -10,6 +10,7 @@ import { FileStorageAdapter, startLocalServer, loadEnvFile } from '@voygent/scaf
 import { watchTools } from './tools.js';
 import { adminPageHtml } from './admin-page.js';
 import { config } from './config.js';
+import { feedbackAdminTab } from './admin-feedback-tab.js';
 
 // Load secrets from .dev.vars / .env
 const envVars = loadEnvFile();
@@ -29,6 +30,8 @@ const server = new ScaffoldServer({
   storage,
   tools: watchTools,
 });
+
+server.registerAdminTab(feedbackAdminTab);
 
 server.route('GET', '/app', async () => {
   return new Response(adminPageHtml(envVars['TMDB_API_KEY'] as string), {
