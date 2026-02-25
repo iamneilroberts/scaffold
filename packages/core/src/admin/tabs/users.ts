@@ -189,6 +189,7 @@ async function handleGetEmail(
       appName,
       workerUrl,
       userId: entry.userId,
+      authToken: entry.authToken,
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';
@@ -216,25 +217,25 @@ const styles = `
   .btn-primary { background: var(--accent, #3b82f6); color: #fff; }
   .btn-sm { padding: 0.25rem 0.625rem; font-size: 0.8125rem; }
   .btn-danger { background: #ef4444; color: #fff; }
-  .btn-outline { background: transparent; border: 1px solid var(--border, #d1d5db); color: var(--text, #111); }
+  .btn-outline { background: transparent; border: 1px solid var(--border, #374151); color: var(--text-primary, #f3f4f6); }
 
-  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.45); display: flex; align-items: center; justify-content: center; z-index: 1000; }
-  .modal { background: var(--card-bg, #fff); border-radius: 10px; box-shadow: 0 8px 30px rgba(0,0,0,0.18); width: 480px; max-width: 95vw; max-height: 90vh; overflow-y: auto; }
-  .modal-header { padding: 1rem 1.25rem; border-bottom: 1px solid var(--border, #e5e7eb); font-weight: 600; display: flex; justify-content: space-between; align-items: center; }
+  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.55); display: flex; align-items: center; justify-content: center; z-index: 1000; }
+  .modal { background: var(--bg-card, #1f2937); color: var(--text-primary, #f3f4f6); border-radius: 10px; box-shadow: 0 8px 30px rgba(0,0,0,0.3); width: 520px; max-width: 95vw; max-height: 90vh; overflow-y: auto; }
+  .modal-header { padding: 1rem 1.25rem; border-bottom: 1px solid var(--border, #374151); font-weight: 600; display: flex; justify-content: space-between; align-items: center; }
   .modal-body { padding: 1.25rem; }
-  .modal-footer { padding: 0.75rem 1.25rem; border-top: 1px solid var(--border, #e5e7eb); display: flex; justify-content: flex-end; gap: 0.5rem; }
+  .modal-footer { padding: 0.75rem 1.25rem; border-top: 1px solid var(--border, #374151); display: flex; justify-content: flex-end; gap: 0.5rem; }
 
   .form-group { margin-bottom: 1rem; }
   .form-group label { display: block; font-size: 0.8125rem; font-weight: 500; margin-bottom: 0.25rem; }
-  .form-group input { width: 100%; padding: 0.5rem 0.75rem; border: 1px solid var(--border, #d1d5db); border-radius: 6px; font-size: 0.875rem; box-sizing: border-box; background: var(--input-bg, #fff); color: var(--text, #111); }
+  .form-group input { width: 100%; padding: 0.5rem 0.75rem; border: 1px solid var(--border, #374151); border-radius: 6px; font-size: 0.875rem; box-sizing: border-box; background: var(--bg-primary, #1a1a2e); color: var(--text-primary, #f3f4f6); }
 
   .alert { padding: 0.75rem 1rem; border-radius: 6px; font-size: 0.875rem; margin-bottom: 1rem; }
   .alert-warning { background: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
   .alert-success { background: #d1fae5; color: #065f46; border: 1px solid #a7f3d0; }
 
-  .token-display { font-family: monospace; font-size: 0.75rem; word-break: break-all; background: var(--code-bg, #f3f4f6); padding: 0.75rem; border-radius: 6px; border: 1px solid var(--border, #e5e7eb); margin-top: 0.5rem; user-select: all; }
+  .token-display { font-family: monospace; font-size: 0.75rem; word-break: break-all; background: var(--bg-primary, #1a1a2e); color: var(--text-primary, #f3f4f6); padding: 0.75rem; border-radius: 6px; border: 1px solid var(--border, #374151); margin-top: 0.5rem; user-select: all; }
 
-  .email-template { white-space: pre-wrap; font-family: monospace; font-size: 0.75rem; background: var(--code-bg, #f3f4f6); padding: 1rem; border-radius: 6px; border: 1px solid var(--border, #e5e7eb); max-height: 400px; overflow-y: auto; }
+  .email-template { white-space: pre-wrap; font-family: monospace; font-size: 0.8125rem; line-height: 1.6; background: var(--bg-primary, #1a1a2e); color: var(--text-primary, #f3f4f6); padding: 1.25rem; border-radius: 6px; border: 1px solid var(--border, #374151); max-height: 500px; overflow-y: auto; }
 
   .actions-cell { display: flex; gap: 0.375rem; align-items: center; }
 `;
@@ -409,32 +410,40 @@ const script = `
     var appName = data.appName || 'App';
     var workerUrl = data.workerUrl || window.location.origin;
     var name = data.name || 'there';
-    var tokenStr = token || '<YOUR_AUTH_TOKEN>';
-    var hasToken = !!token;
+    // Prefer stored token from server, fall back to in-memory session token
+    var tokenStr = data.authToken || token || '<TOKEN_NOT_FOUND>';
+    var slug = appName.toLowerCase().replace(/\\s+/g, '-');
 
     var emailText =
       'Hi ' + name + ',\\n\\n' +
       'Your ' + appName + ' account is ready!\\n\\n' +
-      '--- Web UI ---\\n' +
+      '--- Web Dashboard ---\\n' +
       workerUrl + '/app?token=' + tokenStr + '\\n\\n' +
-      '--- Claude Desktop (MCP) ---\\n' +
-      'Add this to your claude_desktop_config.json:\\n\\n' +
+      '--- Claude (claude.ai) ---\\n' +
+      '1. Click your profile icon (bottom-left) > Settings\\n' +
+      '2. Click Connectors in the sidebar\\n' +
+      '3. Click "Add custom connector"\\n' +
+      '4. Enter the URL: ' + workerUrl + '/?token=' + tokenStr + '\\n' +
+      '5. Click Connect\\n\\n' +
+      '--- Claude Code / Claude Desktop (MCP) ---\\n' +
+      'Add this to your MCP config (~/.claude.json or claude_desktop_config.json):\\n\\n' +
       JSON.stringify({
         mcpServers: {
-          [appName.toLowerCase().replace(/\\s+/g, '-')]: {
-            command: 'npx',
-            args: ['-y', 'mcp-remote', workerUrl + '/sse'],
-            env: { AUTH_TOKEN: tokenStr },
+          [slug]: {
+            type: 'url',
+            url: workerUrl + '/mcp',
+            headers: { Authorization: 'Bearer ' + tokenStr },
           },
         },
       }, null, 2) + '\\n\\n' +
-      '--- ChatGPT (Custom Connector) ---\\n' +
-      'Server URL: ' + workerUrl + '/sse\\n' +
-      'Auth header: Bearer ' + tokenStr + '\\n';
+      '--- ChatGPT ---\\n' +
+      '1. Open Settings > Apps > Advanced > enable Developer Mode\\n' +
+      '2. Click Create to add a new app\\n' +
+      '3. Name: ' + slug + '\\n' +
+      '4. Connector URL: ' + workerUrl + '/?token=' + tokenStr + '\\n' +
+      '5. Uncheck OAuth, save\\n';
 
-    var warning = hasToken ? '' : '<div class="alert alert-warning">Auth token is only available right after creation. Re-create the user if you need a new token.</div>';
-
-    var body = warning + '<div class="email-template" id="email-template-content">' + escHtml(emailText) + '</div>';
+    var body = '<div class="email-template" id="email-template-content">' + escHtml(emailText) + '</div>';
     var footer = '<button class="btn btn-primary" onclick="window.__usersTab.copyEmail()">Copy to Clipboard</button><button class="btn btn-outline" onclick="window.__usersTab.closeModal()">Close</button>';
     openModal('Setup Email for ' + escHtml(data.name || 'User'), body, footer);
   }

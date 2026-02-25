@@ -11,6 +11,7 @@ import { watchTools } from './tools.js';
 import { adminPageHtml } from './admin-page.js';
 import { config } from './config.js';
 import { feedbackAdminTab } from './admin-feedback-tab.js';
+import { wrapToolsWithNotifications } from './notification-wrapper.js';
 
 // Load secrets from .dev.vars / .env
 const envVars = loadEnvFile();
@@ -25,10 +26,12 @@ const runtimeConfig = {
 };
 
 const storage = new FileStorageAdapter({ dataDir: '.scaffold/data' });
+const notifiedTools = wrapToolsWithNotifications(watchTools);
+
 const server = new ScaffoldServer({
   config: runtimeConfig,
   storage,
-  tools: watchTools,
+  tools: notifiedTools,
 });
 
 server.registerAdminTab(feedbackAdminTab);

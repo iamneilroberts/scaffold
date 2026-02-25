@@ -58,6 +58,14 @@ export function feedbackPrefix(): string {
   return `shared/feedback/`;
 }
 
+export function feedbackNotificationKey(userId: string, feedbackId: string): string {
+  return `${userId}/notifications/feedback/${feedbackId}`;
+}
+
+export function feedbackNotificationPrefix(userId: string): string {
+  return `${userId}/notifications/feedback/`;
+}
+
 export function generateId(): string {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 }

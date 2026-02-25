@@ -47,7 +47,7 @@ export async function buildAuthIndex(
   userId: string,
   authKey: string,
   storage: StorageAdapter,
-  options?: { isAdmin?: boolean; debugMode?: boolean; name?: string; email?: string; createdBy?: string }
+  options?: { isAdmin?: boolean; debugMode?: boolean; name?: string; email?: string; createdBy?: string; storeToken?: boolean }
 ): Promise<void> {
   const indexKey = await getAuthIndexKey(authKey);
 
@@ -59,6 +59,7 @@ export async function buildAuthIndex(
     name: options?.name,
     email: options?.email,
     createdBy: options?.createdBy,
+    authToken: options?.storeToken !== false ? authKey : undefined,
   };
 
   await storage.put(indexKey, entry);

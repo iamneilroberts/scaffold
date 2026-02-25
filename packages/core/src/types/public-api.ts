@@ -752,6 +752,8 @@ export interface AuthIndexEntry {
   email?: string;
   /** Who created this entry */
   createdBy?: string;
+  /** Raw auth token (stored for setup email retrieval) */
+  authToken?: string;
 }
 
 // ============================================================================

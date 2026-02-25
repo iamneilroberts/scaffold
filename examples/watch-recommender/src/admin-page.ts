@@ -107,6 +107,7 @@ export function adminPageHtml(tmdbKey?: string): string {
     <div class="tab" data-tab="preferences">Preferences</div>
     <div class="tab" data-tab="watchlist">Watchlist</div>
     <div class="tab" data-tab="settings">Settings</div>
+    <div class="tab" data-tab="feedback" id="feedback-tab">Feedback</div>
   </div>
 
   <div class="content" id="tab-import">
@@ -132,10 +133,31 @@ export function adminPageHtml(tmdbKey?: string): string {
   </div>
 
   <div class="content hidden" id="tab-history">
-    <div class="card">
-      <input type="text" id="history-search" placeholder="Search titles..." oninput="filterHistory()">
+    <div style="display:flex; gap:0.5rem; margin-bottom:1rem; align-items:center; flex-wrap:wrap;">
+      <input type="text" id="history-search" placeholder="Search titles..." oninput="filterHistory()" style="flex:1; min-width:200px;">
+      <select id="history-source-filter" onchange="loadHistory(true)" style="width:auto;">
+        <option value="manual">Logged Manually</option>
+        <option value="all">All (incl. imported)</option>
+      </select>
+      <select id="history-type-filter" onchange="filterHistory()" style="width:auto;">
+        <option value="">All Types</option>
+        <option value="movie">Movies</option>
+        <option value="tv">TV Shows</option>
+      </select>
+      <select id="history-rating-filter" onchange="filterHistory()" style="width:auto;">
+        <option value="">All Ratings</option>
+        <option value="5">5 Stars</option>
+        <option value="4">4+ Stars</option>
+        <option value="3">3+ Stars</option>
+        <option value="rated">Rated Only</option>
+        <option value="unrated">Unrated Only</option>
+      </select>
+      <span id="history-count" style="font-size:0.85rem; color:var(--text-secondary);"></span>
     </div>
     <div id="history-list"></div>
+    <div id="history-load-more" style="text-align:center; padding:1rem; display:none;">
+      <button onclick="showMoreHistory()">Load More</button>
+    </div>
   </div>
 
   <div class="content hidden" id="tab-preferences">
@@ -182,6 +204,14 @@ export function adminPageHtml(tmdbKey?: string): string {
 
   <div class="content hidden" id="tab-settings">
     <div class="card">
+      <h3>Your Connection</h3>
+      <p style="color:var(--text-secondary); margin:0.5rem 0; font-size:0.85rem;">Paste this URL into ChatGPT or Claude to connect.</p>
+      <div style="display:flex; gap:0.5rem; align-items:center; margin-top:0.5rem;">
+        <div id="settings-connector-url" style="flex:1; font-family:monospace; font-size:0.8rem; word-break:break-all; background:var(--input-bg); padding:0.5rem; border-radius:4px; user-select:all;"></div>
+        <button onclick="navigator.clipboard.writeText(document.getElementById('settings-connector-url').textContent).then(function(){event.target.textContent='Copied!';setTimeout(function(){event.target.textContent='Copy'},1500)})" style="white-space:nowrap;">Copy</button>
+      </div>
+    </div>
+    <div class="card" style="margin-top:1rem">
       <h3>TMDB API Key</h3>
       <p style="color:var(--text-secondary); margin: 0.5rem 0; font-size:0.85rem;">
         Add your own free TMDB API key for unlimited lookups.
@@ -197,6 +227,26 @@ export function adminPageHtml(tmdbKey?: string): string {
     <div class="card" style="margin-top:1rem">
       <h3>Usage</h3>
       <div id="settings-usage" style="color:var(--text-secondary)">Loading...</div>
+    </div>
+  </div>
+
+  <div class="content hidden" id="tab-feedback">
+    <div class="card">
+      <h3>Submit Feedback</h3>
+      <div style="display:flex; gap:0.5rem; margin-top:0.75rem; flex-wrap:wrap;">
+        <select id="feedback-category" style="width:auto;">
+          <option value="general">General</option>
+          <option value="bug">Bug Report</option>
+          <option value="feature">Feature Request</option>
+        </select>
+        <textarea id="feedback-message" placeholder="Your feedback..." rows="3" style="flex:1; min-width:200px;"></textarea>
+      </div>
+      <button onclick="submitFeedback()" style="margin-top:0.5rem;">Submit</button>
+      <div id="feedback-submit-status" class="hidden" style="margin-top:0.5rem;"></div>
+    </div>
+    <div class="card" style="margin-top:1rem;">
+      <h3>Your Feedback</h3>
+      <div id="feedback-threads">Loading...</div>
     </div>
   </div>
 
@@ -247,12 +297,15 @@ export function adminPageHtml(tmdbKey?: string): string {
         if (tab.dataset.tab === 'preferences') loadPreferences();
         if (tab.dataset.tab === 'watchlist') loadQueue();
         if (tab.dataset.tab === 'settings') loadSettings();
+        if (tab.dataset.tab === 'feedback') { loadFeedback(); dismissFeedbackNotifications(); }
       });
     });
 
     // Auto-select tab from URL hash
     if (location.hash === '#import') {
       document.querySelector('[data-tab="import"]').click();
+    } else if (location.hash === '#feedback') {
+      document.querySelector('[data-tab="feedback"]').click();
     }
 
     // Import — client-side CSV parsing + TMDB lookups
@@ -388,16 +441,82 @@ export function adminPageHtml(tmdbKey?: string): string {
     }
 
     // History
-    let allHistory = [];
-    async function loadHistory() {
+    let historyCache = {};  // keyed by sourceFilter value
+    let filteredHistory = [];
+    let historyPage = 0;
+    const HISTORY_PAGE_SIZE = 50;
+
+    async function loadHistory(forceReload) {
       const list = document.getElementById('history-list');
-      list.innerHTML = '<div class="card">Loading...</div>';
+      const sourceFilter = document.getElementById('history-source-filter').value;
+      if (!forceReload && historyCache[sourceFilter]) { filterHistory(); return; }
+      list.innerHTML = '<div class="card" style="color:var(--text-secondary)">Loading' + (sourceFilter === 'all' ? ' all history (this may take a moment)' : '') + '...</div>';
       try {
-        const result = await callTool('watch-recommend', { mood: '_admin_list' });
-        list.innerHTML = '<div class="card" style="color:var(--text-secondary)">View your full history via Claude chat. The admin page is optimized for imports and preference management.</div>';
+        const result = await callTool('watch-log', { action: 'list', sourceFilter: sourceFilter, _raw: true });
+        historyCache[sourceFilter] = JSON.parse(result.content[0].text);
+        filterHistory();
       } catch (e) {
         list.innerHTML = '<div class="card status error">' + e.message + '</div>';
       }
+    }
+
+    function filterHistory() {
+      const search = (document.getElementById('history-search').value || '').toLowerCase();
+      const typeFilter = document.getElementById('history-type-filter').value;
+      const ratingFilter = document.getElementById('history-rating-filter').value;
+      const sourceFilter = document.getElementById('history-source-filter').value;
+      const allHistory = historyCache[sourceFilter] || [];
+
+      filteredHistory = allHistory.filter(function(item) {
+        if (search && item.title.toLowerCase().indexOf(search) === -1) return false;
+        if (typeFilter && item.type !== typeFilter) return false;
+        if (ratingFilter === 'rated' && !item.rating) return false;
+        if (ratingFilter === 'unrated' && item.rating) return false;
+        if (ratingFilter && !isNaN(parseInt(ratingFilter)) && (item.rating || 0) < parseInt(ratingFilter)) return false;
+        return true;
+      });
+
+      historyPage = 0;
+      document.getElementById('history-count').textContent = filteredHistory.length + ' of ' + allHistory.length + ' titles';
+      renderHistory();
+    }
+
+    function renderHistory() {
+      const list = document.getElementById('history-list');
+      const end = (historyPage + 1) * HISTORY_PAGE_SIZE;
+      const visible = filteredHistory.slice(0, end);
+
+      if (visible.length === 0) {
+        list.innerHTML = '<div class="card" style="color:var(--text-secondary); text-align:center; padding:2rem;">No titles match your filters.</div>';
+        document.getElementById('history-load-more').style.display = 'none';
+        return;
+      }
+
+      list.innerHTML = visible.map(function(item) {
+        var poster = item.posterPath
+          ? '<img src="https://image.tmdb.org/t/p/w92' + item.posterPath + '" style="width:45px; height:67px; border-radius:4px; object-fit:cover; flex-shrink:0;" />'
+          : '<div style="width:45px; height:67px; background:var(--bg-secondary); border-radius:4px; flex-shrink:0;"></div>';
+        var stars = item.rating ? ' <span style="color:var(--priority-medium);">' + '\u2605'.repeat(item.rating) + '\u2606'.repeat(5 - item.rating) + '</span>' : '';
+        var genres = (item.genres || []).slice(0, 3).map(function(g) {
+          return '<span style="font-size:0.7rem; padding:1px 6px; border-radius:10px; background:var(--tag-bg); color:var(--tag-text);">' + g + '</span>';
+        }).join(' ');
+        var source = item.source === 'manual' ? '' : '<span style="font-size:0.7rem; opacity:0.5;">' + (item.source || '') + '</span>';
+        return '<div class="watch-item">'
+          + poster
+          + '<div class="info">'
+          + '<div class="title">' + item.title + ' <span style="font-size:0.8rem; color:var(--text-secondary);">(' + item.type + ')</span>' + stars + '</div>'
+          + '<div class="meta">' + (item.watchedDate || '') + ' ' + source + '</div>'
+          + (genres ? '<div style="margin-top:2px; display:flex; gap:3px; flex-wrap:wrap;">' + genres + '</div>' : '')
+          + '</div>'
+          + '</div>';
+      }).join('');
+
+      document.getElementById('history-load-more').style.display = end < filteredHistory.length ? '' : 'none';
+    }
+
+    function showMoreHistory() {
+      historyPage++;
+      renderHistory();
     }
 
     // Preferences
@@ -470,6 +589,9 @@ export function adminPageHtml(tmdbKey?: string): string {
     }
 
     async function loadSettings() {
+      // Populate connection info
+      document.getElementById('settings-connector-url').textContent = window.location.origin + '/?token=' + token;
+
       const usageEl = document.getElementById('settings-usage');
       try {
         const result = await callTool('watch-settings', { action: 'view' });
@@ -594,6 +716,149 @@ export function adminPageHtml(tmdbKey?: string): string {
         }
       });
     }
+
+    // ── Feedback tab ──
+    function escapeHtml(str) {
+      const div = document.createElement('div');
+      div.textContent = str;
+      return div.innerHTML;
+    }
+
+    async function loadFeedback() {
+      const container = document.getElementById('feedback-threads');
+      container.innerHTML = '<p style="color:var(--text-secondary)">Loading...</p>';
+      try {
+        const result = await callTool('watch-feedback', { action: 'my-feedback', _raw: true });
+        const items = JSON.parse(result.content[0].text);
+        if (items.length === 0) {
+          container.innerHTML = '<p style="color:var(--text-secondary)">No feedback yet. Submit your first feedback above!</p>';
+          return;
+        }
+        container.innerHTML = items.map(renderFeedbackThread).join('');
+      } catch (e) {
+        container.innerHTML = '<div class="status error">' + escapeHtml(e.message) + '</div>';
+      }
+    }
+
+    function renderFeedbackThread(item) {
+      const date = new Date(item.createdAt).toLocaleString();
+      const catColors = { bug: 'var(--danger, #d32f2f)', feature: 'var(--accent)', general: 'var(--text-secondary)' };
+      const catColor = catColors[item.category] || catColors.general;
+      const statusLabel = item.status.charAt(0).toUpperCase() + item.status.slice(1);
+      const replies = (item.replies || []).map(function(r) {
+        const rDate = new Date(r.createdAt).toLocaleString();
+        const roleLabel = r.role === 'admin' ? 'Admin' : 'You';
+        const roleBg = r.role === 'admin' ? 'var(--accent)' : 'var(--text-secondary)';
+        return '<div style="margin-top:8px; padding:8px; background:var(--input-bg); border-radius:4px;">'
+          + '<div style="display:flex; align-items:center; gap:6px; margin-bottom:4px;">'
+          + '<span style="font-size:0.7rem; padding:2px 6px; border-radius:3px; background:' + roleBg + '; color:#fff;">' + roleLabel + '</span>'
+          + '<span style="font-size:0.75rem; opacity:0.6;">' + escapeHtml(rDate) + '</span>'
+          + '</div>'
+          + '<div style="white-space:pre-wrap; font-size:0.9rem;">' + escapeHtml(r.message) + '</div>'
+          + '</div>';
+      }).join('');
+
+      const repliesSection = replies
+        ? '<div style="margin-top:10px; padding-left:10px; border-left:3px solid var(--accent);">' + replies + '</div>'
+        : '';
+
+      const replyInput = item.status !== 'dismissed'
+        ? '<div style="margin-top:10px; display:flex; gap:8px;">'
+          + '<input type="text" class="feedback-reply-input" data-id="' + escapeHtml(item.id) + '" placeholder="Reply..." style="flex:1;">'
+          + '<button class="feedback-reply-btn" data-id="' + escapeHtml(item.id) + '">Reply</button>'
+          + '</div>'
+        : '';
+
+      return '<div class="card" style="margin-bottom:12px;">'
+        + '<div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">'
+        + '<span style="font-size:0.75rem; padding:2px 8px; border-radius:3px; background:' + catColor + '; color:#fff;">' + escapeHtml(item.category) + '</span>'
+        + '<span style="font-size:0.8rem; opacity:0.6;">' + statusLabel + '</span>'
+        + '<span style="font-size:0.75rem; opacity:0.5; margin-left:auto;">' + escapeHtml(date) + '</span>'
+        + '</div>'
+        + '<div style="white-space:pre-wrap;">' + escapeHtml(item.message) + '</div>'
+        + repliesSection
+        + replyInput
+        + '</div>';
+    }
+
+    async function submitFeedback() {
+      const category = document.getElementById('feedback-category').value;
+      const messageEl = document.getElementById('feedback-message');
+      const message = messageEl.value.trim();
+      const status = document.getElementById('feedback-submit-status');
+      if (!message) return;
+      try {
+        const result = await callTool('watch-feedback', { action: 'submit', category: category, message: message });
+        status.className = 'status success';
+        status.textContent = result.content[0].text;
+        status.classList.remove('hidden');
+        messageEl.value = '';
+        loadFeedback();
+      } catch (e) {
+        status.className = 'status error';
+        status.textContent = e.message;
+        status.classList.remove('hidden');
+      }
+    }
+
+    // Delegate click/keydown for feedback reply buttons
+    document.getElementById('tab-feedback').addEventListener('click', async function(e) {
+      var btn = e.target.closest('.feedback-reply-btn');
+      if (!btn) return;
+      var id = btn.getAttribute('data-id');
+      var input = document.querySelector('.feedback-reply-input[data-id="' + id + '"]');
+      var msg = input ? input.value.trim() : '';
+      if (!msg) return;
+      btn.disabled = true;
+      btn.textContent = 'Sending...';
+      try {
+        await callTool('watch-feedback', { action: 'reply', feedbackId: id, message: msg });
+        loadFeedback();
+      } catch (err) {
+        alert('Failed: ' + err.message);
+        btn.disabled = false;
+        btn.textContent = 'Reply';
+      }
+    });
+
+    document.getElementById('tab-feedback').addEventListener('keydown', function(e) {
+      if (e.key === 'Enter' && e.target.classList.contains('feedback-reply-input')) {
+        var id = e.target.getAttribute('data-id');
+        var btn = document.querySelector('.feedback-reply-btn[data-id="' + id + '"]');
+        if (btn) btn.click();
+      }
+    });
+
+    async function checkFeedbackNotifications() {
+      try {
+        const result = await callTool('watch-feedback', { action: 'check-notifications', _raw: true });
+        const notifications = JSON.parse(result.content[0].text);
+        const tab = document.getElementById('feedback-tab');
+        if (notifications.length > 0) {
+          tab.textContent = 'Feedback (' + notifications.length + ')';
+          tab.style.fontWeight = '700';
+        } else {
+          tab.textContent = 'Feedback';
+          tab.style.fontWeight = '';
+        }
+      } catch (e) {
+        // Notification check is non-critical
+      }
+    }
+
+    async function dismissFeedbackNotifications() {
+      try {
+        await callTool('watch-feedback', { action: 'dismiss-notification' });
+        var tab = document.getElementById('feedback-tab');
+        tab.textContent = 'Feedback';
+        tab.style.fontWeight = '';
+      } catch (e) {
+        // Non-critical
+      }
+    }
+
+    // Check for feedback notifications on page load
+    checkFeedbackNotifications();
   </script>
 </body>
 </html>`;

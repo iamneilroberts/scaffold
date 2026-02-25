@@ -1,13 +1,14 @@
 /**
  * Feedback admin tab for the /admin dashboard.
  *
- * Displays user feedback with status filtering and resolve/dismiss actions.
+ * Displays user feedback with status filtering, resolve/dismiss actions,
+ * threaded replies, and admin reply capability.
  */
 
 import type { AdminTab, AdminContext } from '@voygent/scaffold-core';
 import { storage as storageUtils } from '@voygent/scaffold-core';
-import type { FeedbackItem } from './types.js';
-import { feedbackKey, feedbackPrefix } from './keys.js';
+import type { FeedbackItem, FeedbackReply, FeedbackNotification } from './types.js';
+import { feedbackKey, feedbackPrefix, feedbackNotificationKey, generateId } from './keys.js';
 
 function escapeHtml(str: string): string {
   return str
@@ -16,6 +17,24 @@ function escapeHtml(str: string): string {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
+}
+
+function renderReplies(replies: FeedbackReply[]): string {
+  if (!replies || replies.length === 0) return '';
+  return `<div style="margin-top:12px; padding-left:12px; border-left:3px solid var(--color-primary, #5a52d5);">
+    ${replies.map(r => {
+      const date = new Date(r.createdAt).toLocaleString();
+      const roleLabel = r.role === 'admin' ? 'Admin' : 'User';
+      const roleBg = r.role === 'admin' ? 'var(--color-primary, #5a52d5)' : 'var(--color-muted, #888)';
+      return `<div style="margin-bottom:8px; padding:8px; background:var(--bg-muted, rgba(0,0,0,0.05)); border-radius:4px;">
+        <div style="display:flex; align-items:center; gap:6px; margin-bottom:4px;">
+          <span class="badge" style="background:${roleBg}; color:#fff; font-size:0.7rem;">${roleLabel}</span>
+          <span style="font-size:0.75rem; opacity:0.6;">${escapeHtml(date)}</span>
+        </div>
+        <div style="white-space:pre-wrap; font-size:0.9rem;">${escapeHtml(r.message)}</div>
+      </div>`;
+    }).join('')}
+  </div>`;
 }
 
 export const feedbackAdminTab: AdminTab = {
@@ -39,12 +58,20 @@ export const feedbackAdminTab: AdminTab = {
     const cards = items.map(item => {
       const badgeColor = badgeColors[item.category] || badgeColors.general;
       const date = new Date(item.createdAt).toLocaleString();
+      const replies = item.replies ?? [];
+      const repliesHtml = renderReplies(replies);
+
       const actions = item.status === 'open'
         ? `<div style="display:flex; gap:8px; margin-top:8px;">
              <button class="btn btn-sm btn-primary resolve-btn" data-id="${escapeHtml(item.id)}">Resolve</button>
              <button class="btn btn-sm btn-danger dismiss-btn" data-id="${escapeHtml(item.id)}">Dismiss</button>
            </div>`
         : `<div style="margin-top:8px; font-size:0.8rem; text-transform:uppercase; opacity:0.6;">${escapeHtml(item.status)}</div>`;
+
+      const replyInput = `<div style="margin-top:12px; display:flex; gap:8px;">
+        <input type="text" class="reply-input" data-id="${escapeHtml(item.id)}" placeholder="Reply to this feedback..." style="flex:1; padding:6px 10px; border:1px solid var(--color-border, #ddd); border-radius:4px; background:var(--bg-muted, #f5f5f5); color:inherit;">
+        <button class="btn btn-sm btn-primary reply-btn" data-id="${escapeHtml(item.id)}">Reply</button>
+      </div>`;
 
       return `<div class="card" data-status="${escapeHtml(item.status)}" style="margin-bottom:12px;">
         <div class="card-body">
@@ -54,6 +81,8 @@ export const feedbackAdminTab: AdminTab = {
             <span style="font-size:0.8rem; opacity:0.6; margin-left:auto;">${escapeHtml(date)}</span>
           </div>
           <div style="white-space:pre-wrap;">${escapeHtml(item.message)}</div>
+          ${repliesHtml}
+          ${replyInput}
           ${actions}
         </div>
       </div>`;
@@ -115,6 +144,31 @@ export const feedbackAdminTab: AdminTab = {
           var btn = e.target.closest('[data-id]');
           if (!btn) return;
           var id = btn.getAttribute('data-id');
+
+          // Reply button
+          if (btn.classList.contains('reply-btn')) {
+            var input = list.querySelector('.reply-input[data-id="' + id + '"]');
+            var msg = input ? input.value.trim() : '';
+            if (!msg) return;
+            btn.disabled = true;
+            btn.textContent = 'Sending...';
+            try {
+              var res = await fetch('/admin/api/feedback/reply', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ feedbackId: id, message: msg }),
+              });
+              if (!res.ok) throw new Error(await res.text());
+              location.reload();
+            } catch (err) {
+              alert('Failed: ' + err.message);
+              btn.disabled = false;
+              btn.textContent = 'Reply';
+            }
+            return;
+          }
+
+          // Resolve / Dismiss buttons
           var action = btn.classList.contains('resolve-btn') ? 'resolve' : btn.classList.contains('dismiss-btn') ? 'dismiss' : null;
           if (!action) return;
           btn.disabled = true;
@@ -131,6 +185,15 @@ export const feedbackAdminTab: AdminTab = {
             alert('Failed: ' + err.message);
             btn.disabled = false;
             btn.textContent = action === 'resolve' ? 'Resolve' : 'Dismiss';
+          }
+        });
+
+        // Submit reply on Enter key
+        list.addEventListener('keydown', function(e) {
+          if (e.key === 'Enter' && e.target.classList.contains('reply-input')) {
+            var id = e.target.getAttribute('data-id');
+            var btn = list.querySelector('.reply-btn[data-id="' + id + '"]');
+            if (btn) btn.click();
           }
         });
       })();
@@ -178,14 +241,62 @@ export const feedbackAdminTab: AdminTab = {
         return new Response(JSON.stringify({ ok: true }));
       },
     },
+    {
+      method: 'POST',
+      path: '/api/feedback/reply',
+      handler: async (request: Request, ctx: AdminContext) => {
+        const body = await request.json() as { feedbackId?: string; message?: string };
+        const { feedbackId, message } = body;
+        if (!feedbackId || !message) {
+          return new Response(JSON.stringify({ error: 'feedbackId and message required' }), { status: 400 });
+        }
+        if (message.length > 2000) {
+          return new Response(JSON.stringify({ error: 'Message must be 2000 characters or less' }), { status: 400 });
+        }
+
+        const key = feedbackKey(feedbackId);
+        const item = await ctx.storage.get<FeedbackItem>(key);
+        if (!item) {
+          return new Response(JSON.stringify({ error: 'Not found' }), { status: 404 });
+        }
+
+        const reply: FeedbackReply = {
+          id: generateId(),
+          role: 'admin',
+          message,
+          createdAt: new Date().toISOString(),
+        };
+
+        item.replies = item.replies ?? [];
+        item.replies.push(reply);
+        item.lastReplyAt = reply.createdAt;
+        item.lastReplyRole = 'admin';
+        await ctx.storage.put(key, item);
+
+        // Write notification for the user
+        const notification: FeedbackNotification = {
+          feedbackId: item.id,
+          replyMessage: message,
+          replyRole: 'admin',
+          createdAt: reply.createdAt,
+        };
+        await ctx.storage.put(feedbackNotificationKey(item.userId, item.id), notification);
+
+        return new Response(JSON.stringify({ ok: true }));
+      },
+    },
   ],
 
   getBadge: async (ctx: AdminContext) => {
     const listResult = await ctx.storage.list(feedbackPrefix(), { limit: 500 });
     if (listResult.keys.length === 0) return null;
     const itemsMap = await storageUtils.batchGet<FeedbackItem>(ctx.storage, listResult.keys);
-    const openCount = Array.from(itemsMap.values()).filter(i => i.status === 'open').length;
-    if (openCount === 0) return null;
-    return { text: String(openCount), type: 'info' as const };
+    const items = Array.from(itemsMap.values());
+    // Count open items + items where user replied (needs admin attention)
+    const actionNeeded = items.filter(i =>
+      i.status === 'open' || (i.lastReplyRole === 'user' && i.status !== 'dismissed')
+    ).length;
+    if (actionNeeded === 0) return null;
+    return { text: String(actionNeeded), type: 'info' as const };
   },
 };

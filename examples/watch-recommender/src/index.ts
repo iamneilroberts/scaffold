@@ -4,6 +4,7 @@ import { watchTools } from './tools.js';
 import { adminPageHtml } from './admin-page.js';
 import { config } from './config.js';
 import { feedbackAdminTab } from './admin-feedback-tab.js';
+import { wrapToolsWithNotifications } from './notification-wrapper.js';
 import type { Env } from './types.js';
 
 export default {
@@ -32,10 +33,12 @@ export default {
         })
       : watchTools;
 
+    const notifiedTools = wrapToolsWithNotifications(tools);
+
     const server = new ScaffoldServer({
       config: runtimeConfig,
       storage,
-      tools,
+      tools: notifiedTools,
     });
 
     server.registerAdminTab(feedbackAdminTab);

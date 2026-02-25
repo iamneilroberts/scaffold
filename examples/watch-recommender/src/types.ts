@@ -62,6 +62,20 @@ export interface OnboardingState {
   lastRunAt?: string;
 }
 
+export interface FeedbackReply {
+  id: string;
+  role: 'admin' | 'user';
+  message: string;
+  createdAt: string;   // ISO 8601
+}
+
+export interface FeedbackNotification {
+  feedbackId: string;
+  replyMessage: string;
+  replyRole: 'admin' | 'user';
+  createdAt: string;   // ISO 8601
+}
+
 export interface FeedbackItem {
   id: string;
   userId: string;
@@ -69,6 +83,9 @@ export interface FeedbackItem {
   message: string;
   createdAt: string;   // ISO 8601
   status: 'open' | 'resolved' | 'dismissed';
+  replies: FeedbackReply[];
+  lastReplyAt?: string;
+  lastReplyRole?: 'admin' | 'user';
 }
 
 export type { UserSettings } from '@voygent/scaffold-core';
