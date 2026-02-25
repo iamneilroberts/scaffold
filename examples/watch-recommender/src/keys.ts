@@ -50,6 +50,14 @@ export function settingsKey(userId: string): string {
   return `${userId}/settings`;
 }
 
+export function feedbackKey(feedbackId: string): string {
+  return `shared/feedback/${feedbackId}`;
+}
+
+export function feedbackPrefix(): string {
+  return `shared/feedback/`;
+}
+
 export function generateId(): string {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 }

@@ -62,6 +62,15 @@ export interface OnboardingState {
   lastRunAt?: string;
 }
 
+export interface FeedbackItem {
+  id: string;
+  userId: string;
+  category: 'bug' | 'feature' | 'general';
+  message: string;
+  createdAt: string;   // ISO 8601
+  status: 'open' | 'resolved' | 'dismissed';
+}
+
 export type { UserSettings } from '@voygent/scaffold-core';
 
 export interface TmdbSearchResult {

@@ -10,6 +10,7 @@ import { watchQueueTool } from './tools/watch-queue.js';
 import { watchSeenBulkTool } from './tools/watch-seen-bulk.js';
 import { watchScreenTool } from './tools/watch-screen.js';
 import { watchSettingsTool } from './tools/watch-settings.js';
+import { watchFeedbackTool } from './tools/watch-feedback.js';
 import type { ScaffoldTool } from '@voygent/scaffold-core';
 
 export const watchTools: ScaffoldTool[] = [
@@ -25,4 +26,5 @@ export const watchTools: ScaffoldTool[] = [
   watchSeenBulkTool,
   watchScreenTool,
   watchSettingsTool,
+  watchFeedbackTool,
 ];
