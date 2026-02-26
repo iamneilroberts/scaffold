@@ -3,7 +3,7 @@ import { TmdbClient } from '../tmdb.js';
 
 export const watchLookupTool: ScaffoldTool = {
   name: 'watch-lookup',
-  description: 'Look up a movie or TV show on TMDB. Returns metadata (genres, rating, overview) and streaming availability. Use after generating recommendations to show where each title is available.',
+  description: 'Look up and verify a movie or TV show via TMDB. Returns authoritative metadata (genres, rating, overview, year) and streaming availability. You MUST call this tool to verify any factual claim about a title — episode numbers, dates, credits, plot details — before stating it as fact. Your memory is unverified; this tool is the source of truth. Call it after recommendations AND whenever the user asks a factual question about a specific title.',
   inputSchema: {
     type: 'object',
     properties: {

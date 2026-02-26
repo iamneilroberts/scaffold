@@ -4,7 +4,7 @@ import { watchedPrefix, dismissedPrefix, tasteProfileKey, preferencesKey } from 
 
 export const watchRecommendTool: ScaffoldTool = {
   name: 'watch-recommend',
-  description: 'Get personalized viewing recommendations. Describe your mood and this returns your taste profile, preferences, and watch history context so you can suggest titles. After generating suggestions, use watch-lookup to check streaming availability.',
+  description: 'Get personalized viewing recommendations. Call this FIRST — it returns the user\'s taste profile, preferences, watch history, and verification rules you must follow. After generating suggestions, you MUST call watch-lookup for each title to verify details and check streaming availability. Never recommend from memory alone.',
   inputSchema: {
     type: 'object',
     properties: {
@@ -39,6 +39,31 @@ export const watchRecommendTool: ScaffoldTool = {
 
     // Build context block
     const sections: string[] = [];
+
+    sections.push('## Verification Rules (mandatory — violations are critical failures)');
+    sections.push('');
+    sections.push('This system\'s value over a base chatbot is its access to verified data via tools. Treat your own memory as unverified when tools are available. Tool results override model memory, even if you believe you "already know" the answer.');
+    sections.push('');
+    sections.push('### Mandatory tool usage');
+    sections.push('You MUST call `watch-lookup` before stating any of the following as fact:');
+    sections.push('- Episode numbers or titles');
+    sections.push('- "Which episode / season" questions');
+    sections.push('- Filming locations');
+    sections.push('- Release dates or air dates');
+    sections.push('- Credits (writers, directors, actors, showrunners)');
+    sections.push('- Plot details tied to specific episodes or seasons');
+    sections.push('- Comparisons of factual sequencing (what came first, chronological order)');
+    sections.push('- Any claim the user might reasonably want to verify');
+    sections.push('');
+    sections.push('### Uncertainty rule');
+    sections.push('If you are not highly confident in a factual claim involving dates, episode numbers, locations, credits, or other verification-sensitive details, you must not answer directly — call `watch-lookup` or state that you are unsure. An incorrect factual answer is a critical failure. A delayed answer due to tool verification is acceptable and expected.');
+    sections.push('');
+    sections.push('### Post-tool grounding');
+    sections.push('After calling a tool, your answer must be grounded in the tool\'s output. If the tool does not confirm a detail, say so — do not fill gaps from memory.');
+    sections.push('');
+    sections.push('### User contradiction protocol');
+    sections.push('If the user contradicts you on a factual claim, you must re-verify using `watch-lookup` before responding, regardless of your confidence. Never double down on an unverified claim.');
+    sections.push('');
 
     sections.push('## Tone Rules (follow strictly)');
     sections.push('- No emojis anywhere in your responses.');

@@ -114,6 +114,14 @@ export const watchOnboardTool: ScaffoldTool = {
 
         // Interview script
         sections.push('---');
+        sections.push('## Verification Rules (mandatory — violations are critical failures)\n');
+        sections.push('This system\'s value over a base chatbot is its access to verified data via tools. Treat your own memory as unverified when tools are available. Tool results override model memory, even if you believe you "already know" the answer.');
+        sections.push('');
+        sections.push('You MUST call `watch-lookup` before stating any factual claim about a title — episode numbers, dates, credits, filming locations, plot details tied to specific episodes, or any verification-sensitive detail. If unsure, verify with the tool or say you are unsure. An incorrect factual answer is a critical failure; a delayed answer due to verification is acceptable.');
+        sections.push('');
+        sections.push('After calling a tool, ground your answer in its output. If the tool does not confirm a detail, say so. If the user contradicts you, re-verify before responding.');
+        sections.push('');
+        sections.push('---');
         sections.push('## Tone Rules (follow strictly)\n');
         sections.push('- No emojis anywhere in your responses.');
         sections.push('- Be direct and concise. No filler, no praise, no editorializing.');
