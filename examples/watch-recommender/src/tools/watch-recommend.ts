@@ -5,7 +5,7 @@ import { watchedPrefix, dismissedPrefix, queuePrefix, tasteProfileKey, preferenc
 
 export const watchRecommendTool: ScaffoldTool = {
   name: 'watch-recommend',
-  description: 'Get personalized viewing recommendations. Describe your mood and this returns your taste profile, preferences, and watch history context so you can suggest titles. After generating suggestions, use watch-lookup to check streaming availability.',
+  description: 'Get personalized viewing recommendations. Returns taste profile, preferences, watch history, and instructions. Flow: suggest titles -> watch-check (dedup) -> watch-lookup (verify + streaming).',
   inputSchema: {
     type: 'object',
     properties: {
@@ -86,7 +86,19 @@ export const watchRecommendTool: ScaffoldTool = {
       sections.push(`\nUser's queue (titles they want to watch — suggest these first if they match the mood):\n${queueList}`);
     }
 
-    sections.push('Suggest 5-8 titles with year and one-sentence rationale. Then call watch-check, then watch-lookup for streaming.');
+    sections.push('---');
+    sections.push('## Instructions');
+    sections.push('1. Suggest 5-8 titles. For each: title, year, type (movie/tv), one-sentence rationale.');
+    sections.push('2. Call watch-check with all suggested titles to filter duplicates.');
+    sections.push('3. For each remaining title, call watch-lookup with title, year, and type.');
+    sections.push('4. Present results to the user with streaming availability.');
+    sections.push('');
+    sections.push('## Verification Rules');
+    sections.push('- Do not state cast, crew, directors, episode counts, seasons, runtime, or countries from memory.');
+    sections.push('- If a rationale mentions a specific person, call watch-lookup with include: ["credits"] to verify.');
+    sections.push('- If a rationale mentions episode/season count or runtime, call watch-lookup with include: ["details"] to verify.');
+    sections.push('- If you cannot verify a claim, omit it or say "unverified." A missing detail beats a wrong one.');
+    sections.push('- Prefer taste-matching rationales ("if you liked X\'s dark humor") over factual claims that need verification.');
 
     return { content: [{ type: 'text', text: sections.join('\n') }] };
   },

@@ -121,6 +121,11 @@ export const watchOnboardTool: ScaffoldTool = {
         sections.push('- Present information cleanly — let the titles and data speak for themselves.');
         sections.push('- When summarizing findings, be factual and specific, not flattering.');
         sections.push('');
+        sections.push('## Factual Accuracy');
+        sections.push('- During onboarding, focus on reactions and preferences, not trivia.');
+        sections.push('- If the user asks a factual question about a title (cast, director, episodes), call watch-lookup with the relevant include param. Do not answer from memory.');
+        sections.push('- Do not volunteer factual claims beyond the curated title list in the Interview Script below.');
+        sections.push('');
         sections.push('---');
         sections.push('## Interview Script\n');
         sections.push('Follow these phases in order. Skip any phase not in the "Phases to run" list above.\n');
