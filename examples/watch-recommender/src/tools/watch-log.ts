@@ -31,18 +31,31 @@ export const watchLogTool: ScaffoldTool = {
 
     // ── list ──
     if (action === 'list') {
-      const listResult = await ctx.storage.list(watchedPrefix(ctx.userId));
-      if (listResult.keys.length === 0) {
-        if (args._raw) return { content: [{ type: 'text', text: '[]' }] };
-        return { content: [{ type: 'text', text: 'No watch history yet.' }] };
+      const srcFilter = args.sourceFilter || 'all';
+      const CHUNK = 100;
+      let items: WatchRecord[] = [];
+      let cursor: string | undefined;
+      let hasAny = false;
+
+      // Chunked reads to avoid timeout on large histories
+      while (true) {
+        const listResult = await ctx.storage.list(watchedPrefix(ctx.userId), { limit: CHUNK, cursor });
+        if (listResult.keys.length > 0) {
+          hasAny = true;
+          const chunkMap = await storageUtils.batchGet<WatchRecord>(ctx.storage, listResult.keys);
+          for (const val of chunkMap.values()) {
+            if (srcFilter === 'all' || (val.source ?? 'netflix') === srcFilter) {
+              items.push(val);
+            }
+          }
+        }
+        if (listResult.complete || !listResult.cursor) break;
+        cursor = listResult.cursor;
       }
 
-      const itemsMap = await storageUtils.batchGet<WatchRecord>(ctx.storage, listResult.keys);
-      let items = Array.from(itemsMap.values());
-
-      const srcFilter = args.sourceFilter || 'all';
-      if (srcFilter !== 'all') {
-        items = items.filter(i => (i.source ?? 'netflix') === srcFilter);
+      if (!hasAny) {
+        if (args._raw) return { content: [{ type: 'text', text: '[]' }] };
+        return { content: [{ type: 'text', text: 'No watch history yet.' }] };
       }
 
       items.sort((a, b) => (b.watchedDate ?? '').localeCompare(a.watchedDate ?? ''));

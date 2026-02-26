@@ -14,7 +14,6 @@ import type {
   AuthIndexEntry,
 } from '../../types/public-api.js';
 import { escapeHtml, escapeJs } from '../security.js';
-import { hashKeyAsync } from '../../auth/key-hash.js';
 import { buildAuthIndex } from '../../auth/index-builder.js';
 
 // ---------------------------------------------------------------------------
@@ -97,15 +96,30 @@ async function handleCreateUser(
     }
     const email = body.email?.trim() || undefined;
 
-    // Generate a 32-byte random hex token
-    const bytes = new Uint8Array(32);
-    crypto.getRandomValues(bytes);
-    const authToken = Array.from(bytes)
+    // Generate a memorable auth token: adjective-movie-number
+    const adjectives = [
+      'cosmic', 'golden', 'silver', 'hidden', 'secret', 'frozen', 'blazing',
+      'silent', 'velvet', 'neon', 'shadow', 'crimson', 'mystic', 'stellar',
+      'atomic', 'electric', 'phantom', 'savage', 'rogue', 'midnight',
+    ];
+    const nouns = [
+      'falcon', 'panther', 'matrix', 'avatar', 'jaws', 'alien', 'vertigo',
+      'psycho', 'rocky', 'gladiator', 'inception', 'memento', 'zodiac',
+      'arrival', 'dunkirk', 'tenet', 'rushmore', 'fargo', 'heat', 'drive',
+    ];
+    const rng = new Uint8Array(3);
+    crypto.getRandomValues(rng);
+    const adj = adjectives[rng[0]! % adjectives.length]!;
+    const noun = nouns[rng[1]! % nouns.length]!;
+    const num = (rng[2]! % 90) + 10; // 10–99
+    const authToken = `${adj}-${noun}-${num}`;
+
+    // Generate a short random user ID (8 hex chars — typeable by hand)
+    const idBytes = new Uint8Array(4);
+    crypto.getRandomValues(idBytes);
+    const userId = Array.from(idBytes)
       .map(b => b.toString(16).padStart(2, '0'))
       .join('');
-
-    // Derive userId via SHA-256 hash
-    const userId = await hashKeyAsync(authToken);
 
     // Create auth index entry
     await buildAuthIndex(userId, authToken, ctx.storage, {
@@ -307,6 +321,10 @@ const script = `
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: name, email: email || undefined }),
       });
+      var ct = (resp.headers.get('content-type') || '');
+      if (!ct.includes('application/json')) {
+        throw new Error(resp.status === 200 ? 'Session expired — please reload the page.' : 'Server error (' + resp.status + '). Try reloading the page.');
+      }
       var data = await resp.json();
       if (!resp.ok) throw new Error(data.error || 'Failed to create user');
 
@@ -328,7 +346,6 @@ const script = `
       '<div class="form-group"><label>Name</label><div>' + escHtml(data.name) + '</div></div>' +
       (data.email ? '<div class="form-group"><label>Email</label><div>' + escHtml(data.email) + '</div></div>' : '') +
       '<div class="form-group"><label>User ID</label><div class="token-display">' + escHtml(data.userId) + '</div></div>' +
-      '<div class="alert alert-warning">Save this auth token now — it cannot be retrieved later.</div>' +
       '<div class="form-group"><label>Auth Token</label><div class="token-display">' + escHtml(data.authToken) + '</div></div>';
     var footer =
       '<button class="btn btn-outline" onclick="window.__usersTab.copyToken()">Copy Token</button>' +
@@ -370,6 +387,10 @@ const script = `
       var resp = await fetch(window.location.pathname.replace(/\\?.*/, '').replace(/\\/$/, '') + '/users/' + encodeURIComponent(hash), {
         method: 'DELETE',
       });
+      var ct = (resp.headers.get('content-type') || '');
+      if (!ct.includes('application/json')) {
+        throw new Error(resp.status === 200 ? 'Session expired — please reload the page.' : 'Server error (' + resp.status + '). Try reloading the page.');
+      }
       var data = await resp.json();
       if (!resp.ok) throw new Error(data.error || 'Failed to delete user');
 
@@ -390,6 +411,10 @@ const script = `
 
     try {
       var resp = await fetch(window.location.pathname.replace(/\\?.*/, '').replace(/\\/$/, '') + '/users/' + encodeURIComponent(hash) + '/email');
+      var ct = (resp.headers.get('content-type') || '');
+      if (!ct.includes('application/json')) {
+        throw new Error(resp.status === 200 ? 'Session expired — please reload the page.' : 'Server error (' + resp.status + '). Try reloading the page.');
+      }
       var data = await resp.json();
       if (!resp.ok) throw new Error(data.error || 'Failed to load email data');
 

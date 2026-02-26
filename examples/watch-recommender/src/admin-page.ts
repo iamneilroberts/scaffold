@@ -56,9 +56,10 @@ export function adminPageHtml(tmdbKey?: string): string {
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg-primary); color: var(--text-primary); }
     .header { background: var(--bg-secondary); padding: 1rem 2rem; display: flex; align-items: center; gap: 1rem; }
-    .header h1 { font-size: 1.25rem; color: #fff; }
-    .tabs { display: flex; gap: 0; border-bottom: 2px solid var(--border); padding: 0 2rem; background: var(--bg-secondary); }
-    .tab { padding: 0.75rem 1.5rem; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px; color: var(--text-secondary); }
+    .header h1 { font-size: 1.25rem; color: #fff; white-space: nowrap; }
+    .tabs { display: flex; gap: 0; border-bottom: 2px solid var(--border); padding: 0 2rem; background: var(--bg-secondary); overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+    .tabs::-webkit-scrollbar { display: none; }
+    .tab { padding: 0.75rem 1.5rem; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px; color: var(--text-secondary); white-space: nowrap; flex-shrink: 0; }
     .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
     .tab:hover { color: #fff; }
     .content { padding: 2rem; max-width: 900px; }
@@ -82,9 +83,17 @@ export function adminPageHtml(tmdbKey?: string): string {
     .services-grid label { display: flex; align-items: center; gap: 0.25rem; padding: 0.25rem 0.5rem; background: var(--input-bg); border-radius: 4px; cursor: pointer; }
 
     @media (max-width: 639px) {
+      .header { padding: 0.75rem 1rem; }
+      .tabs { padding: 0 0.5rem; }
+      .tab { padding: 0.75rem 1rem; font-size: 0.9rem; }
+      .content { padding: 1rem; }
+      .card { padding: 1rem; }
       #filter-bar { display: none; }
       .mobile-filter-toggle { display: block !important; }
       #filter-bar.show { display: flex !important; flex-direction: column; width: 100%; }
+      #tab-history > div:first-child { flex-direction: column; }
+      #tab-history > div:first-child select { width: 100%; }
+      .pref-item { flex-direction: column; align-items: flex-start; gap: 0.5rem; }
     }
 
     @media (min-width: 640px) and (max-width: 1023px) {
@@ -564,9 +573,7 @@ export function adminPageHtml(tmdbKey?: string): string {
       loadPreferences();
     }
 
-    function filterHistory() {
-      // Placeholder for future search
-    }
+    // filterHistory is defined above in the History section
 
     // Settings tab
     async function saveTmdbKey() {

@@ -184,7 +184,12 @@ export class AdminHandler {
         for (const route of tab.routes) {
           if (request.method !== route.method) continue;
           if (this.matchRoute(route.path, subPath)) {
-            return route.handler(request, ctx);
+            try {
+              return await route.handler(request, ctx);
+            } catch (err) {
+              const message = err instanceof Error ? err.message : 'Unknown error';
+              return secureJsonResponse({ error: message }, 500);
+            }
           }
         }
       }
