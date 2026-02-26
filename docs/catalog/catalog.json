@@ -1,0 +1,212 @@
+{
+  "apps": [
+    {
+      "name": "notes-app",
+      "displayName": "Scaffold Notes",
+      "icon": "\ud83d\udcdd",
+      "version": "0.0.1",
+      "category": "productivity",
+      "tags": ["notes", "writing", "markdown"],
+      "description": "Simple note-taking assistant with CRUD operations and markdown support.",
+      "cycleId": "manual-seed",
+      "builtAt": "2026-01-15T00:00:00Z",
+      "sourceUrl": "https://github.com/neilopet/scaffold/tree/master/examples/notes-app",
+      "tools": [
+        { "name": "notes:save", "description": "Create or update a note with id, title, and content" },
+        { "name": "notes:list", "description": "List all notes for the current user" },
+        { "name": "notes:read", "description": "Read a note by ID" },
+        { "name": "notes:delete", "description": "Delete a note by ID" }
+      ],
+      "quality": {
+        "judgeScore": null,
+        "judgeVerdict": null,
+        "personaPassRate": null,
+        "buildIterations": 1,
+        "guardianPassed": null,
+        "testCount": 0
+      },
+      "install": {
+        "workerUrl": "https://scaffold-notes-app.neilopet.workers.dev",
+        "requiresAuth": true,
+        "mcpConfig": {
+          "mcpServers": {
+            "scaffold-notes": {
+              "url": "https://scaffold-notes-app.neilopet.workers.dev/sse?token=YOUR_TOKEN"
+            }
+          }
+        }
+      },
+      "status": "active"
+    },
+    {
+      "name": "watch-recommender",
+      "displayName": "WatchRec",
+      "icon": "\ud83c\udfac",
+      "version": "0.0.1",
+      "category": "entertainment",
+      "tags": ["movies", "tv", "recommendations", "tmdb", "streaming"],
+      "description": "AI-powered movie & TV recommendations with watch history, taste profiling, and streaming availability via TMDB.",
+      "cycleId": "manual-seed",
+      "builtAt": "2026-02-20T00:00:00Z",
+      "sourceUrl": "https://github.com/neilopet/scaffold/tree/master/examples/watch-recommender",
+      "tools": [
+        { "name": "watch-log", "description": "Log a movie or TV show as watched, or list your watch history" },
+        { "name": "watch-dismiss", "description": "Dismiss a title so it is never recommended again" },
+        { "name": "watch-preference", "description": "Manage viewing preferences and streaming subscriptions" },
+        { "name": "watch-profile", "description": "Manage your taste profile — view, generate, or save" },
+        { "name": "watch-recommend", "description": "Get personalized viewing recommendations based on mood and taste" },
+        { "name": "watch-check", "description": "Check if titles are already watched, dismissed, or queued" },
+        { "name": "watch-lookup", "description": "Look up a title on TMDB for metadata and streaming availability" },
+        { "name": "watch-onboard", "description": "Interactive onboarding and taste discovery" },
+        { "name": "watch-queue", "description": "Manage your watchlist — save, list, remove, update priorities" },
+        { "name": "watch-seen-bulk", "description": "Bulk-store slim seen entries for dedup (admin dashboard)" },
+        { "name": "watch-screen", "description": "Second screen companion — cast, crew, trivia for what you're watching" },
+        { "name": "watch-settings", "description": "View or update settings (e.g., personal TMDB API key)" },
+        { "name": "watch-feedback", "description": "Submit feedback, view threads, or manage feedback (admin)" }
+      ],
+      "quality": {
+        "judgeScore": null,
+        "judgeVerdict": null,
+        "personaPassRate": null,
+        "buildIterations": 1,
+        "guardianPassed": null,
+        "testCount": 0
+      },
+      "install": {
+        "workerUrl": "https://scaffold-watch-rec.neilopet.workers.dev",
+        "requiresAuth": true,
+        "requiresExternalAPI": "TMDB API key (free)",
+        "mcpConfig": {
+          "mcpServers": {
+            "watch-recommender": {
+              "url": "https://scaffold-watch-rec.neilopet.workers.dev/sse?token=YOUR_TOKEN"
+            }
+          }
+        }
+      },
+      "status": "active"
+    },
+    {
+      "name": "travel-planner",
+      "displayName": "Travel Planner",
+      "icon": "\u2708\ufe0f",
+      "version": "0.0.1",
+      "category": "productivity",
+      "tags": ["travel", "trips", "planning", "itinerary"],
+      "description": "Personal trip planning assistant with nested stops for organizing multi-destination trips.",
+      "cycleId": "manual-seed",
+      "builtAt": "2026-01-15T00:00:00Z",
+      "sourceUrl": "https://github.com/neilopet/scaffold/tree/master/examples/travel-planner",
+      "tools": [
+        { "name": "trip:create", "description": "Create a new trip" },
+        { "name": "trip:add_stop", "description": "Add a stop to an existing trip" },
+        { "name": "trip:list", "description": "List all trips for the current user" },
+        { "name": "trip:get", "description": "Get full trip details including all stops" },
+        { "name": "trip:delete", "description": "Delete a trip and all its stops" }
+      ],
+      "quality": {
+        "judgeScore": null,
+        "judgeVerdict": null,
+        "personaPassRate": null,
+        "buildIterations": 1,
+        "guardianPassed": null,
+        "testCount": 0
+      },
+      "install": {
+        "workerUrl": "https://scaffold-travel-planner.neilopet.workers.dev",
+        "requiresAuth": true,
+        "mcpConfig": {
+          "mcpServers": {
+            "travel-planner": {
+              "url": "https://scaffold-travel-planner.neilopet.workers.dev/sse?token=YOUR_TOKEN"
+            }
+          }
+        }
+      },
+      "status": "active"
+    },
+    {
+      "name": "local-guide",
+      "displayName": "Local Guide",
+      "icon": "\ud83d\udccd",
+      "version": "0.0.1",
+      "category": "lifestyle",
+      "tags": ["places", "discovery", "favorites", "location"],
+      "description": "Discover nearby places with a shared catalog and personal favorites using geohash-based search.",
+      "cycleId": "manual-seed",
+      "builtAt": "2026-01-15T00:00:00Z",
+      "sourceUrl": "https://github.com/neilopet/scaffold/tree/master/examples/local-guide",
+      "tools": [
+        { "name": "guide:search_nearby", "description": "Search for places near a location using geohash buckets" },
+        { "name": "guide:get_details", "description": "Get full details for a place by ID" },
+        { "name": "guide:save_favorite", "description": "Save a place to your favorites" },
+        { "name": "guide:list_favorites", "description": "List your saved favorite places" }
+      ],
+      "quality": {
+        "judgeScore": null,
+        "judgeVerdict": null,
+        "personaPassRate": null,
+        "buildIterations": 1,
+        "guardianPassed": null,
+        "testCount": 0
+      },
+      "install": {
+        "workerUrl": "https://scaffold-local-guide.neilopet.workers.dev",
+        "requiresAuth": true,
+        "mcpConfig": {
+          "mcpServers": {
+            "local-guide": {
+              "url": "https://scaffold-local-guide.neilopet.workers.dev/sse?token=YOUR_TOKEN"
+            }
+          }
+        }
+      },
+      "status": "active"
+    },
+    {
+      "name": "bbq-smoking",
+      "displayName": "BBQ Smoking Expert",
+      "icon": "\ud83c\udf56",
+      "version": "0.0.1",
+      "category": "lifestyle",
+      "tags": ["bbq", "smoking", "cooking", "recipes", "grilling"],
+      "description": "BBQ smoking assistant \u2014 tracks cooks, logs temps, saves recipes, and provides pitmaster guidance.",
+      "cycleId": "manual-seed",
+      "builtAt": "2026-01-15T00:00:00Z",
+      "sourceUrl": "https://github.com/neilopet/scaffold/tree/master/examples/bbq-smoking",
+      "tools": [
+        { "name": "bbq-start_cook", "description": "Start a new BBQ cook/smoke session with meat type, weight, temps, wood" },
+        { "name": "bbq-get_cook", "description": "Get full details of a cook session including all log entries" },
+        { "name": "bbq-list_cooks", "description": "List all cook sessions — active and completed" },
+        { "name": "bbq-complete_cook", "description": "Mark a cook session as completed with final notes" },
+        { "name": "bbq-add_log", "description": "Log an event during a cook: temp check, wrap, spritz, add wood, etc." },
+        { "name": "bbq-save_recipe", "description": "Save a BBQ smoking recipe with steps, wood type, temps, and tips" },
+        { "name": "bbq-get_recipe", "description": "Get full recipe details including steps and tips" },
+        { "name": "bbq-list_recipes", "description": "List all saved BBQ recipes" },
+        { "name": "bbq-update_recipe", "description": "Update an existing recipe (partial update supported)" },
+        { "name": "bbq-smoking_guide", "description": "Look up smoking guidelines for a specific meat: temps, times, wood pairings" }
+      ],
+      "quality": {
+        "judgeScore": null,
+        "judgeVerdict": null,
+        "personaPassRate": null,
+        "buildIterations": 1,
+        "guardianPassed": null,
+        "testCount": 0
+      },
+      "install": {
+        "workerUrl": "https://scaffold-bbq-smoking.neilopet.workers.dev",
+        "requiresAuth": true,
+        "mcpConfig": {
+          "mcpServers": {
+            "bbq-smoking": {
+              "url": "https://scaffold-bbq-smoking.neilopet.workers.dev/sse?token=YOUR_TOKEN"
+            }
+          }
+        }
+      },
+      "status": "active"
+    }
+  ],
+  "updatedAt": "2026-02-26T00:00:00Z"
+}

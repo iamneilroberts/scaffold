@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Scaffold App Catalog</title>
+  <style>
+  :root {
+    --bg: #0f0f0f;
+    --bg-card: #1a1a2e;
+    --bg-hover: #222240;
+    --text: #e0e0e0;
+    --text-muted: #888;
+    --accent: #6c63ff;
+    --accent-hover: #5a52e0;
+    --border: #2a2a3e;
+    --tag-bg: #2a2755;
+    --tag-text: #9d97ff;
+    --success: #4ade80;
+    --warning: #fbbf24;
+    --badge-active: #22c55e;
+    --badge-beta: #f59e0b;
+    --badge-deprecated: #ef4444;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  .header { padding: 2rem; text-align: center; border-bottom: 1px solid var(--border); }
+  .header h1 { font-size: 2rem; margin-bottom: 0.25rem; }
+  .header p { color: var(--text-muted); }
+
+  .container { max-width: 1200px; margin: 0 auto; padding: 2rem; }
+
+  .controls { display: flex; gap: 1rem; margin-bottom: 2rem; flex-wrap: wrap; }
+  .search-input {
+    flex: 1; min-width: 200px; padding: 0.75rem 1rem;
+    background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px;
+    color: var(--text); font-size: 1rem; outline: none;
+  }
+  .search-input:focus { border-color: var(--accent); }
+  .filter-btn {
+    padding: 0.5rem 1rem; border-radius: 8px; border: 1px solid var(--border);
+    background: var(--bg-card); color: var(--text-muted); cursor: pointer; font-size: 0.875rem;
+    transition: all 0.15s;
+  }
+  .filter-btn:hover, .filter-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 1.5rem; }
+  .card {
+    background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px;
+    padding: 1.5rem; transition: border-color 0.15s; cursor: pointer; text-decoration: none; color: inherit; display: block;
+  }
+  .card:hover { border-color: var(--accent); text-decoration: none; }
+  .card-header { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.75rem; }
+  .card-icon { font-size: 2rem; }
+  .card-title { font-size: 1.125rem; font-weight: 600; }
+  .card-desc { color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1rem; }
+  .card-meta { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; }
+  .badge {
+    display: inline-block; padding: 0.125rem 0.5rem; border-radius: 99px;
+    font-size: 0.75rem; font-weight: 500;
+  }
+  .badge-active { background: rgba(34,197,94,0.15); color: var(--badge-active); }
+  .badge-beta { background: rgba(245,158,11,0.15); color: var(--badge-beta); }
+  .badge-deprecated { background: rgba(239,68,68,0.15); color: var(--badge-deprecated); }
+  .tag { background: var(--tag-bg); color: var(--tag-text); padding: 0.125rem 0.5rem; border-radius: 4px; font-size: 0.75rem; }
+  .tool-count { color: var(--text-muted); font-size: 0.8rem; }
+
+  .copy-btn {
+    padding: 0.5rem 1rem; border-radius: 8px; border: 1px solid var(--accent);
+    background: transparent; color: var(--accent); cursor: pointer; font-size: 0.875rem;
+    transition: all 0.15s;
+  }
+  .copy-btn:hover { background: var(--accent); color: #fff; }
+  .copy-btn.copied { background: var(--success); border-color: var(--success); color: #000; }
+
+  .detail-back { display: inline-block; margin-bottom: 1.5rem; color: var(--text-muted); }
+  .detail-header { display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem; }
+  .detail-icon { font-size: 3rem; }
+  .detail-title { font-size: 1.75rem; font-weight: 700; }
+  .detail-section { margin-bottom: 2rem; }
+  .detail-section h2 { font-size: 1.125rem; margin-bottom: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 500; }
+  .tool-list { list-style: none; }
+  .tool-list li { padding: 0.5rem 0; border-bottom: 1px solid var(--border); }
+  .tool-list li:last-child { border-bottom: none; }
+  .tool-name { font-family: monospace; color: var(--accent); font-weight: 500; }
+  .tool-desc { color: var(--text-muted); font-size: 0.9rem; margin-left: 0.5rem; }
+  .quality-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 1rem; }
+  .quality-item { background: var(--bg); padding: 1rem; border-radius: 8px; }
+  .quality-label { font-size: 0.8rem; color: var(--text-muted); }
+  .quality-value { font-size: 1.25rem; font-weight: 600; }
+  .install-block { background: var(--bg); padding: 1rem; border-radius: 8px; overflow-x: auto; }
+  .install-block pre { font-family: monospace; font-size: 0.875rem; white-space: pre-wrap; }
+
+  .empty { text-align: center; padding: 4rem 2rem; color: var(--text-muted); }
+
+  @media (max-width: 600px) {
+    .container { padding: 1rem; }
+    .grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+  <div class="header">
+    <h1>Scaffold App Catalog</h1>
+    <p>5 MCP tool apps built with the Scaffold framework</p>
+  </div>
+  <div class="container">
+    <div class="controls">
+      <input class="search-input" type="text" placeholder="Search apps..." id="search">
+      <button class="filter-btn active" data-category="all">All</button>
+      <button class="filter-btn" data-category="entertainment">entertainment</button>
+<button class="filter-btn" data-category="lifestyle">lifestyle</button>
+<button class="filter-btn" data-category="productivity">productivity</button>
+    </div>
+    <div class="grid" id="grid">
+      <a class="card" href="apps/notes-app/index.html" data-name="notes-app" data-category="productivity" data-tags="notes,writing,markdown" data-search="notes-app scaffold notes simple note-taking assistant with crud operations and markdown support. notes writing markdown notes:save notes:list notes:read notes:delete">
+      <div class="card-header">
+        <span class="card-icon">📝</span>
+        <span class="card-title">Scaffold Notes</span>
+      </div>
+      <div class="card-desc">Simple note-taking assistant with CRUD operations and markdown support.</div>
+      <div class="card-meta">
+        <span class="badge badge-active">active</span>
+        <span class="tool-count">4 tools</span>
+        <span class="tag">notes</span><span class="tag">writing</span><span class="tag">markdown</span>
+      </div>
+    </a>
+<a class="card" href="apps/watch-recommender/index.html" data-name="watch-recommender" data-category="entertainment" data-tags="movies,tv,recommendations,tmdb,streaming" data-search="watch-recommender watchrec ai-powered movie &amp; tv recommendations with watch history, taste profiling, and streaming availability via tmdb. movies tv recommendations tmdb streaming watch-log watch-dismiss watch-preference watch-profile watch-recommend watch-check watch-lookup watch-onboard watch-queue watch-seen-bulk watch-screen watch-settings watch-feedback">
+      <div class="card-header">
+        <span class="card-icon">🎬</span>
+        <span class="card-title">WatchRec</span>
+      </div>
+      <div class="card-desc">AI-powered movie &amp; TV recommendations with watch history, taste profiling, and streaming availability via TMDB.</div>
+      <div class="card-meta">
+        <span class="badge badge-active">active</span>
+        <span class="tool-count">13 tools</span>
+        <span class="tag">movies</span><span class="tag">tv</span><span class="tag">recommendations</span>
+      </div>
+    </a>
+<a class="card" href="apps/travel-planner/index.html" data-name="travel-planner" data-category="productivity" data-tags="travel,trips,planning,itinerary" data-search="travel-planner travel planner personal trip planning assistant with nested stops for organizing multi-destination trips. travel trips planning itinerary trip:create trip:add_stop trip:list trip:get trip:delete">
+      <div class="card-header">
+        <span class="card-icon">✈️</span>
+        <span class="card-title">Travel Planner</span>
+      </div>
+      <div class="card-desc">Personal trip planning assistant with nested stops for organizing multi-destination trips.</div>
+      <div class="card-meta">
+        <span class="badge badge-active">active</span>
+        <span class="tool-count">5 tools</span>
+        <span class="tag">travel</span><span class="tag">trips</span><span class="tag">planning</span>
+      </div>
+    </a>
+<a class="card" href="apps/local-guide/index.html" data-name="local-guide" data-category="lifestyle" data-tags="places,discovery,favorites,location" data-search="local-guide local guide discover nearby places with a shared catalog and personal favorites using geohash-based search. places discovery favorites location guide:search_nearby guide:get_details guide:save_favorite guide:list_favorites">
+      <div class="card-header">
+        <span class="card-icon">📍</span>
+        <span class="card-title">Local Guide</span>
+      </div>
+      <div class="card-desc">Discover nearby places with a shared catalog and personal favorites using geohash-based search.</div>
+      <div class="card-meta">
+        <span class="badge badge-active">active</span>
+        <span class="tool-count">4 tools</span>
+        <span class="tag">places</span><span class="tag">discovery</span><span class="tag">favorites</span>
+      </div>
+    </a>
+<a class="card" href="apps/bbq-smoking/index.html" data-name="bbq-smoking" data-category="lifestyle" data-tags="bbq,smoking,cooking,recipes,grilling" data-search="bbq-smoking bbq smoking expert bbq smoking assistant — tracks cooks, logs temps, saves recipes, and provides pitmaster guidance. bbq smoking cooking recipes grilling bbq-start_cook bbq-get_cook bbq-list_cooks bbq-complete_cook bbq-add_log bbq-save_recipe bbq-get_recipe bbq-list_recipes bbq-update_recipe bbq-smoking_guide">
+      <div class="card-header">
+        <span class="card-icon">🍖</span>
+        <span class="card-title">BBQ Smoking Expert</span>
+      </div>
+      <div class="card-desc">BBQ smoking assistant — tracks cooks, logs temps, saves recipes, and provides pitmaster guidance.</div>
+      <div class="card-meta">
+        <span class="badge badge-active">active</span>
+        <span class="tool-count">10 tools</span>
+        <span class="tag">bbq</span><span class="tag">smoking</span><span class="tag">cooking</span>
+      </div>
+    </a>
+    </div>
+    <div class="empty" id="empty" style="display:none">No apps match your search.</div>
+  </div>
+  <script>
+    const search = document.getElementById('search');
+    const grid = document.getElementById('grid');
+    const empty = document.getElementById('empty');
+    const cards = grid.querySelectorAll('.card');
+    const filterBtns = document.querySelectorAll('.filter-btn');
+    let activeCategory = 'all';
+
+    function filterCards() {
+      const q = search.value.toLowerCase();
+      let visible = 0;
+      cards.forEach(card => {
+        const matchSearch = !q || card.dataset.search.includes(q);
+        const matchCat = activeCategory === 'all' || card.dataset.category === activeCategory;
+        const show = matchSearch && matchCat;
+        card.style.display = show ? '' : 'none';
+        if (show) visible++;
+      });
+      empty.style.display = visible === 0 ? '' : 'none';
+    }
+
+    search.addEventListener('input', filterCards);
+    filterBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        filterBtns.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        activeCategory = btn.dataset.category;
+        filterCards();
+      });
+    });
+  </script>
+</body>
+</html>

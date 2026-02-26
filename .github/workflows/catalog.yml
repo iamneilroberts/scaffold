@@ -1,0 +1,57 @@
+name: Publish Catalog
+
+on:
+  push:
+    paths: ['docs/catalog/catalog.json']
+
+# Prevent concurrent runs and self-triggering loops
+concurrency:
+  group: catalog-publish
+  cancel-in-progress: true
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    # Don't trigger on bot commits (prevents infinite loops)
+    if: github.actor != 'github-actions[bot]'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate static site
+        run: npx tsx tools/catalog-site/generate.ts
+
+      - name: Commit only if changed
+        run: |
+          git config user.email "factory@scaffold"
+          git config user.name "Scaffold Factory"
+          git add docs/catalog/
+          git diff --staged --quiet || git commit -m "catalog: regenerate site"
+          git push
+
+      - name: Update catalog-server KV
+        if: ${{ secrets.CF_API_TOKEN != '' }}
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+        run: |
+          npm install -g wrangler
+          # Push full catalog to KV
+          npx wrangler kv key put --namespace-id=${{ secrets.CATALOG_KV_ID }} \
+            "catalog/apps" "$(cat docs/catalog/catalog.json | jq '.apps')"
+          # Push meta
+          APP_COUNT=$(cat docs/catalog/catalog.json | jq '.apps | length')
+          UPDATED_AT=$(cat docs/catalog/catalog.json | jq -r '.updatedAt')
+          npx wrangler kv key put --namespace-id=${{ secrets.CATALOG_KV_ID }} \
+            "catalog/meta" "{\"updatedAt\":\"$UPDATED_AT\",\"appCount\":$APP_COUNT}"
+          # Push individual app entries
+          cat docs/catalog/catalog.json | jq -c '.apps[]' | while read app; do
+            name=$(echo "$app" | jq -r '.name')
+            npx wrangler kv key put --namespace-id=${{ secrets.CATALOG_KV_ID }} \
+              "catalog/app/$name" "$app"
+          done
