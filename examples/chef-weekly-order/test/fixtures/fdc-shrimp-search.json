@@ -1,0 +1,18 @@
+{
+  "totalHits": 1,
+  "currentPage": 1,
+  "totalPages": 1,
+  "foods": [
+    {
+      "fdcId": 2344624,
+      "description": "Shrimp, mixed species, cooked, moist heat",
+      "dataType": "SR Legacy",
+      "foodCategory": "Finfish and Shellfish Products",
+      "foodNutrients": [
+        { "nutrientId": 1003, "nutrientName": "Protein", "unitName": "G", "value": 20.91 },
+        { "nutrientId": 1004, "nutrientName": "Total lipid (fat)", "unitName": "G", "value": 1.73 },
+        { "nutrientId": 1008, "nutrientName": "Energy", "unitName": "KCAL", "value": 99 }
+      ]
+    }
+  ]
+}
