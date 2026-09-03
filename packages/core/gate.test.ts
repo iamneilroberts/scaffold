@@ -239,3 +239,40 @@ describe('applyAction: transition_item', () => {
     expect(result.case.items[0].state).toBe('selected');
   });
 });
+
+describe('applyAction: facts, display, and lifecycle actions', () => {
+  it('patch_facts merges into case.facts', () => {
+    const noop: OfferResolver = () => undefined;
+    const state = { ...baseCase(), facts: { a: 1 } };
+    const result = applyAction(state, { type: 'patch_facts', patch: { b: 2 } }, noop);
+    expect(result.persist).toBe(true);
+    expect(result.case.facts).toEqual({ a: 1, b: 2 });
+  });
+
+  it('set_display replaces case.display', () => {
+    const noop: OfferResolver = () => undefined;
+    const result = applyAction(baseCase(), { type: 'set_display', display: { headline: 'x' } }, noop);
+    expect(result.case.display).toEqual({ headline: 'x' });
+  });
+
+  it('set_lifecycle_state sets case.lifecycle', () => {
+    const noop: OfferResolver = () => undefined;
+    const at = new Date().toISOString();
+    const result = applyAction(baseCase(), { type: 'set_lifecycle_state', to: 'active', at }, noop);
+    expect(result.case.lifecycle).toBe('active');
+  });
+
+  it('publish sets lifecycle to published', () => {
+    const noop: OfferResolver = () => undefined;
+    const at = new Date().toISOString();
+    const result = applyAction(baseCase(), { type: 'publish', at }, noop);
+    expect(result.case.lifecycle).toBe('published');
+  });
+
+  it('archive sets lifecycle to archived', () => {
+    const noop: OfferResolver = () => undefined;
+    const at = new Date().toISOString();
+    const result = applyAction(baseCase(), { type: 'archive', at, reason: 'test' }, noop);
+    expect(result.case.lifecycle).toBe('archived');
+  });
+});

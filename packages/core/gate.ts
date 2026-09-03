@@ -198,6 +198,26 @@ export function applyAction(
       return { case: { ...caseState, items }, persist: true, invalidate };
     }
 
+    case 'patch_facts': {
+      return { case: { ...caseState, facts: { ...caseState.facts, ...action.patch } }, persist: true, invalidate };
+    }
+
+    case 'set_display': {
+      return { case: { ...caseState, display: action.display }, persist: true, invalidate };
+    }
+
+    case 'set_lifecycle_state': {
+      return { case: { ...caseState, lifecycle: action.to }, persist: true, invalidate };
+    }
+
+    case 'publish': {
+      return { case: { ...caseState, lifecycle: 'published' }, persist: true, invalidate };
+    }
+
+    case 'archive': {
+      return { case: { ...caseState, lifecycle: 'archived' }, persist: true, invalidate };
+    }
+
     default:
       return { case: caseState, persist: false, invalidate: [] };
   }
