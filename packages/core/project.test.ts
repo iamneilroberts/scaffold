@@ -107,4 +107,40 @@ describe('renderView', () => {
       expect(viewItem.stamp.price.total).toBeNull();
     }
   });
+
+  it('filters by itemClasses (productType)', () => {
+    const caseState: Case = {
+      id: 'c1', facts: {}, lifecycle: 'planning',
+      items: [
+        item({ id: 'item_a', offerRef: 'ofr_1', productType: 'widget' }),
+        item({ id: 'item_b', offerRef: 'ofr_2', productType: 'gadget' }),
+      ],
+    };
+    const preset: ViewPreset = { name: 'Widgets only', itemClasses: ['widget'], priceDisplayMode: 'full', showCompensation: true };
+    const view = renderView(caseState, preset);
+    const allItems = view.sections.flatMap((s) => s.items);
+    expect(allItems).toHaveLength(1);
+    expect(allItems[0].productType).toBe('widget');
+  });
+
+  it('filters by sections', () => {
+    const preset: ViewPreset = { name: 'Main only', sections: ['main'], priceDisplayMode: 'full', showCompensation: true };
+    const view = renderView(twoItemCase(), preset);
+    const allItems = view.sections.flatMap((s) => s.items);
+    expect(allItems).toHaveLength(1);
+    expect(allItems[0].section).toBe('main');
+  });
+
+  it('does not mutate the input Case (Contract Patch v1 §5)', () => {
+    const caseState = twoItemCase();
+    const originalSnapshot = JSON.stringify(caseState);
+    const originalCompensation = caseState.items[0].stamp.economics.compensation;
+    const preset: ViewPreset = { name: 'End user', priceDisplayMode: 'end_user', showCompensation: false };
+
+    renderView(caseState, preset);
+
+    expect(JSON.stringify(caseState)).toBe(originalSnapshot);
+    expect(caseState.items[0].stamp.economics.compensation).toBe(originalCompensation);
+    expect(caseState.items[0].stamp.economics.compensation).toEqual({ kind: 'flat', amount: 10 });
+  });
 });
