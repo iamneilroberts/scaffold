@@ -3,6 +3,11 @@ import { freezeRelease, listReleases } from './release.js';
 import { createMemoryStore, releaseKey } from './storage.js';
 import type { Case } from './gate.js';
 
+// Captured once so every caseWithItems() call is byte-identical -- a fresh `new Date()` per
+// call would make "the same inputs" straddle a millisecond boundary and flake the
+// same-content -> same-hash test below.
+const QUOTED_AT = new Date().toISOString();
+
 function caseWithItems(): Case {
   return {
     id: 'c1', facts: {}, lifecycle: 'active',
@@ -18,7 +23,7 @@ function caseWithItems(): Case {
           actionable: 'managed',
           economics: { compensation: { kind: 'flat', amount: 10, basis: 'per_booking' }, endUserPrice: 100 },
           price: { total: 100, currency: 'USD' },
-          quotedAt: new Date().toISOString(),
+          quotedAt: QUOTED_AT,
         },
       },
     ],
