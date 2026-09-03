@@ -134,6 +134,25 @@ export function applyAction(
         invalidate,
       };
     }
+    case 'add_item_unverified': {
+      const cap = CAP_FOR_ACTIONABLE[action.item.stamp.actionable];
+      const state = funnelIndex(action.item.state) > funnelIndex(cap) ? cap : action.item.state;
+      const item: Item = {
+        ...action.item,
+        state,
+        stamp: {
+          ...action.item.stamp,
+          economics: { compensation: null, endUserPrice: action.item.stamp.economics.endUserPrice },
+          unverified: true,
+        },
+      };
+      return {
+        case: { ...caseState, items: [...caseState.items, item] },
+        persist: true,
+        invalidate,
+      };
+    }
+
     default:
       return { case: caseState, persist: false, invalidate: [] };
   }

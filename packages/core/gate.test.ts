@@ -82,3 +82,58 @@ describe('applyAction: add_item', () => {
     expect(result.case.items).toHaveLength(0);
   });
 });
+
+describe('applyAction: add_item_unverified', () => {
+  it('strips compensation and flags unverified', () => {
+    const noop: OfferResolver = () => undefined;
+    const result = applyAction(
+      baseCase(),
+      {
+        type: 'add_item_unverified',
+        item: {
+          id: 'item_manual1',
+          productType: 'widget',
+          section: 'main',
+          state: 'recommended',
+          stamp: {
+            source: 'hand-entry',
+            actionable: 'none',
+            economics: { compensation: { kind: 'flat', amount: 5 }, endUserPrice: 50 },
+            price: { total: 50, currency: 'USD' },
+          },
+        },
+      },
+      noop,
+    );
+
+    expect(result.persist).toBe(true);
+    const item = result.case.items[0];
+    expect(item.stamp.unverified).toBe(true);
+    expect(item.stamp.economics.compensation).toBeNull();
+  });
+
+  it('caps the requested state to the actionable-class ceiling', () => {
+    const noop: OfferResolver = () => undefined;
+    const result = applyAction(
+      baseCase(),
+      {
+        type: 'add_item_unverified',
+        item: {
+          id: 'item_manual2',
+          productType: 'widget',
+          section: 'main',
+          state: 'booked',
+          stamp: {
+            source: 'hand-entry',
+            actionable: 'none',
+            economics: { compensation: null, endUserPrice: 50 },
+            price: { total: 50, currency: 'USD' },
+          },
+        },
+      },
+      noop,
+    );
+
+    expect(result.case.items[0].state).toBe('recommended');
+  });
+});
