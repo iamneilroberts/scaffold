@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { freezeRelease } from './release.js';
+import { freezeRelease, listReleases } from './release.js';
+import { createMemoryStore, releaseKey } from './storage.js';
 import type { Case } from './gate.js';
 
 function caseWithItems(): Case {
@@ -45,5 +46,29 @@ describe('freezeRelease', () => {
     const a = freezeRelease(caseWithItems(), '<html>rendered</html>', versions);
     const b = freezeRelease(caseWithItems(), '<html>rendered</html>', versions);
     expect(a.contentHash).toBe(b.contentHash);
+  });
+});
+
+describe('listReleases', () => {
+  it('reads back releases a host saved under releaseKey, oldest first', async () => {
+    const store = createMemoryStore();
+    const versions = { schema: 'v1', rubric: 'v1' };
+    const first = freezeRelease(caseWithItems(), '<html>1</html>', versions);
+    await store.put(releaseKey('c1', first.publicationId), JSON.stringify(first));
+
+    await new Promise((resolve) => setTimeout(resolve, 5));
+
+    const second = freezeRelease(caseWithItems(), '<html>2</html>', versions);
+    await store.put(releaseKey('c1', second.publicationId), JSON.stringify(second));
+
+    const releases = await listReleases(store, 'c1');
+    expect(releases).toHaveLength(2);
+    expect(releases[0].publicationId).toBe(first.publicationId);
+    expect(releases[1].publicationId).toBe(second.publicationId);
+  });
+
+  it('returns an empty array when the case has no releases', async () => {
+    const store = createMemoryStore();
+    expect(await listReleases(store, 'no-releases')).toEqual([]);
   });
 });

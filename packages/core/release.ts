@@ -1,6 +1,7 @@
 import type { Case, Item } from './gate.js';
 import { projectItems } from './project.js';
-import { randomId } from './storage.js';
+import type { KVStore } from './storage.js';
+import { randomId, releaseIndexPrefix } from './storage.js';
 
 export interface QuoteSnapshot {
   offerRef?: string;
@@ -71,4 +72,15 @@ export function freezeRelease(
     versions,
     contentHash,
   };
+}
+
+export async function listReleases(store: KVStore, caseId: string): Promise<Release[]> {
+  const keys = await store.list(releaseIndexPrefix(caseId));
+  const releases: Release[] = [];
+  for (const key of keys) {
+    const raw = await store.get(key);
+    if (raw) releases.push(JSON.parse(raw));
+  }
+  releases.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+  return releases;
 }

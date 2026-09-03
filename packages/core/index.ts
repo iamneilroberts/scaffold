@@ -5,3 +5,4 @@ export * from './rubric.js';
 export * from './offer.js';
 export * from './gate.js';
 export * from './project.js';
+export * from './release.js';
