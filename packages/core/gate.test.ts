@@ -137,3 +137,79 @@ describe('applyAction: add_item_unverified', () => {
     expect(result.case.items[0].state).toBe('recommended');
   });
 });
+
+function caseWithItem(): Case {
+  return {
+    id: 'c1',
+    facts: {},
+    lifecycle: 'planning',
+    items: [
+      {
+        id: 'item_x',
+        offerRef: 'ofr_old',
+        productType: 'widget',
+        section: 'main',
+        state: 'selected',
+        stamp: {
+          source: 'sourceA',
+          actionable: 'managed',
+          economics: { compensation: { kind: 'flat', amount: 10 }, endUserPrice: 100 },
+          price: { total: 100, currency: 'USD' },
+        },
+      },
+    ],
+  };
+}
+
+describe('applyAction: replace_item', () => {
+  it('resolves the new offerRef and restamps offerRef/productType/facts/stamp in place', () => {
+    const newOffer = baseOffer({
+      offerRef: 'ofr_new',
+      productType: 'gadget',
+      attributes: { size: 'L' },
+      price: { total: 120, currency: 'USD' },
+    });
+    const resolve: OfferResolver = (ref) => (ref === newOffer.offerRef ? newOffer : undefined);
+    const result = applyAction(
+      caseWithItem(),
+      { type: 'replace_item', itemId: 'item_x', offerRef: newOffer.offerRef },
+      resolve,
+    );
+
+    expect(result.persist).toBe(true);
+    expect(result.case.items).toHaveLength(1);
+    expect(result.case.items[0].id).toBe('item_x');
+    expect(result.case.items[0].offerRef).toBe('ofr_new');
+    expect(result.case.items[0].productType).toBe('gadget');
+    expect(result.case.items[0].facts).toEqual({ size: 'L' });
+    expect(result.case.items[0].stamp.price.total).toBe(120);
+  });
+
+  it('clamps state down when the new offer has a lower actionable ceiling', () => {
+    const referralOffer = baseOffer({ offerRef: 'ofr_ref', actionable: 'referral' });
+    const resolve: OfferResolver = (ref) => (ref === referralOffer.offerRef ? referralOffer : undefined);
+    const state = caseWithItem();
+    state.items[0].state = 'booked';
+    const result = applyAction(
+      state,
+      { type: 'replace_item', itemId: 'item_x', offerRef: referralOffer.offerRef },
+      resolve,
+    );
+    expect(result.case.items[0].state).toBe('confirmed');
+  });
+});
+
+describe('applyAction: remove_item', () => {
+  it('removes the matching item', () => {
+    const noop: OfferResolver = () => undefined;
+    const result = applyAction(caseWithItem(), { type: 'remove_item', itemId: 'item_x' }, noop);
+    expect(result.persist).toBe(true);
+    expect(result.case.items).toHaveLength(0);
+  });
+
+  it('does not persist when the itemId is unknown', () => {
+    const noop: OfferResolver = () => undefined;
+    const result = applyAction(caseWithItem(), { type: 'remove_item', itemId: 'nope' }, noop);
+    expect(result.persist).toBe(false);
+  });
+});

@@ -153,6 +153,36 @@ export function applyAction(
       };
     }
 
+    case 'replace_item': {
+      const offer = resolve(action.offerRef);
+      const idx = caseState.items.findIndex((i) => i.id === action.itemId);
+      if (!offer || idx === -1) {
+        return { case: caseState, persist: false, invalidate: [] };
+      }
+      const old = caseState.items[idx];
+      const cap = CAP_FOR_ACTIONABLE[offer.actionable];
+      const state = funnelIndex(old.state) > funnelIndex(cap) ? cap : old.state;
+      const items = caseState.items.slice();
+      items[idx] = {
+        ...old,
+        offerRef: offer.offerRef,
+        productType: offer.productType,
+        identityKey: offer.identityKey,
+        stamp: stampFromOffer(offer),
+        facts: offer.attributes,
+        state,
+      };
+      return { case: { ...caseState, items }, persist: true, invalidate };
+    }
+
+    case 'remove_item': {
+      const items = caseState.items.filter((i) => i.id !== action.itemId);
+      if (items.length === caseState.items.length) {
+        return { case: caseState, persist: false, invalidate: [] };
+      }
+      return { case: { ...caseState, items }, persist: true, invalidate };
+    }
+
     default:
       return { case: caseState, persist: false, invalidate: [] };
   }
