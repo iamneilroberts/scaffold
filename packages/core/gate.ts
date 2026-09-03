@@ -222,3 +222,52 @@ export function applyAction(
       return { case: caseState, persist: false, invalidate: [] };
   }
 }
+
+interface GateEvent {
+  seq: number;
+  at: string;
+  kind: string;
+  detail?: Record<string, unknown>;
+}
+
+function eventDetailFor(action: Action): Record<string, unknown> | undefined {
+  switch (action.type) {
+    case 'add_item':
+      return { offerRef: action.offerRef };
+    case 'replace_item':
+      return { itemId: action.itemId, offerRef: action.offerRef };
+    case 'remove_item':
+      return { itemId: action.itemId };
+    case 'transition_item':
+      return { itemId: action.itemId, to: action.to };
+    default:
+      return undefined;
+  }
+}
+
+async function appendEvent(store: KVStore, caseId: string, kind: string, detail?: Record<string, unknown>): Promise<GateEvent> {
+  const key = eventsKey(caseId);
+  const raw = await store.get(key);
+  const events: GateEvent[] = raw ? JSON.parse(raw) : [];
+  const seq = events.length > 0 ? events[events.length - 1].seq + 1 : 1;
+  const event: GateEvent = { seq, at: new Date().toISOString(), kind, detail };
+  events.push(event);
+  await store.put(key, JSON.stringify(events));
+  return event;
+}
+
+export async function commitAction(store: KVStore, caseId: string, action: Action): Promise<CommitResult> {
+  const raw = await store.get(caseKey(caseId));
+  if (!raw) {
+    return { ok: false, error: 'case_not_found' };
+  }
+  const caseState: Case = JSON.parse(raw);
+  const resolve: OfferResolver = (offerRef) => caseState._offers?.[offerRef];
+  const result = applyAction(caseState, action, resolve);
+  if (!result.persist) {
+    return { ok: false, error: 'action_not_applied', case: result.case };
+  }
+  await store.put(caseKey(caseId), JSON.stringify(result.case));
+  await appendEvent(store, caseId, action.type, eventDetailFor(action));
+  return { ok: true, case: result.case, invalidate: result.invalidate };
+}

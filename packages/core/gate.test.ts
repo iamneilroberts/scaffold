@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { ACTION_TYPES, INVALIDATIONS, FUNNEL_STATE_ORDER, applyAction } from './gate.js';
+import { ACTION_TYPES, INVALIDATIONS, FUNNEL_STATE_ORDER, applyAction, commitAction } from './gate.js';
 import type { Case, OfferResolver } from './gate.js';
 import type { Offer } from './offer.js';
+import { createMemoryStore, caseKey, eventsKey } from './storage.js';
 
 function baseCase(): Case {
   return { id: 'c1', facts: {}, items: [], lifecycle: 'planning' };
@@ -274,5 +275,47 @@ describe('applyAction: facts, display, and lifecycle actions', () => {
     const at = new Date().toISOString();
     const result = applyAction(baseCase(), { type: 'archive', at, reason: 'test' }, noop);
     expect(result.case.lifecycle).toBe('archived');
+  });
+});
+
+describe('commitAction', () => {
+  it('returns ok:false when the case is not in the store', async () => {
+    const store = createMemoryStore();
+    const result = await commitAction(store, 'missing-case', { type: 'publish', at: new Date().toISOString() });
+    expect(result.ok).toBe(false);
+    expect(result.error).toBe('case_not_found');
+  });
+
+  it('persists the case and appends an event on a successful action', async () => {
+    const store = createMemoryStore();
+    const offer = baseOffer();
+    const seeded: Case = { id: 'c1', facts: {}, items: [], lifecycle: 'planning', _offers: { [offer.offerRef]: offer } };
+    await store.put(caseKey('c1'), JSON.stringify(seeded));
+
+    const result = await commitAction(store, 'c1', { type: 'add_item', offerRef: offer.offerRef });
+
+    expect(result.ok).toBe(true);
+    expect(result.case?.items).toHaveLength(1);
+    expect(result.invalidate).toContain('item_registry');
+
+    const storedRaw = await store.get(caseKey('c1'));
+    expect(JSON.parse(storedRaw!).items).toHaveLength(1);
+
+    const eventsRaw = await store.get(eventsKey('c1'));
+    const events = JSON.parse(eventsRaw!);
+    expect(events).toHaveLength(1);
+    expect(events[0].kind).toBe('add_item');
+    expect(events[0].seq).toBe(1);
+  });
+
+  it('does not persist or append an event when the action is rejected', async () => {
+    const store = createMemoryStore();
+    const seeded: Case = { id: 'c1', facts: {}, items: [], lifecycle: 'planning' };
+    await store.put(caseKey('c1'), JSON.stringify(seeded));
+
+    const result = await commitAction(store, 'c1', { type: 'add_item', offerRef: 'ofr_missing' });
+
+    expect(result.ok).toBe(false);
+    expect(await store.get(eventsKey('c1'))).toBeNull();
   });
 });
