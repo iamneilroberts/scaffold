@@ -1,4 +1,5 @@
 import type { Case } from './gate.js';
+import type { Offer } from './offer.js';
 
 export interface KVStore {
   get(key: string): Promise<string | null>;
@@ -53,4 +54,14 @@ export async function getCase(store: KVStore, caseId: string): Promise<Case | un
 
 export async function putCase(store: KVStore, caseId: string, c: Case): Promise<void> {
   await store.put(caseKey(caseId), JSON.stringify(c));
+}
+
+export async function stageOffers(store: KVStore, caseId: string, offers: Offer[]): Promise<void> {
+  const c = await getCase(store, caseId);
+  if (!c) return;
+  const merged = { ...(c._offers ?? {}) };
+  for (const offer of offers) {
+    merged[offer.offerRef] = offer;
+  }
+  await putCase(store, caseId, { ...c, _offers: merged });
 }

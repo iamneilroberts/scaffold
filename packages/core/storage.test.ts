@@ -1,7 +1,22 @@
 import { describe, it, expect } from 'vitest';
 import { createMemoryStore } from './storage.js';
 import { randomId, caseKey, eventsKey, releaseKey, releaseIndexPrefix } from './storage.js';
-import { newCase, getCase, putCase } from './storage.js';
+import { newCase, getCase, putCase, stageOffers } from './storage.js';
+import type { Offer } from './offer.js';
+
+function testOffer(overrides: Partial<Offer> = {}): Offer {
+  return {
+    offerRef: 'ofr_1',
+    product: { title: 'Test' },
+    source: 'sourceA',
+    productType: 'widget',
+    actionable: 'managed',
+    price: { total: 100, currency: 'USD' },
+    economics: { compensation: { kind: 'flat', amount: 10 }, endUserPrice: 100 },
+    section: 'main',
+    ...overrides,
+  };
+}
 
 describe('createMemoryStore', () => {
   it('returns null for a missing key', async () => {
@@ -66,5 +81,20 @@ describe('getCase / putCase', () => {
     await putCase(store, 'c1', c);
     const back = await getCase(store, 'c1');
     expect(back).toEqual(c);
+  });
+});
+
+describe('stageOffers', () => {
+  it('merges offers into Case._offers keyed by offerRef and persists', async () => {
+    const store = createMemoryStore();
+    await putCase(store, 'c1', newCase('c1'));
+
+    await stageOffers(store, 'c1', [testOffer()]);
+    const afterFirst = await getCase(store, 'c1');
+    expect(Object.keys(afterFirst!._offers!)).toEqual(['ofr_1']);
+
+    await stageOffers(store, 'c1', [testOffer({ offerRef: 'ofr_2' })]);
+    const afterSecond = await getCase(store, 'c1');
+    expect(Object.keys(afterSecond!._offers!).sort()).toEqual(['ofr_1', 'ofr_2']);
   });
 });
