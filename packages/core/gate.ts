@@ -99,10 +99,17 @@ function stampFromOffer(offer: Offer): ItemStamp {
   return {
     source: offer.source,
     actionable: offer.actionable,
-    economics: { ...offer.economics },
+    economics: {
+      compensation: offer.economics.compensation ? { ...offer.economics.compensation } : null,
+      endUserPrice: offer.economics.endUserPrice,
+    },
     price: { total: offer.price.total, currency: offer.price.currency },
     quotedAt: offer.quotedAt,
   };
+}
+
+function factsFromOffer(offer: Offer): Record<string, unknown> | undefined {
+  return offer.attributes ? { ...offer.attributes } : undefined;
 }
 
 export function applyAction(
@@ -126,7 +133,7 @@ export function applyAction(
         section: offer.section,
         state: 'recommended',
         stamp: stampFromOffer(offer),
-        facts: offer.attributes,
+        facts: factsFromOffer(offer),
       };
       return {
         case: { ...caseState, items: [...caseState.items, item] },
@@ -169,7 +176,7 @@ export function applyAction(
         productType: offer.productType,
         identityKey: offer.identityKey,
         stamp: stampFromOffer(offer),
-        facts: offer.attributes,
+        facts: factsFromOffer(offer),
         state,
       };
       return { case: { ...caseState, items }, persist: true, invalidate };

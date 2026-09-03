@@ -82,6 +82,21 @@ describe('applyAction: add_item', () => {
     expect(result.persist).toBe(false);
     expect(result.case.items).toHaveLength(0);
   });
+
+  it('freezes stamp.economics.compensation and facts against later mutation of the source Offer', () => {
+    const offer = baseOffer({ attributes: { color: 'red' } });
+    const resolve: OfferResolver = (ref) => (ref === offer.offerRef ? offer : undefined);
+    const result = applyAction(baseCase(), { type: 'add_item', offerRef: offer.offerRef }, resolve);
+
+    // Mutate the source Offer AFTER stamping.
+    offer.economics.compensation!.amount = 999;
+    offer.attributes!.color = 'blue';
+
+    expect(result.case.items[0].stamp.economics.compensation?.amount).toBe(10);
+    expect(result.case.items[0].facts).toEqual({ color: 'red' });
+    expect(result.case.items[0].stamp.economics.compensation).not.toBe(offer.economics.compensation);
+    expect(result.case.items[0].facts).not.toBe(offer.attributes);
+  });
 });
 
 describe('applyAction: add_item_unverified', () => {
@@ -238,6 +253,19 @@ describe('applyAction: transition_item', () => {
     );
     expect(result.persist).toBe(false);
     expect(result.case.items[0].state).toBe('selected');
+  });
+
+  it('allows a transition exactly to the actionable-class ceiling (boundary, not past it)', () => {
+    const noop: OfferResolver = () => undefined;
+    const state = caseWithItem();
+    state.items[0].stamp.actionable = 'referral';
+    const result = applyAction(
+      state,
+      { type: 'transition_item', itemId: 'item_x', to: 'confirmed' },
+      noop,
+    );
+    expect(result.persist).toBe(true);
+    expect(result.case.items[0].state).toBe('confirmed');
   });
 });
 
