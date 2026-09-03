@@ -1,4 +1,4 @@
-import type { Case, Item } from './gate.js';
+import type { Case, Item, FunnelState } from './gate.js';
 import { FUNNEL_STATE_ORDER } from './gate.js';
 
 export function projectItems(caseState: Case): Item[] {
@@ -43,4 +43,63 @@ export function projectItems(caseState: Case): Item[] {
   }
 
   return [...withoutIdentity, ...byIdentity.values()];
+}
+
+export interface ViewPreset {
+  name: string;
+  itemClasses?: string[];
+  states?: FunnelState[];
+  sections?: string[];
+  priceDisplayMode: 'full' | 'end_user' | 'hidden';
+  showCompensation: boolean;
+}
+
+export interface ViewData {
+  name: string;
+  sections: { section: string; items: Item[] }[];
+  totals?: Record<string, number | null>;
+}
+
+function maskItemForPreset(item: Item, preset: ViewPreset): Item {
+  const stamp = { ...item.stamp };
+  if (preset.priceDisplayMode === 'hidden') {
+    stamp.price = { total: null, currency: stamp.price.currency };
+  } else if (preset.priceDisplayMode === 'end_user') {
+    stamp.price = { total: stamp.economics.endUserPrice, currency: stamp.price.currency };
+  }
+  if (!preset.showCompensation) {
+    stamp.economics = { compensation: null, endUserPrice: stamp.economics.endUserPrice };
+  }
+  return { ...item, stamp };
+}
+
+function sumTotals(items: Item[]): number | null {
+  let sum: number | null = null;
+  for (const item of items) {
+    if (item.stamp.price.total == null) continue;
+    sum = (sum ?? 0) + item.stamp.price.total;
+  }
+  return sum;
+}
+
+export function renderView(caseState: Case, preset: ViewPreset): ViewData {
+  let items = projectItems(caseState);
+  if (preset.states) {
+    items = items.filter((i) => preset.states!.includes(i.state));
+  }
+  if (preset.sections) {
+    items = items.filter((i) => preset.sections!.includes(i.section));
+  }
+  if (preset.itemClasses) {
+    items = items.filter((i) => preset.itemClasses!.includes(i.productType));
+  }
+
+  const masked = items.map((i) => maskItemForPreset(i, preset));
+  const sectionNames = Array.from(new Set(masked.map((i) => i.section)));
+  const sections = sectionNames.map((section) => ({
+    section,
+    items: masked.filter((i) => i.section === section),
+  }));
+
+  return { name: preset.name, sections, totals: { total: sumTotals(masked) } };
 }

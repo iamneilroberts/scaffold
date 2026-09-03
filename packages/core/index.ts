@@ -4,3 +4,4 @@ export * from './storage.js';
 export * from './rubric.js';
 export * from './offer.js';
 export * from './gate.js';
+export * from './project.js';
