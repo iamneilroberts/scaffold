@@ -46,11 +46,12 @@ export function freezeRelease(
   render: string,
   versions: { schema: string; rubric: string },
 ): Release {
-  const itemSet = projectItems(caseState).map(maskItemCompensation);
+  const projected = projectItems(caseState);
+  const itemSet = projected.map(maskItemCompensation);
   const createdAt = new Date().toISOString();
 
   const observedQuotes: Record<string, QuoteSnapshot> = {};
-  for (const item of itemSet) {
+  for (const item of projected) {
     observedQuotes[item.id] = {
       offerRef: item.offerRef,
       total: item.stamp.price.total,

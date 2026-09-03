@@ -16,7 +16,7 @@ function caseWithItems(): Case {
         stamp: {
           source: 'sourceA',
           actionable: 'managed',
-          economics: { compensation: { kind: 'flat', amount: 10 }, endUserPrice: 100 },
+          economics: { compensation: { kind: 'flat', amount: 10, basis: 'per_booking' }, endUserPrice: 100 },
           price: { total: 100, currency: 'USD' },
           quotedAt: new Date().toISOString(),
         },
@@ -46,6 +46,21 @@ describe('freezeRelease', () => {
     const a = freezeRelease(caseWithItems(), '<html>rendered</html>', versions);
     const b = freezeRelease(caseWithItems(), '<html>rendered</html>', versions);
     expect(a.contentHash).toBe(b.contentHash);
+  });
+
+  it('produces a different contentHash for different content', () => {
+    const versions = { schema: 'v1', rubric: 'v1' };
+    const a = freezeRelease(caseWithItems(), '<html>rendered</html>', versions);
+    const b = freezeRelease(caseWithItems(), '<html>different</html>', { schema: 'v2', rubric: 'v1' });
+    expect(a.contentHash).not.toBe(b.contentHash);
+  });
+
+  it('reads basis from the pre-mask compensation while itemSet stays masked', () => {
+    const versions = { schema: 'v1', rubric: 'v1' };
+    const release = freezeRelease(caseWithItems(), '<html>rendered</html>', versions);
+
+    expect(release.observedQuotes['item_a'].basis).toBe('per_booking');
+    expect(release.itemSet[0].stamp.economics.compensation).toBeNull();
   });
 });
 
