@@ -63,6 +63,15 @@ describe('deskPayload against a populated case', () => {
     expect(delta.events[0].kind).toBe('publish');
     expect(delta.maxSeq).toBe(2);
   });
+
+  it('returns an empty events delta but the true maxSeq when since equals the current max', async () => {
+    const store = createMemoryStore();
+    await seed(store);
+
+    const atBoundary = await deskPayload(store, 'c1', 2);
+    expect(atBoundary.events).toEqual([]);
+    expect(atBoundary.maxSeq).toBe(2);
+  });
 });
 
 describe('setDeskSummary / setDeskMetrics', () => {
@@ -89,6 +98,18 @@ describe('setDeskSummary / setDeskMetrics', () => {
     await setDeskSummary(store, 'no-case', { headline: 'x', updatedAt: new Date().toISOString() });
     expect(await store.get(caseKey('no-case'))).toBeNull();
   });
+
+  it('does not clobber each other when set in sequence on the same case', async () => {
+    const store = createMemoryStore();
+    await store.put(caseKey('c1'), JSON.stringify({ id: 'c1', facts: {}, items: [], lifecycle: 'active' }));
+
+    await setDeskSummary(store, 'c1', { headline: 'Both survive', updatedAt: new Date().toISOString() });
+    await setDeskMetrics(store, 'c1', { total: 300 });
+
+    const payload = await deskPayload(store, 'c1', 0);
+    expect(payload.summary.headline).toBe('Both survive');
+    expect(payload.metrics.total).toBe(300);
+  });
 });
 
 describe('deskShellHtml', () => {
@@ -98,5 +119,16 @@ describe('deskShellHtml', () => {
     expect(html).toContain('"c1"');
     expect(html).toContain('/api/cases/');
     expect(html).toContain('/desk?since=');
+  });
+
+  it('escapes a hostile caseId so it cannot break out of the attribute or the inline script', () => {
+    const hostile = 'c1"><script>alert(1)</script>';
+    const html = deskShellHtml(hostile);
+    // Attribute breakout: raw caseId would close the data-case-id attribute and inject a tag.
+    expect(html).not.toContain('"><script>alert(1)</script>');
+    // Script breakout: JSON.stringify alone leaves a literal </script> that would close the
+    // inline <script> block early. Only the real closing tag should remain.
+    const scriptCloseCount = (html.match(/<\/script>/g) ?? []).length;
+    expect(scriptCloseCount).toBe(1);
   });
 });

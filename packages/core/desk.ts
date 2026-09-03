@@ -64,15 +64,23 @@ export async function setDeskMetrics(store: KVStore, caseId: string, metrics: De
   await store.put(caseKey(caseId), JSON.stringify({ ...caseState, meta }));
 }
 
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
 export function deskShellHtml(caseId: string): string {
   return `<!doctype html>
 <html>
 <head><meta charset="utf-8"><title>Desk</title></head>
 <body>
-<div id="desk-root" data-case-id="${caseId}">Loading…</div>
+<div id="desk-root" data-case-id="${escapeHtml(caseId)}">Loading…</div>
 <script>
 (function () {
-  var caseId = ${JSON.stringify(caseId)};
+  var caseId = ${JSON.stringify(caseId).replace(/</g, '\\u003c')};
   var since = 0;
   function poll() {
     fetch('/api/cases/' + encodeURIComponent(caseId) + '/desk?since=' + since)
