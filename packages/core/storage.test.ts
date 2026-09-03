@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { createMemoryStore } from './storage.js';
 import { randomId, caseKey, eventsKey, releaseKey, releaseIndexPrefix } from './storage.js';
-import { newCase } from './storage.js';
+import { newCase, getCase, putCase } from './storage.js';
 
 describe('createMemoryStore', () => {
   it('returns null for a missing key', async () => {
@@ -51,5 +51,20 @@ describe('newCase', () => {
     expect(c.items).toEqual([]);
     expect(c.facts).toEqual({});
     expect(c._offers).toEqual({});
+  });
+});
+
+describe('getCase / putCase', () => {
+  it('returns undefined for a case not yet persisted', async () => {
+    const store = createMemoryStore();
+    expect(await getCase(store, 'missing')).toBeUndefined();
+  });
+
+  it('round-trips a Case through putCase/getCase', async () => {
+    const store = createMemoryStore();
+    const c = newCase('c1');
+    await putCase(store, 'c1', c);
+    const back = await getCase(store, 'c1');
+    expect(back).toEqual(c);
   });
 });

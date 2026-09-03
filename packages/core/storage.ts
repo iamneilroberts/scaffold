@@ -45,3 +45,12 @@ export function releaseIndexPrefix(caseId: string): string {
 export function newCase(id: string): Case {
   return { id, facts: {}, items: [], lifecycle: 'planning', _offers: {} };
 }
+
+export async function getCase(store: KVStore, caseId: string): Promise<Case | undefined> {
+  const raw = await store.get(caseKey(caseId));
+  return raw ? (JSON.parse(raw) as Case) : undefined;
+}
+
+export async function putCase(store: KVStore, caseId: string, c: Case): Promise<void> {
+  await store.put(caseKey(caseId), JSON.stringify(c));
+}
