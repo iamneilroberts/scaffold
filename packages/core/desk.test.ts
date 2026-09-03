@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { deskPayload } from './desk.js';
+import { deskPayload, setDeskSummary, setDeskMetrics } from './desk.js';
 import { createMemoryStore } from './storage.js';
 import { caseKey, eventsKey } from './storage.js';
 import type { Offer } from './offer.js';
@@ -62,5 +62,31 @@ describe('deskPayload against a populated case', () => {
     expect(delta.events).toHaveLength(1);
     expect(delta.events[0].kind).toBe('publish');
     expect(delta.maxSeq).toBe(2);
+  });
+});
+
+describe('setDeskSummary / setDeskMetrics', () => {
+  it('writes deskSummary into Case.meta and deskPayload picks it up', async () => {
+    const store = createMemoryStore();
+    await store.put(caseKey('c1'), JSON.stringify({ id: 'c1', facts: {}, items: [], lifecycle: 'active' }));
+
+    await setDeskSummary(store, 'c1', { headline: 'Updated', updatedAt: new Date().toISOString() });
+    const payload = await deskPayload(store, 'c1', 0);
+    expect(payload.summary.headline).toBe('Updated');
+  });
+
+  it('writes deskMetrics into Case.meta and deskPayload picks it up', async () => {
+    const store = createMemoryStore();
+    await store.put(caseKey('c1'), JSON.stringify({ id: 'c1', facts: {}, items: [], lifecycle: 'active' }));
+
+    await setDeskMetrics(store, 'c1', { total: 250 });
+    const payload = await deskPayload(store, 'c1', 0);
+    expect(payload.metrics.total).toBe(250);
+  });
+
+  it('is a no-op when the case does not exist', async () => {
+    const store = createMemoryStore();
+    await setDeskSummary(store, 'no-case', { headline: 'x', updatedAt: new Date().toISOString() });
+    expect(await store.get(caseKey('no-case'))).toBeNull();
   });
 });

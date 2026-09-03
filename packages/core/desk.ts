@@ -47,3 +47,19 @@ export async function deskPayload(store: KVStore, caseId: string, since: number)
 
   return { summary, offers, events, metrics, maxSeq };
 }
+
+export async function setDeskSummary(store: KVStore, caseId: string, summary: DeskSummary): Promise<void> {
+  const raw = await store.get(caseKey(caseId));
+  if (!raw) return;
+  const caseState: Case = JSON.parse(raw);
+  const meta = { ...(caseState.meta ?? {}), deskSummary: summary };
+  await store.put(caseKey(caseId), JSON.stringify({ ...caseState, meta }));
+}
+
+export async function setDeskMetrics(store: KVStore, caseId: string, metrics: DeskMetrics): Promise<void> {
+  const raw = await store.get(caseKey(caseId));
+  if (!raw) return;
+  const caseState: Case = JSON.parse(raw);
+  const meta = { ...(caseState.meta ?? {}), deskMetrics: metrics };
+  await store.put(caseKey(caseId), JSON.stringify({ ...caseState, meta }));
+}
