@@ -1,5 +1,5 @@
 import type { Offer, OfferSource } from '@scaffold/core';
-import { mintOfferRef, actionableFor, compensationAvailableFor } from '@scaffold/core';
+import { mintOfferRef, actionableFor } from '@scaffold/core';
 import { TRAVEL_THIN_RUBRIC } from './rubric.js';
 import type { KiwiRawItinerary, KiwiSearchFlightResult } from './kiwi-types.js';
 
@@ -26,7 +26,6 @@ export const kiwiOfferSource: OfferSource<KiwiSearchFlightResult> = {
   toOffers(raw: KiwiSearchFlightResult): Offer[] {
     const currency = raw.currency ?? 'USD';
     const actionable = actionableFor(TRAVEL_THIN_RUBRIC, 'kiwi');
-    const compensationAvailable = compensationAvailableFor(TRAVEL_THIN_RUBRIC, 'kiwi');
     const offers: Offer[] = [];
 
     for (const it of raw.itineraries ?? []) {
@@ -44,8 +43,8 @@ export const kiwiOfferSource: OfferSource<KiwiSearchFlightResult> = {
           currency,
         },
         economics: {
-          // kiwi is a reference/referral source per the rubric — never pays compensation
-          compensation: compensationAvailable ? null : null,
+          // kiwi is a referral/reference source — it never pays the expert compensation
+          compensation: null,
           endUserPrice: typeof it.price === 'number' ? it.price : null,
         },
         attributes: {
