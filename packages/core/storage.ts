@@ -1,5 +1,6 @@
 import type { Case } from './gate.js';
 import type { Offer } from './offer.js';
+import type { Release } from './release.js';
 
 export interface KVStore {
   get(key: string): Promise<string | null>;
@@ -64,4 +65,8 @@ export async function stageOffers(store: KVStore, caseId: string, offers: Offer[
     merged[offer.offerRef] = offer;
   }
   await putCase(store, caseId, { ...c, _offers: merged });
+}
+
+export async function putRelease(store: KVStore, release: Release): Promise<void> {
+  await store.put(releaseKey(release.caseId, release.publicationId), JSON.stringify(release));
 }

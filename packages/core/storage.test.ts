@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { createMemoryStore } from './storage.js';
 import { randomId, caseKey, eventsKey, releaseKey, releaseIndexPrefix } from './storage.js';
-import { newCase, getCase, putCase, stageOffers } from './storage.js';
+import { newCase, getCase, putCase, stageOffers, putRelease } from './storage.js';
+import { freezeRelease, listReleases } from './release.js';
 import type { Offer } from './offer.js';
 
 function testOffer(overrides: Partial<Offer> = {}): Offer {
@@ -96,5 +97,24 @@ describe('stageOffers', () => {
     await stageOffers(store, 'c1', [testOffer({ offerRef: 'ofr_2' })]);
     const afterSecond = await getCase(store, 'c1');
     expect(Object.keys(afterSecond!._offers!).sort()).toEqual(['ofr_1', 'ofr_2']);
+  });
+});
+
+describe('putRelease', () => {
+  it('persists a Release under releaseKey so listReleases finds it', async () => {
+    const store = createMemoryStore();
+    const release = freezeRelease(newCase('c1'), '<html></html>', { schema: 'v1', rubric: 'v1' });
+    await putRelease(store, release);
+    const raw = await store.get(releaseKey('c1', release.publicationId));
+    expect(raw).not.toBeNull();
+    expect(JSON.parse(raw!).publicationId).toBe(release.publicationId);
+  });
+
+  it('round-trips with listReleases (Task 7)', async () => {
+    const store = createMemoryStore();
+    const release = freezeRelease(newCase('c2'), '<html></html>', { schema: 'v1', rubric: 'v1' });
+    await putRelease(store, release);
+    const found = await listReleases(store, 'c2');
+    expect(found.map((r) => r.publicationId)).toEqual([release.publicationId]);
   });
 });
