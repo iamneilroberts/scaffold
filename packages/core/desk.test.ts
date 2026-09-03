@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { deskPayload, setDeskSummary, setDeskMetrics } from './desk.js';
+import { deskPayload, setDeskSummary, setDeskMetrics, deskShellHtml } from './desk.js';
 import { createMemoryStore } from './storage.js';
 import { caseKey, eventsKey } from './storage.js';
 import type { Offer } from './offer.js';
@@ -88,5 +88,15 @@ describe('setDeskSummary / setDeskMetrics', () => {
     const store = createMemoryStore();
     await setDeskSummary(store, 'no-case', { headline: 'x', updatedAt: new Date().toISOString() });
     expect(await store.get(caseKey('no-case'))).toBeNull();
+  });
+});
+
+describe('deskShellHtml', () => {
+  it('embeds the caseId and a poll endpoint reference', () => {
+    const html = deskShellHtml('c1');
+    expect(html).toContain('<!doctype html>');
+    expect(html).toContain('"c1"');
+    expect(html).toContain('/api/cases/');
+    expect(html).toContain('/desk?since=');
   });
 });

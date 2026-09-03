@@ -63,3 +63,32 @@ export async function setDeskMetrics(store: KVStore, caseId: string, metrics: De
   const meta = { ...(caseState.meta ?? {}), deskMetrics: metrics };
   await store.put(caseKey(caseId), JSON.stringify({ ...caseState, meta }));
 }
+
+export function deskShellHtml(caseId: string): string {
+  return `<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>Desk</title></head>
+<body>
+<div id="desk-root" data-case-id="${caseId}">Loading…</div>
+<script>
+(function () {
+  var caseId = ${JSON.stringify(caseId)};
+  var since = 0;
+  function poll() {
+    fetch('/api/cases/' + encodeURIComponent(caseId) + '/desk?since=' + since)
+      .then(function (res) { return res.json(); })
+      .then(function (payload) {
+        since = payload.maxSeq;
+        document.getElementById('desk-root').textContent = JSON.stringify(payload, null, 2);
+      });
+  }
+  poll();
+  setInterval(poll, 2500);
+  document.addEventListener('visibilitychange', function () {
+    if (!document.hidden) poll();
+  });
+})();
+</script>
+</body>
+</html>`;
+}
