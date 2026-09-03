@@ -1,0 +1,14 @@
+{
+  "data": [
+    {
+      "commodity_desc": "SHRIMP",
+      "statisticcat_desc": "PRICE RECEIVED",
+      "unit_desc": "$ / LB",
+      "Value": "4.85",
+      "year": "__NASS_FIXTURE_YEAR__",
+      "state_name": "LOUISIANA",
+      "freq_desc": "MONTHLY",
+      "reference_period_desc": "__NASS_FIXTURE_PERIOD__"
+    }
+  ]
+}

@@ -19,3 +19,18 @@ export interface FdcSearchResponse {
   totalPages: number;
   foods: FdcFood[];
 }
+
+export interface NassQuickStatsRow {
+  commodity_desc: string;
+  statisticcat_desc: string;
+  unit_desc: string;
+  Value: string;
+  year: string;
+  state_name: string;
+  freq_desc: string;
+  reference_period_desc: string;
+}
+
+export interface NassQuickStatsResponse {
+  data: NassQuickStatsRow[];
+}
