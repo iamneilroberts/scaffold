@@ -183,6 +183,21 @@ export function applyAction(
       return { case: { ...caseState, items }, persist: true, invalidate };
     }
 
+    case 'transition_item': {
+      const idx = caseState.items.findIndex((i) => i.id === action.itemId);
+      if (idx === -1) {
+        return { case: caseState, persist: false, invalidate: [] };
+      }
+      const item = caseState.items[idx];
+      const cap = CAP_FOR_ACTIONABLE[item.stamp.actionable];
+      if (funnelIndex(action.to) > funnelIndex(cap)) {
+        return { case: caseState, persist: false, invalidate: [] };
+      }
+      const items = caseState.items.slice();
+      items[idx] = { ...item, state: action.to };
+      return { case: { ...caseState, items }, persist: true, invalidate };
+    }
+
     default:
       return { case: caseState, persist: false, invalidate: [] };
   }

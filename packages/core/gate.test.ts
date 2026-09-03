@@ -213,3 +213,29 @@ describe('applyAction: remove_item', () => {
     expect(result.persist).toBe(false);
   });
 });
+
+describe('applyAction: transition_item', () => {
+  it('allows a transition within the actionable-class ceiling', () => {
+    const noop: OfferResolver = () => undefined;
+    const result = applyAction(
+      caseWithItem(),
+      { type: 'transition_item', itemId: 'item_x', to: 'confirmed' },
+      noop,
+    );
+    expect(result.persist).toBe(true);
+    expect(result.case.items[0].state).toBe('confirmed');
+  });
+
+  it('rejects a transition past the actionable-class ceiling', () => {
+    const noop: OfferResolver = () => undefined;
+    const state = caseWithItem();
+    state.items[0].stamp.actionable = 'referral';
+    const result = applyAction(
+      state,
+      { type: 'transition_item', itemId: 'item_x', to: 'booked' },
+      noop,
+    );
+    expect(result.persist).toBe(false);
+    expect(result.case.items[0].state).toBe('selected');
+  });
+});
