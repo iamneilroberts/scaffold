@@ -1,3 +1,5 @@
+import type { Case } from './gate.js';
+
 export interface KVStore {
   get(key: string): Promise<string | null>;
   put(key: string, value: string): Promise<void>;
@@ -38,4 +40,8 @@ export function releaseKey(caseId: string, publicationId: string): string {
 
 export function releaseIndexPrefix(caseId: string): string {
   return `release:${caseId}:`;
+}
+
+export function newCase(id: string): Case {
+  return { id, facts: {}, items: [], lifecycle: 'planning', _offers: {} };
 }

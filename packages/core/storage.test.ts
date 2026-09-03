@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { createMemoryStore } from './storage.js';
 import { randomId, caseKey, eventsKey, releaseKey, releaseIndexPrefix } from './storage.js';
+import { newCase } from './storage.js';
 
 describe('createMemoryStore', () => {
   it('returns null for a missing key', async () => {
@@ -39,5 +40,16 @@ describe('key helpers', () => {
     expect(eventsKey('c1')).toBe('events:c1');
     expect(releaseKey('c1', 'rel_x')).toBe('release:c1:rel_x');
     expect(releaseIndexPrefix('c1')).toBe('release:c1:');
+  });
+});
+
+describe('newCase', () => {
+  it('creates a fresh planning-state case with empty items/facts/_offers', () => {
+    const c = newCase('c1');
+    expect(c.id).toBe('c1');
+    expect(c.lifecycle).toBe('planning');
+    expect(c.items).toEqual([]);
+    expect(c.facts).toEqual({});
+    expect(c._offers).toEqual({});
   });
 });
