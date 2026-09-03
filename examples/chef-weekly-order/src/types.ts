@@ -34,3 +34,11 @@ export interface NassQuickStatsRow {
 export interface NassQuickStatsResponse {
   data: NassQuickStatsRow[];
 }
+
+export interface LocalFarmVendor {
+  vendorId: string;
+  commodity: string;
+  region: string;
+  pricePerLb: number;
+  compensationPct: number;
+}
