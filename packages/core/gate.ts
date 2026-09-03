@@ -84,3 +84,57 @@ export interface CommitResult {
   invalidate?: readonly Derivation[];
   error?: string;
 }
+
+const CAP_FOR_ACTIONABLE: Record<Actionable, FunnelState> = {
+  managed: 'booked',
+  referral: 'confirmed',
+  none: 'recommended',
+};
+
+function funnelIndex(state: FunnelState): number {
+  return FUNNEL_STATE_ORDER.indexOf(state);
+}
+
+function stampFromOffer(offer: Offer): ItemStamp {
+  return {
+    source: offer.source,
+    actionable: offer.actionable,
+    economics: { ...offer.economics },
+    price: { total: offer.price.total, currency: offer.price.currency },
+    quotedAt: offer.quotedAt,
+  };
+}
+
+export function applyAction(
+  caseState: Case,
+  action: Action,
+  resolve: OfferResolver,
+): { case: Case; persist: boolean; invalidate: readonly Derivation[] } {
+  const invalidate = INVALIDATIONS[action.type] ?? [];
+
+  switch (action.type) {
+    case 'add_item': {
+      const offer = resolve(action.offerRef);
+      if (!offer) {
+        return { case: caseState, persist: false, invalidate: [] };
+      }
+      const item: Item = {
+        id: randomId('item'),
+        offerRef: offer.offerRef,
+        productType: offer.productType,
+        identityKey: offer.identityKey,
+        section: offer.section,
+        state: 'recommended',
+        stamp: stampFromOffer(offer),
+        facts: offer.attributes,
+      };
+      return {
+        case: { ...caseState, items: [...caseState.items, item] },
+        persist: true,
+        invalidate,
+      };
+    }
+    default:
+      return { case: caseState, persist: false, invalidate: [] };
+  }
+}
