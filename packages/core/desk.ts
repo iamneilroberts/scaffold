@@ -25,10 +25,14 @@ export interface DeskPayload {
   maxSeq: number;
 }
 
-export async function deskPayload(store: KVStore, caseId: string, since: number): Promise<DeskPayload> {
-  const rawCase = await store.get(caseKey(caseId));
-  const caseState: Case | null = rawCase ? JSON.parse(rawCase) : null;
-
+// Pure transform from an already-read Case snapshot to a DeskPayload. Pulled out of
+// deskPayload so a caller that needs to compute per-domain metrics (e.g. the insurance
+// example's getClaimDeskPayload) can read the Case exactly once and derive BOTH the
+// metrics and the rest of the payload from that same snapshot — reading it twice (once
+// to compute metrics, once via deskPayload's own store.get) leaves a window where a
+// concurrent write lands in between, producing a payload whose metrics reflect an older
+// Case than its offers/events.
+export function buildDeskPayload(caseState: Case | null | undefined, since: number): DeskPayload {
   const allEvents: DeskEvent[] = caseState?.events ?? [];
   const events = allEvents.filter((e) => e.seq > since);
   const maxSeq = allEvents.length > 0 ? allEvents[allEvents.length - 1].seq : 0;
@@ -48,6 +52,12 @@ export async function deskPayload(store: KVStore, caseId: string, since: number)
   const metrics: DeskMetrics = meta.deskMetrics ?? {};
 
   return { summary, offers, events, metrics, maxSeq };
+}
+
+export async function deskPayload(store: KVStore, caseId: string, since: number): Promise<DeskPayload> {
+  const rawCase = await store.get(caseKey(caseId));
+  const caseState: Case | null = rawCase ? JSON.parse(rawCase) : null;
+  return buildDeskPayload(caseState, since);
 }
 
 // Bug #4a: setDeskSummary/setDeskMetrics used to be an unconditional
