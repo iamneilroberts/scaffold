@@ -13,10 +13,11 @@ function jsonResponse(body: unknown, headers: Record<string, string> = {}) {
 }
 
 describe('fetchKiwiFlights', () => {
-  it('performs initialize then tools/call search-flight and returns structuredContent', async () => {
+  it('performs initialize, notifications/initialized, then tools/call search-flight and returns structuredContent', async () => {
     const structured = { resultsCount: 1, itineraries: [{ id: 'x', price: 100 }] };
     const fetchMock = vi.fn()
       .mockResolvedValueOnce(jsonResponse({ jsonrpc: '2.0', id: 1, result: { serverInfo: { name: 'kiwicom-flight-search' } } }, { 'mcp-session-id': 'sess_1' }))
+      .mockResolvedValueOnce(jsonResponse({}))
       .mockResolvedValueOnce(jsonResponse({ jsonrpc: '2.0', id: 2, result: { structuredContent: structured } }));
 
     const result = await fetchKiwiFlights(
@@ -25,16 +26,27 @@ describe('fetchKiwiFlights', () => {
     );
 
     expect(result).toEqual(structured);
-    expect(fetchMock).toHaveBeenCalledTimes(2);
-    const secondCallBody = JSON.parse((fetchMock.mock.calls[1][1] as RequestInit).body as string);
-    expect(secondCallBody.method).toBe('tools/call');
-    expect(secondCallBody.params.name).toBe('search-flight');
-    expect(secondCallBody.params.arguments.flyFrom).toBe('PNS');
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+
+    const initializedBody = JSON.parse((fetchMock.mock.calls[1][1] as RequestInit).body as string);
+    expect(initializedBody.method).toBe('notifications/initialized');
+    expect(initializedBody.id).toBeUndefined();
+    const initializedHeaders = (fetchMock.mock.calls[1][1] as RequestInit).headers as Record<string, string>;
+    expect(initializedHeaders['MCP-Protocol-Version']).toBe('2025-06-18');
+    expect(initializedHeaders['mcp-session-id']).toBe('sess_1');
+
+    const thirdCallBody = JSON.parse((fetchMock.mock.calls[2][1] as RequestInit).body as string);
+    expect(thirdCallBody.method).toBe('tools/call');
+    expect(thirdCallBody.params.name).toBe('search-flight');
+    expect(thirdCallBody.params.arguments.flyFrom).toBe('PNS');
+    const thirdCallHeaders = (fetchMock.mock.calls[2][1] as RequestInit).headers as Record<string, string>;
+    expect(thirdCallHeaders['MCP-Protocol-Version']).toBe('2025-06-18');
   });
 
   it('throws when the MCP response carries a jsonrpc error', async () => {
     const fetchMock = vi.fn()
       .mockResolvedValueOnce(jsonResponse({ jsonrpc: '2.0', id: 1, result: {} }))
+      .mockResolvedValueOnce(jsonResponse({}))
       .mockResolvedValueOnce(jsonResponse({ jsonrpc: '2.0', id: 2, error: { code: -32000, message: 'boom' } }));
 
     await expect(

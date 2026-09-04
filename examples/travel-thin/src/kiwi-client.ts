@@ -28,6 +28,8 @@ function parseBody<T>(contentType: string, text: string): JsonRpcResponse<T> {
   return JSON.parse(text) as JsonRpcResponse<T>;
 }
 
+const PROTOCOL_VERSION = '2025-06-18';
+
 export async function fetchKiwiFlights(
   request: KiwiFlightSearchRequest,
   opts: KiwiClientOptions = {}
@@ -42,15 +44,31 @@ export async function fetchKiwiFlights(
     headers: baseHeaders,
     body: JSON.stringify({
       jsonrpc: '2.0', id: 1, method: 'initialize',
-      params: { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 'scaffold-travel-thin', version: '0.1.0' } },
+      params: { protocolVersion: PROTOCOL_VERSION, capabilities: {}, clientInfo: { name: 'scaffold-travel-thin', version: '0.1.0' } },
     }),
     signal: AbortSignal.timeout(timeoutMs),
   });
   const initText = await initRes.text();
-  const initParsed = parseBody<unknown>(initRes.headers.get('content-type') ?? '', initText);
+  const initParsed = parseBody<{ protocolVersion?: string }>(initRes.headers.get('content-type') ?? '', initText);
   if (initParsed.error) throw new Error(`kiwi mcp initialize error: ${initParsed.error.message}`);
   const sessionId = initRes.headers.get('mcp-session-id');
-  const headers = sessionId ? { ...baseHeaders, 'mcp-session-id': sessionId } : baseHeaders;
+  const negotiatedVersion = initParsed.result?.protocolVersion ?? PROTOCOL_VERSION;
+  const headers = {
+    ...baseHeaders,
+    ...(sessionId ? { 'mcp-session-id': sessionId } : {}),
+    'MCP-Protocol-Version': negotiatedVersion,
+  };
+
+  // Required by the MCP 2025-06-18 lifecycle: the client MUST send this
+  // notification after receiving the initialize response and before any
+  // other request. It's a JSON-RPC notification (no `id`) — no response body
+  // is parsed, but it must still complete before tools/call is sent.
+  await doFetch(url, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ jsonrpc: '2.0', method: 'notifications/initialized' }),
+    signal: AbortSignal.timeout(timeoutMs),
+  });
 
   const callRes = await doFetch(url, {
     method: 'POST',
