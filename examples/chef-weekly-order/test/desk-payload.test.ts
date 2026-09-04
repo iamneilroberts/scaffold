@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { createMemoryStore, newCase, putCase, deskPayload } from '@scaffold/core';
 import type { Case, Item } from '@scaffold/core';
-import { publishChefMetrics } from '../src/desk-metrics';
+import { publishChefMetrics } from '../src/desk-metrics.js';
 
 function makeItem(state: Item['state'], id: string): Item {
   return {

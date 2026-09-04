@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { freezeRelease } from '@scaffold/core';
-import { localFarmSource } from '../src/sources/local-farm-source';
-import { buildInitialCase, cacheOffer, attemptConfirmOrderLine } from '../src/order-cycle';
+import { localFarmSource } from '../src/sources/local-farm-source.js';
+import { buildInitialCase, cacheOffer, attemptConfirmOrderLine } from '../src/order-cycle.js';
 
 describe('weekly order-cycle release', () => {
   it('freezes a Release per weekly cycle with compensation masked in the itemSet', () => {

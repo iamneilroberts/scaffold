@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { Item } from '@scaffold/core';
-import { computeMetrics } from '../src/desk-metrics';
+import { computeMetrics } from '../src/desk-metrics.js';
 
 function makeItem(state: Item['state'], id: string): Item {
   return {
