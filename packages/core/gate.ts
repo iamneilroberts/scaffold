@@ -189,6 +189,7 @@ export function applyAction(
         offerRef: offer.offerRef,
         productType: offer.productType,
         identityKey: offer.identityKey,
+        section: offer.section,
         stamp: stampFromOffer(offer),
         facts: factsFromOffer(offer),
         state,

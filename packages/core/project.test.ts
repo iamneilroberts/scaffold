@@ -75,11 +75,33 @@ describe('renderView', () => {
     };
   }
 
-  it('groups items by section and sums totals', () => {
+  it('groups items by section and sums totals for a single currency', () => {
     const preset: ViewPreset = { name: 'Full', priceDisplayMode: 'full', showCompensation: true };
     const view = renderView(twoItemCase(), preset);
     expect(view.sections.map((s) => s.section).sort()).toEqual(['extras', 'main']);
-    expect(view.totals?.total).toBe(200);
+    expect(view.totals).toEqual({ USD: 200 });
+  });
+
+  it('does not silently sum mixed-currency totals into one number (#6)', () => {
+    const caseState: Case = {
+      id: 'c1', facts: {}, lifecycle: 'planning',
+      items: [
+        item({ id: 'item_a', offerRef: 'ofr_1', section: 'main', stamp: {
+          source: 'sourceA', actionable: 'managed',
+          economics: { compensation: { kind: 'flat', amount: 10 }, endUserPrice: 100 },
+          price: { total: 100, currency: 'USD' },
+        } }),
+        item({ id: 'item_b', offerRef: 'ofr_2', section: 'main', stamp: {
+          source: 'sourceA', actionable: 'managed',
+          economics: { compensation: { kind: 'flat', amount: 10 }, endUserPrice: 100 },
+          price: { total: 100, currency: 'EUR' },
+        } }),
+      ],
+    };
+    const preset: ViewPreset = { name: 'Full', priceDisplayMode: 'full', showCompensation: true };
+    const view = renderView(caseState, preset);
+    expect(view.totals).toEqual({ USD: 100, EUR: 100 });
+    expect(Object.values(view.totals ?? {})).not.toContain(200);
   });
 
   it('filters by states', () => {

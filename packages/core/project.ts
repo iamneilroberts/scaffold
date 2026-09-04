@@ -57,7 +57,10 @@ export interface ViewPreset {
 export interface ViewData {
   name: string;
   sections: { section: string; items: Item[] }[];
-  totals?: Record<string, number | null>;
+  // Per-currency totals (#6): items may carry different currencies, so a single
+  // summed number would silently misstate the financial total when they mix.
+  // Keyed by currency code; a single-currency Case yields one entry.
+  totals?: Record<string, number>;
 }
 
 function maskItemForPreset(item: Item, preset: ViewPreset): Item {
@@ -73,13 +76,14 @@ function maskItemForPreset(item: Item, preset: ViewPreset): Item {
   return { ...item, stamp };
 }
 
-function sumTotals(items: Item[]): number | null {
-  let sum: number | null = null;
+function sumTotals(items: Item[]): Record<string, number> {
+  const sums: Record<string, number> = {};
   for (const item of items) {
     if (item.stamp.price.total == null) continue;
-    sum = (sum ?? 0) + item.stamp.price.total;
+    const currency = item.stamp.price.currency;
+    sums[currency] = (sums[currency] ?? 0) + item.stamp.price.total;
   }
-  return sum;
+  return sums;
 }
 
 export function renderView(caseState: Case, preset: ViewPreset): ViewData {
@@ -101,5 +105,5 @@ export function renderView(caseState: Case, preset: ViewPreset): ViewData {
     items: masked.filter((i) => i.section === section),
   }));
 
-  return { name: preset.name, sections, totals: { total: sumTotals(masked) } };
+  return { name: preset.name, sections, totals: sumTotals(masked) };
 }

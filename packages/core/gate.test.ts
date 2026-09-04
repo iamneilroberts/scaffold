@@ -252,6 +252,19 @@ describe('applyAction: replace_item', () => {
     );
     expect(result.case.items[0].state).toBe('confirmed');
   });
+
+  it('carries the section from the replacement offer, not the old item (#5)', () => {
+    const newOffer = baseOffer({ offerRef: 'ofr_new', section: 'new-section' });
+    const resolve: OfferResolver = (ref) => (ref === newOffer.offerRef ? newOffer : undefined);
+    const state = caseWithItem();
+    state.items[0].section = 'old-section';
+    const result = applyAction(
+      state,
+      { type: 'replace_item', itemId: 'item_x', offerRef: newOffer.offerRef },
+      resolve,
+    );
+    expect(result.case.items[0].section).toBe('new-section');
+  });
 });
 
 describe('applyAction: remove_item', () => {
