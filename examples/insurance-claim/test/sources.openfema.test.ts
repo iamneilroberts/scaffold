@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { toOpenFemaOffers } from '../src/sources/openfema.js';
+import { toOpenFemaOffers, buildOpenFemaFilter } from '../src/sources/openfema.js';
 import { sampleOpenFemaDeclarations, SAMPLE_LOSS_DATE } from '../src/fixtures/openfema.fixture.js';
 
 describe('toOpenFemaOffers', () => {
@@ -26,5 +26,27 @@ describe('toOpenFemaOffers', () => {
     // presenting it would badge an unrelated disaster as this claim's coverage basis.
     expect(offers.some((o) => o.attributes?.disasterNumber === 4390)).toBe(false);
     expect(offers.every((o) => o.badges?.includes('covered-peril'))).toBe(true);
+  });
+
+  it('fails closed (badges nothing) when the claim lossDate is not a valid date, rather than matching everything', () => {
+    const offers = toOpenFemaOffers(sampleOpenFemaDeclarations(), { lossDate: 'not-a-date' });
+    expect(offers).toHaveLength(0);
+  });
+
+  it('fails closed when the claim lossDate is an empty string', () => {
+    const offers = toOpenFemaOffers(sampleOpenFemaDeclarations(), { lossDate: '' });
+    expect(offers).toHaveLength(0);
+  });
+});
+
+describe('buildOpenFemaFilter', () => {
+  it('escapes an apostrophe in designatedArea so the county name survives intact and the literal stays well-formed', () => {
+    const filter = buildOpenFemaFilter('MD', "Prince George's (County)");
+    expect(filter).toBe("state eq 'MD' and designatedArea eq 'Prince George''s (County)'");
+  });
+
+  it('neutralizes an OData quote-injection attempt instead of interpreting it as an operator', () => {
+    const filter = buildOpenFemaFilter('FL', "x' or 'a' eq 'a");
+    expect(filter).toBe("state eq 'FL' and designatedArea eq 'x'' or ''a'' eq ''a'");
   });
 });

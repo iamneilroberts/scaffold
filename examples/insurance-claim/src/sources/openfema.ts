@@ -17,9 +17,21 @@ export interface OpenFemaClaimContext {
   incidentType?: string;
 }
 
+// OData string literals are single-quoted; a literal single quote inside one is escaped by
+// doubling it (' -> ''), per the OData spec. Without this, a value containing a quote (e.g.
+// the real county "Prince George's") breaks the filter syntax, and a crafted value can inject
+// OData and widen/alter the query.
+function escapeODataString(value: string): string {
+  return value.replace(/'/g, "''");
+}
+
+export function buildOpenFemaFilter(state: string, designatedArea: string): string {
+  return `state eq '${escapeODataString(state)}' and designatedArea eq '${escapeODataString(designatedArea)}'`;
+}
+
 export async function fetchOpenFemaDeclarations(state: string, designatedArea: string): Promise<OpenFemaResponse> {
   const url = new URL('https://www.fema.gov/api/open/v2/DisasterDeclarationsSummaries');
-  url.searchParams.set('$filter', `state eq '${state}' and designatedArea eq '${designatedArea}'`);
+  url.searchParams.set('$filter', buildOpenFemaFilter(state, designatedArea));
   url.searchParams.set('$format', 'json');
   const res = await fetch(url.toString());
   if (!res.ok) throw new Error(`OpenFEMA request failed: ${res.status}`);
@@ -28,8 +40,14 @@ export async function fetchOpenFemaDeclarations(state: string, designatedArea: s
 
 function declarationCoversLoss(d: OpenFemaDeclaration, context: OpenFemaClaimContext): boolean {
   const loss = new Date(context.lossDate).getTime();
+  // Fail closed: a missing/malformed loss date must never fall through to a NaN comparison
+  // (NaN < x and NaN > x are both false, which would let every declaration match). Badge
+  // nothing rather than badge an unrelated disaster as this claim's coverage basis.
+  if (Number.isNaN(loss)) return false;
   const begin = new Date(d.incidentBeginDate).getTime();
+  if (Number.isNaN(begin)) return false;
   const end = d.incidentEndDate ? new Date(d.incidentEndDate).getTime() : Date.now();
+  if (Number.isNaN(end)) return false;
   if (loss < begin || loss > end) return false;
   if (context.incidentType && context.incidentType !== d.incidentType) return false;
   return true;
