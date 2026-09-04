@@ -20,9 +20,8 @@ describe('submitClaim — frozen release', () => {
     expect(release1.contentHash).toBeTruthy();
     // freezeRelease masks compensation in the frozen itemSet
     expect(release1.itemSet[0].stamp.economics.compensation).toBeNull();
-    // a frozen Release must not leak the fee arrangement via observedQuotes.basis either
-    const [firstItemId] = Object.keys(release1.observedQuotes);
-    expect(release1.observedQuotes[firstItemId].basis).toBeUndefined();
+    // a frozen Release must not leak the fee arrangement through observedQuotes at all
+    // (QuoteSnapshot no longer carries a compensation `basis` field — compensation is fully masked)
     expect(JSON.stringify(release1.observedQuotes)).not.toMatch(/recovery|%/);
 
     // supplemental damage found during rebuild — hand-entered pending contractor evaluation
