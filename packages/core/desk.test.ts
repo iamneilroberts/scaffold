@@ -112,6 +112,57 @@ describe('setDeskSummary / setDeskMetrics', () => {
   });
 });
 
+describe('deskPayload masking', () => {
+  it('masks compensation and drops raw on every returned offer without mutating stored offers', async () => {
+    const store = createMemoryStore();
+    const offer: Offer = {
+      offerRef: 'ofr_secret',
+      product: { title: 'Test' },
+      source: 'sourceA',
+      productType: 'widget',
+      actionable: 'managed',
+      price: { total: 100, currency: 'USD' },
+      economics: { compensation: { kind: 'flat', amount: 10 }, endUserPrice: 100 },
+      section: 'main',
+      raw: { secret: 'SENTINEL' },
+    };
+    const caseState = {
+      id: 'c1',
+      facts: {},
+      items: [],
+      lifecycle: 'active' as const,
+      _offers: { [offer.offerRef]: offer },
+    };
+    await store.put(caseKey('c1'), JSON.stringify(caseState));
+
+    const payload = await deskPayload(store, 'c1', 0);
+    expect(payload.offers).toHaveLength(1);
+    const masked = payload.offers[0];
+    expect(masked.economics.compensation).toBeNull();
+    expect('raw' in masked).toBe(false);
+    expect(JSON.stringify(payload)).not.toContain('SENTINEL');
+
+    // stored copy is untouched — masking is on the payload, not destructive.
+    const rawStored = JSON.parse(await store.get(caseKey('c1'))!);
+    const storedOffer = rawStored._offers['ofr_secret'];
+    expect(storedOffer.economics.compensation).toEqual({ kind: 'flat', amount: 10 });
+    expect(storedOffer.raw).toEqual({ secret: 'SENTINEL' });
+  });
+});
+
+describe('setDeskSummary rev', () => {
+  it('advances Case.rev on write, like setDeskMetrics', async () => {
+    const store = createMemoryStore();
+    await store.put(caseKey('c1'), JSON.stringify({ id: 'c1', facts: {}, items: [], lifecycle: 'active', rev: 5 }));
+
+    await setDeskSummary(store, 'c1', { headline: 'x', updatedAt: new Date().toISOString() });
+
+    const raw = await store.get(caseKey('c1'));
+    const caseState = JSON.parse(raw!);
+    expect(caseState.rev).toBeGreaterThan(5);
+  });
+});
+
 describe('deskShellHtml', () => {
   it('embeds the caseId and a poll endpoint reference', () => {
     const html = deskShellHtml('c1');

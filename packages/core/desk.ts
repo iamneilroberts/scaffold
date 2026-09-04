@@ -37,7 +37,13 @@ export async function deskPayload(store: KVStore, caseId: string, since: number)
   const events = allEvents.filter((e) => e.seq > since);
   const maxSeq = allEvents.length > 0 ? allEvents[allEvents.length - 1].seq : 0;
 
-  const offers: Offer[] = caseState?._offers ? Object.values(caseState._offers) : [];
+  const rawOffers: Offer[] = caseState?._offers ? Object.values(caseState._offers) : [];
+  // Mask for an end-user-watchable surface: no compensation, no raw supplier data.
+  // Copies only — the stored Case offers must not be mutated by reading the desk.
+  const offers: Offer[] = rawOffers.map((offer) => {
+    const { raw: _raw, ...rest } = offer;
+    return { ...rest, economics: { ...rest.economics, compensation: null } };
+  });
   const meta = (caseState?.meta ?? {}) as { deskSummary?: DeskSummary; deskMetrics?: DeskMetrics };
   const summary: DeskSummary = meta.deskSummary ?? {
     headline: '',
@@ -53,7 +59,9 @@ export async function setDeskSummary(store: KVStore, caseId: string, summary: De
   if (!raw) return;
   const caseState: Case = JSON.parse(raw);
   const meta = { ...(caseState.meta ?? {}), deskSummary: summary };
-  await store.put(caseKey(caseId), JSON.stringify({ ...caseState, meta }));
+  // Advance rev — this is a Case mutation and must be visible to commitAction's
+  // optimistic-concurrency check (bug #4), same pattern as setDeskMetrics.
+  await store.put(caseKey(caseId), JSON.stringify({ ...caseState, meta, rev: (caseState.rev ?? 0) + 1 }));
 }
 
 export async function setDeskMetrics(store: KVStore, caseId: string, metrics: DeskMetrics): Promise<void> {
