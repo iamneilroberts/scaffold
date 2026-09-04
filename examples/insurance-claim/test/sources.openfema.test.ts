@@ -1,10 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import { toOpenFemaOffers } from '../src/sources/openfema.js';
-import { sampleOpenFemaDeclarations } from '../src/fixtures/openfema.fixture.js';
+import { sampleOpenFemaDeclarations, SAMPLE_LOSS_DATE } from '../src/fixtures/openfema.fixture.js';
 
 describe('toOpenFemaOffers', () => {
   it('mints a none-actionable, unpriced coverage-basis Offer with a verify link, never a buy link', () => {
-    const offers = toOpenFemaOffers(sampleOpenFemaDeclarations());
+    const offers = toOpenFemaOffers(sampleOpenFemaDeclarations(), { lossDate: SAMPLE_LOSS_DATE });
     expect(offers).toHaveLength(1);
     const [offer] = offers;
     expect(offer.offerRef).toMatch(/^ofr_/);
@@ -18,5 +18,13 @@ describe('toOpenFemaOffers', () => {
     expect(offer.badges).toContain('covered-peril');
     expect(offer.section).toBe('coverage-basis');
     expect(offer.attributes?.designatedArea).toBe('Bay (County)');
+  });
+
+  it('does not badge or emit a declaration whose incident window does not contain the claim loss date', () => {
+    const offers = toOpenFemaOffers(sampleOpenFemaDeclarations(), { lossDate: SAMPLE_LOSS_DATE });
+    // The fixture's second declaration (DR-4390, a year-plus earlier) must never surface here —
+    // presenting it would badge an unrelated disaster as this claim's coverage basis.
+    expect(offers.some((o) => o.attributes?.disasterNumber === 4390)).toBe(false);
+    expect(offers.every((o) => o.badges?.includes('covered-peril'))).toBe(true);
   });
 });

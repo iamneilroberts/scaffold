@@ -9,6 +9,14 @@ export interface OpenFemaDeclaration {
 }
 export interface OpenFemaResponse { DisasterDeclarationsSummaries: OpenFemaDeclaration[]; }
 
+// The claim context a declaration must actually match before it can be treated as the
+// coverage basis — otherwise a same-county declaration from an unrelated year or peril
+// would get presented as justification for a claim it has nothing to do with.
+export interface OpenFemaClaimContext {
+  lossDate: string;
+  incidentType?: string;
+}
+
 export async function fetchOpenFemaDeclarations(state: string, designatedArea: string): Promise<OpenFemaResponse> {
   const url = new URL('https://www.fema.gov/api/open/v2/DisasterDeclarationsSummaries');
   url.searchParams.set('$filter', `state eq '${state}' and designatedArea eq '${designatedArea}'`);
@@ -18,29 +26,43 @@ export async function fetchOpenFemaDeclarations(state: string, designatedArea: s
   return res.json();
 }
 
-export function toOpenFemaOffers(raw: OpenFemaResponse): Offer[] {
-  const actionable = actionableFor(CLAIM_RUBRIC, 'openfema');
-  return raw.DisasterDeclarationsSummaries.map((d) => ({
-    offerRef: mintOfferRef(),
-    product: { title: `FEMA Disaster DR-${d.disasterNumber} — ${d.incidentType}`, subtitle: d.designatedArea },
-    source: 'openfema',
-    productType: 'coverage-basis',
-    actionable,
-    price: { total: null, currency: 'USD' },
-    economics: { compensation: null, endUserPrice: null },
-    attributes: {
-      disasterNumber: d.disasterNumber, declarationDate: d.declarationDate,
-      incidentType: d.incidentType, designatedArea: d.designatedArea, state: d.state,
-    },
-    badges: ['covered-peril'],
-    links: { verify: `https://www.fema.gov/disaster/${d.disasterNumber}` },
-    quotedAt: new Date().toISOString(),
-    section: 'coverage-basis',
-    raw: d,
-  }));
+function declarationCoversLoss(d: OpenFemaDeclaration, context: OpenFemaClaimContext): boolean {
+  const loss = new Date(context.lossDate).getTime();
+  const begin = new Date(d.incidentBeginDate).getTime();
+  const end = d.incidentEndDate ? new Date(d.incidentEndDate).getTime() : Date.now();
+  if (loss < begin || loss > end) return false;
+  if (context.incidentType && context.incidentType !== d.incidentType) return false;
+  return true;
 }
 
-export const openFemaSource: OfferSource<OpenFemaResponse> = {
+// Declarations whose incident window doesn't contain the claim's loss date (or whose peril
+// doesn't match, when incidentType is given) are dropped entirely — they must never be
+// presented as the coverage basis for this claim.
+export function toOpenFemaOffers(raw: OpenFemaResponse, context: OpenFemaClaimContext): Offer[] {
+  const actionable = actionableFor(CLAIM_RUBRIC, 'openfema');
+  return raw.DisasterDeclarationsSummaries
+    .filter((d) => declarationCoversLoss(d, context))
+    .map((d) => ({
+      offerRef: mintOfferRef(),
+      product: { title: `FEMA Disaster DR-${d.disasterNumber} — ${d.incidentType}`, subtitle: d.designatedArea },
+      source: 'openfema',
+      productType: 'coverage-basis',
+      actionable,
+      price: { total: null, currency: 'USD' },
+      economics: { compensation: null, endUserPrice: null },
+      attributes: {
+        disasterNumber: d.disasterNumber, declarationDate: d.declarationDate,
+        incidentType: d.incidentType, designatedArea: d.designatedArea, state: d.state,
+      },
+      badges: ['covered-peril'],
+      links: { verify: `https://www.fema.gov/disaster/${d.disasterNumber}` },
+      quotedAt: new Date().toISOString(),
+      section: 'coverage-basis',
+      raw: d,
+    }));
+}
+
+export const openFemaSource: OfferSource<{ declarations: OpenFemaResponse; context: OpenFemaClaimContext }> = {
   source: 'openfema',
-  toOffers: toOpenFemaOffers,
+  toOffers: (raw) => toOpenFemaOffers(raw.declarations, raw.context),
 };

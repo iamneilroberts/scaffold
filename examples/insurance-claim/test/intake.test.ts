@@ -5,7 +5,7 @@ import { addClaimLine } from '../src/intake.js';
 import { toContractorOffers } from '../src/sources/contractor-estimate.js';
 import { sampleContractorEstimate } from '../src/fixtures/contractor-estimate.fixture.js';
 import { toOpenFemaOffers } from '../src/sources/openfema.js';
-import { sampleOpenFemaDeclarations } from '../src/fixtures/openfema.fixture.js';
+import { sampleOpenFemaDeclarations, SAMPLE_LOSS_DATE } from '../src/fixtures/openfema.fixture.js';
 
 describe('addClaimLine', () => {
   it('registers the Offer into the Case and adds it as an item stamped with the Offer\'s economics', async () => {
@@ -43,7 +43,7 @@ describe('addClaimLine', () => {
   it('caps a none-actionable coverage-basis item at recommended — it cannot be confirmed', async () => {
     const store = createMemoryStore();
     await seedCase(store);
-    const [femaOffer] = toOpenFemaOffers(sampleOpenFemaDeclarations());
+    const [femaOffer] = toOpenFemaOffers(sampleOpenFemaDeclarations(), { lossDate: SAMPLE_LOSS_DATE });
 
     const added = await addClaimLine(store, CASE_ID, femaOffer);
     expect(added.ok).toBe(true);

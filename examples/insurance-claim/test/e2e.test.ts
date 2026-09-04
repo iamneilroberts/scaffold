@@ -7,7 +7,7 @@ import { sampleContractorEstimate } from '../src/fixtures/contractor-estimate.fi
 import { toBlsPpiOffers } from '../src/sources/bls-ppi.js';
 import { sampleBlsPpiResponse } from '../src/fixtures/bls-ppi.fixture.js';
 import { toOpenFemaOffers } from '../src/sources/openfema.js';
-import { sampleOpenFemaDeclarations } from '../src/fixtures/openfema.fixture.js';
+import { sampleOpenFemaDeclarations, SAMPLE_LOSS_DATE } from '../src/fixtures/openfema.fixture.js';
 import { INSURER_VIEW, CONTRACTOR_VIEW, renderClaimView } from '../src/views.js';
 import { getClaimDeskPayload } from '../src/desk.js';
 import { submitClaim, listClaimReleases } from '../src/submit-claim.js';
@@ -19,7 +19,7 @@ describe('insurance-claim end-to-end', () => {
 
     const [roofOffer, drywallOffer] = toContractorOffers(sampleContractorEstimate());
     const [materialsOffer] = toBlsPpiOffers(sampleBlsPpiResponse());
-    const [coverageOffer] = toOpenFemaOffers(sampleOpenFemaDeclarations());
+    const [coverageOffer] = toOpenFemaOffers(sampleOpenFemaDeclarations(), { lossDate: SAMPLE_LOSS_DATE });
 
     await addClaimLine(store, CASE_ID, roofOffer);
     await addClaimLine(store, CASE_ID, drywallOffer);
