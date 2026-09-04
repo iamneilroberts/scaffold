@@ -55,6 +55,17 @@ interface OfferSource<Raw> { source: string; toOffers(raw: Raw): Offer[]; }
 `toOffers` is the *only* place domain data touches the system. `mintOfferRef()` returns an opaque
 `ofr_<rand>` — the ref leaks nothing about the source.
 
+`Compensation` (an Offer's `economics.compensation`, or `null` for a source that pays none):
+
+```ts
+interface Compensation {
+  kind: string;              // e.g. "commission", "affiliate" — domain-defined
+  amount: number | null;
+  currency?: string;
+  basis?: string;            // e.g. "percent-of-total" — how amount was derived
+}
+```
+
 ## Part 3 — the Gate (one write path)
 
 Every mutation to a Case goes through the Gate. Nothing writes Case state directly.
@@ -67,11 +78,39 @@ Every mutation to a Case goes through the Gate. Nothing writes Case state direct
   and is flagged.
 - **State cap by actionable class:** `none` ≤ recommended · `referral` ≤ confirmed · `managed` = full
   funnel. A reference-only source can justify but can never be marked "confirmed work". A capped
-  transition is rejected (`persist: false`, case unchanged) — not thrown, not silently clamped.
+  transition is rejected (`persist: false`, case unchanged) — not thrown, not silently clamped. An
+  item moves through the funnel via `FunnelState`, in order:
+  `'recommended' | 'selected' | 'confirmed' | 'booked'` (`transition_item` moves an item to a new
+  state, capped the same way).
 - `INVALIDATIONS` is a data-driven map from each action type to the derived views it invalidates.
 
 The `chef` example proves this cap alone expresses an approved-source refusal — no domain allow-list
 needed.
+
+### The staging lifecycle — how an offer becomes resolvable
+
+`add_item` only carries an `offerRef`, not the Offer itself — so the Gate has to resolve that ref
+against *something*. That something is `Case._offers`, a lookup table on the Case populated by
+`stageOffers(store, caseId, offers)` (in `packages/core/storage.ts`), and **calling it is mandatory,
+in this order, before `add_item` can resolve anything**:
+
+```ts
+const store = createMemoryStore();               // or your own KVStore
+await putCase(store, caseId, newCase(caseId));    // 1. create + persist a fresh Case
+const offers = mySource.toOffers(rawData);        // 2. normalize raw data to Offer[]
+await stageOffers(store, caseId, offers);         // 3. REQUIRED — makes offerRef resolvable
+await commitAction(store, caseId, {               // 4. now add_item can resolve it
+  type: 'add_item',
+  offerRef: offers[0].offerRef,
+});
+```
+
+Skip step 3 and `commitAction` returns `{ ok: false, error: 'action_not_applied' }` — the offerRef
+resolves to nothing, `applyAction` sees no offer, and the Case is unchanged. This is the single
+most common way a doc-only read of the Gate stalls out — the Gate's resolver only sees what
+`stageOffers` put there. See `examples/minimal` for the smallest working version of this sequence,
+or `examples/travel-thin/src/flow.ts` for a fuller one that also runs `projectItems` / `renderView`
+/ `deskPayload` afterward.
 
 ## Part 4 — projections + presets
 
@@ -130,7 +169,9 @@ Cloudflare KV, SQLite, or the in-memory map.
 ## Adapting to a new domain
 
 The core carries **zero domain words**. A new domain is built entirely in `examples/<domain>/` by
-supplying data, not by forking the spine.
+supplying data, not by forking the spine. **Start from `examples/minimal/` — it's the smallest
+working copy-me skeleton** (one source, one `OfferSource`, one test running the full sequence
+below); copy it, rename the source/productType, and swap in your real feed.
 
 **You write (per domain):**
 
@@ -142,6 +183,23 @@ supplying data, not by forking the spine.
 
 **You reuse unchanged:** the Gate (`commitAction`/`applyAction` + the state cap + the stamp freeze),
 projections (`projectItems`/`renderView`), frozen release (`freezeRelease`/`listReleases`), and the
-Desk contract. The three example domains prove it — a `flight`, an `ingredient`, and a `claim-line`
-all flow through byte-identical core code. If a domain needs behavior the spine can't express, that
-is a **core gap to flag**, not a per-domain fork.
+Desk contract. The three worked-example domains prove it — a `flight`, an `ingredient`, and a
+`claim-line` all flow through byte-identical core code. If a domain needs behavior the spine can't
+express, that is a **core gap to flag**, not a per-domain fork.
+
+**The mandatory call sequence** (see "The staging lifecycle" above for why step 3 can't be skipped):
+
+```
+createMemoryStore()
+  → newCase(id) + putCase(store, id, case)
+  → stageOffers(store, id, offers)              // offers must be staged before add_item can resolve them
+  → commitAction(store, id, { type: 'add_item', offerRef })
+  → projectItems / renderView / freezeRelease / deskPayload
+```
+
+**Building vs. running in-repo:** inside this repo, examples import `@scaffold/core` straight from
+its TypeScript source (the `development` export condition, wired via each example's
+`customConditions: ["development"]` tsconfig and the root `vitest.config.ts`'s
+`resolve.conditions`) — no build step needed to run tests. A consumer outside this repo instead
+`npm install`s the **built** package (`dist/*.js` + `.d.ts`, produced by `npm run build`); see
+[README.md § Install as a library](../README.md#install-as-a-library).

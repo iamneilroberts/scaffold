@@ -43,17 +43,40 @@ headline (a submitted claim freezes an immutable `Release`; a supplemental claim
 ```bash
 npm install
 npm test
+npm run demo -w examples/travel-thin
 ```
 
-The default test run is fully offline — no network, no secrets. Each example's README documents its
-opt-in live-API path.
+The default `npm test` run is fully offline — every test runs against committed fixtures, no
+network, no secrets. Live-API tests are opt-in only: they're named `*.live.test.ts` (or
+`integration.live.test.ts`) and skip themselves unless an env flag is set (e.g. `RUN_LIVE_KIWI=1`,
+`RUN_LIVE_APIS=1`) — see each example's README for its exact flag.
 
 - Node 20+, TypeScript (strict, ESM/NodeNext), tested with vitest.
 - Monorepo via npm workspaces (`packages/*`, `examples/*`).
+- `npm audit` findings are in **dev tooling** (vitest, typescript) — not in the published library
+  itself, which ships zero runtime dependencies.
+
+## Install as a library
+
+Outside this repo, a consumer installs the built package and imports it normally:
+
+```bash
+npm install @scaffold/core
+```
+
+```ts
+import { createMemoryStore, newCase, commitAction } from '@scaffold/core';
+```
+
+`npm run build` (from `packages/core`) compiles `packages/core/*.ts` to `dist/*.js` + `.d.ts` — that
+`dist/` is what `@scaffold/core` resolves to for anyone outside this monorepo. In-repo, examples
+instead resolve straight to the TypeScript source via a `development` export condition (see
+[docs/pattern.md](docs/pattern.md#adapting-to-a-new-domain)), so tests don't require a prior build.
 
 ## Adapt it to your own domain
 
-You write four things per domain; you reuse the whole spine unchanged. See
+You write four things per domain; you reuse the whole spine unchanged. Copy
+[`examples/minimal`](examples/minimal) as your starting skeleton. See
 [docs/pattern.md § Adapting to a new domain](docs/pattern.md#adapting-to-a-new-domain).
 
 ## What stays out of the core
