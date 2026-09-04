@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { freezeRelease, listReleases } from './release.js';
 import { createMemoryStore, releaseKey } from './storage.js';
 import type { Case } from './gate.js';
@@ -60,12 +60,69 @@ describe('freezeRelease', () => {
     expect(a.contentHash).not.toBe(b.contentHash);
   });
 
-  it('reads basis from the pre-mask compensation while itemSet stays masked', () => {
+  it('does not leak the compensation basis into observedQuotes (#2)', () => {
     const versions = { schema: 'v1', rubric: 'v1' };
     const release = freezeRelease(caseWithItems(), '<html>rendered</html>', versions);
 
-    expect(release.observedQuotes['item_a'].basis).toBe('per_booking');
+    expect(release.observedQuotes['item_a'].basis).toBeUndefined();
+    expect(JSON.stringify(release.observedQuotes)).not.toContain('per_booking');
     expect(release.itemSet[0].stamp.economics.compensation).toBeNull();
+  });
+
+  it('does not alias the frozen itemSet to the live Case (#5)', () => {
+    const caseState = caseWithItems();
+    const versions = { schema: 'v1', rubric: 'v1' };
+    const release = freezeRelease(caseState, '<html>rendered</html>', versions);
+
+    const frozenFacts = release.itemSet[0].facts;
+    const frozenTotal = release.itemSet[0].stamp.price.total;
+    const contentHashBefore = release.contentHash;
+
+    // mutate the live Case after freezing
+    caseState.items[0].facts = { mutated: true };
+    caseState.items[0].stamp.price.total = 999;
+
+    expect(release.itemSet[0].facts).toEqual(frozenFacts);
+    expect(release.itemSet[0].stamp.price.total).toBe(frozenTotal);
+    expect(release.contentHash).toBe(contentHashBefore);
+  });
+
+  it('produces a deterministic contentHash for unquoted items across separate freezes (#6)', () => {
+    const versions = { schema: 'v1', rubric: 'v1' };
+    const unquotedCase = (): Case => ({
+      id: 'c2', facts: {}, lifecycle: 'active',
+      items: [
+        {
+          id: 'item_b',
+          offerRef: 'ofr_2',
+          productType: 'widget',
+          section: 'main',
+          state: 'recommended',
+          stamp: {
+            source: 'sourceB',
+            actionable: 'none',
+            economics: { compensation: null, endUserPrice: null },
+            price: { total: 50, currency: 'USD' },
+            // no quotedAt — unverified/supplemental path
+          },
+        },
+      ],
+    });
+
+    // Force createdAt to differ between the two freezes -- proves the hash isn't derived
+    // from a substituted createdAt (it would differ here if it were).
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-01-01T00:00:00.000Z'));
+    const a = freezeRelease(unquotedCase(), '<html>rendered</html>', versions);
+    vi.setSystemTime(new Date('2026-01-01T00:00:05.000Z'));
+    const b = freezeRelease(unquotedCase(), '<html>rendered</html>', versions);
+    vi.useRealTimers();
+
+    expect(a.createdAt).not.toBe(b.createdAt);
+    expect(a.contentHash).toBe(b.contentHash);
+
+    const c = freezeRelease(caseWithItems(), '<html>rendered</html>', versions);
+    expect(a.contentHash).not.toBe(c.contentHash);
   });
 });
 

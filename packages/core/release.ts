@@ -7,8 +7,7 @@ export interface QuoteSnapshot {
   offerRef?: string;
   total: number | null;
   currency: string;
-  basis?: string;
-  observedAt: string;
+  observedAt: string | null;
 }
 
 export interface Release {
@@ -25,9 +24,11 @@ export interface Release {
 function maskItemCompensation(item: Item): Item {
   return {
     ...item,
+    facts: item.facts ? { ...item.facts } : item.facts,
     stamp: {
       ...item.stamp,
       economics: { compensation: null, endUserPrice: item.stamp.economics.endUserPrice },
+      price: { ...item.stamp.price },
     },
   };
 }
@@ -56,8 +57,7 @@ export function freezeRelease(
       offerRef: item.offerRef,
       total: item.stamp.price.total,
       currency: item.stamp.price.currency,
-      basis: item.stamp.economics.compensation?.basis,
-      observedAt: item.stamp.quotedAt ?? createdAt,
+      observedAt: item.stamp.quotedAt ?? null,
     };
   }
 

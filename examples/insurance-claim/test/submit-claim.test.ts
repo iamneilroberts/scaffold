@@ -20,9 +20,10 @@ describe('submitClaim — frozen release', () => {
     expect(release1.contentHash).toBeTruthy();
     // freezeRelease masks compensation in the frozen itemSet
     expect(release1.itemSet[0].stamp.economics.compensation).toBeNull();
-    // basis must survive in observedQuotes even though itemSet is masked
+    // a frozen Release must not leak the fee arrangement via observedQuotes.basis either
     const [firstItemId] = Object.keys(release1.observedQuotes);
-    expect(release1.observedQuotes[firstItemId].basis).toBeTruthy();
+    expect(release1.observedQuotes[firstItemId].basis).toBeUndefined();
+    expect(JSON.stringify(release1.observedQuotes)).not.toMatch(/recovery|%/);
 
     // supplemental damage found during rebuild — hand-entered pending contractor evaluation
     const supplemental = await commitAction(store, CASE_ID, {
