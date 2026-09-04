@@ -99,6 +99,17 @@ describe('applyAction: add_item', () => {
     expect(result.case.items[0].facts).not.toBe(offer.attributes);
   });
 
+  it('deep-copies NESTED objects inside Offer.attributes — mutating a nested attribute after commit must not change the committed item\'s facts', () => {
+    const offer = baseOffer({ attributes: { spec: { grade: 'A' } } });
+    const resolve: OfferResolver = (ref) => (ref === offer.offerRef ? offer : undefined);
+    const result = applyAction(baseCase(), { type: 'add_item', offerRef: offer.offerRef }, resolve);
+
+    // Mutate the NESTED object on the source Offer AFTER stamping.
+    (offer.attributes!.spec as { grade: string }).grade = 'MUTATED';
+
+    expect((result.case.items[0].facts!.spec as { grade: string }).grade).toBe('A');
+  });
+
   it('carries price.unit and price.incomplete from the Offer into the stamp (bug #7)', () => {
     const offer = baseOffer({ price: { total: 6.25, unit: '$/lb', currency: 'USD', incomplete: true } });
     const resolve: OfferResolver = (ref) => (ref === offer.offerRef ? offer : undefined);

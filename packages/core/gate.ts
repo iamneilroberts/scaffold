@@ -118,8 +118,12 @@ function stampFromOffer(offer: Offer): ItemStamp {
   };
 }
 
+// structuredClone rather than a shallow `{...offer.attributes}` — attributes is
+// unconstrained and may hold nested objects; a shallow copy still aliases those
+// nested values to the live Offer, so mutating them after commit would silently
+// change the "committed" Item's facts (same class as release.ts maskItemCompensation).
 function factsFromOffer(offer: Offer): Record<string, unknown> | undefined {
-  return offer.attributes ? { ...offer.attributes } : undefined;
+  return offer.attributes ? structuredClone(offer.attributes) : undefined;
 }
 
 export function applyAction(

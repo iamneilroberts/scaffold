@@ -101,14 +101,40 @@ export async function putCase(store: KVStore, caseId: string, c: Case): Promise<
   await store.put(caseKey(caseId), JSON.stringify({ ...c, rev: (c.rev ?? 0) + 1 }));
 }
 
+// stageOffers used to be an unconditional read-modify-write, ignoring casPut entirely —
+// the last Case writer to bypass the optimistic-concurrency path that commitAction /
+// setDeskSummary / setDeskMetrics already use (desk.ts patchCaseMeta). That let a stale
+// read clobber a concurrent commitAction: Promise.all([commitAction(...), stageOffers(...)])
+// could return ok:true from commitAction while the offers write (built from a stale
+// pre-commit read) overwrote the Case wholesale, erasing the just-committed item/state.
+// Fixed the same way as bug #4a: write through casPut with a retry loop — on a CAS
+// conflict, re-read the (now newer) Case and re-merge just this call's own offers on top
+// of it. That's safe and idempotent because stageOffers only ever adds to `_offers` keyed
+// by offerRef, so replaying it against fresher state never clobbers that state's
+// items/lifecycle/events — only `_offers` gains the newly-staged entries.
+const MAX_STAGE_OFFERS_CAS_ATTEMPTS = 20;
+
 export async function stageOffers(store: KVStore, caseId: string, offers: Offer[]): Promise<void> {
-  const c = await getCase(store, caseId);
-  if (!c) return;
-  const merged = { ...(c._offers ?? {}) };
-  for (const offer of offers) {
-    merged[offer.offerRef] = offer;
+  for (let attempt = 0; attempt < MAX_STAGE_OFFERS_CAS_ATTEMPTS; attempt++) {
+    const raw = await store.get(caseKey(caseId));
+    if (!raw) return;
+    const c: Case = JSON.parse(raw);
+    const merged = { ...(c._offers ?? {}) };
+    for (const offer of offers) {
+      merged[offer.offerRef] = offer;
+    }
+    const nextRaw = JSON.stringify({ ...c, _offers: merged, rev: (c.rev ?? 0) + 1 });
+
+    if (store.casPut) {
+      if (await store.casPut(caseKey(caseId), raw, nextRaw)) return;
+      continue; // lost the race — re-read fresh state and retry
+    }
+    const recheckRaw = await store.get(caseKey(caseId));
+    if (recheckRaw !== raw) continue; // lost the race — re-read fresh state and retry
+    await store.put(caseKey(caseId), nextRaw);
+    return;
   }
-  await putCase(store, caseId, { ...c, _offers: merged });
+  throw new Error(`stageOffers: exceeded ${MAX_STAGE_OFFERS_CAS_ATTEMPTS} CAS retry attempts for case ${caseId}`);
 }
 
 export async function putRelease(store: KVStore, release: Release): Promise<void> {

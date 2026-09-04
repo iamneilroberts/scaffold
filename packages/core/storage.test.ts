@@ -3,6 +3,7 @@ import { createMemoryStore } from './storage.js';
 import { randomId, caseKey, eventsKey, releaseKey, releaseIndexPrefix } from './storage.js';
 import { newCase, getCase, putCase, stageOffers, putRelease } from './storage.js';
 import { freezeRelease, listReleases } from './release.js';
+import { commitAction } from './gate.js';
 import type { Offer } from './offer.js';
 
 function testOffer(overrides: Partial<Offer> = {}): Offer {
@@ -106,6 +107,25 @@ describe('stageOffers', () => {
     await stageOffers(store, 'c1', [testOffer({ offerRef: 'ofr_2' })]);
     const afterSecond = await getCase(store, 'c1');
     expect(Object.keys(afterSecond!._offers!).sort()).toEqual(['ofr_1', 'ofr_2']);
+  });
+
+  it('does not erase a concurrent commitAction (last writer standing bug): both the committed item and the newly-staged offer survive', async () => {
+    const store = createMemoryStore();
+    const staged = testOffer({ offerRef: 'ofr_staged' });
+    const seeded = { ...newCase('c1'), _offers: { [staged.offerRef]: staged }, rev: 0 };
+    await store.put(caseKey('c1'), JSON.stringify(seeded));
+
+    const [commitResult] = await Promise.all([
+      commitAction(store, 'c1', { type: 'add_item', offerRef: staged.offerRef }),
+      stageOffers(store, 'c1', [testOffer({ offerRef: 'ofr_new' })]),
+    ]);
+
+    expect(commitResult.ok).toBe(true);
+
+    const stored = JSON.parse((await store.get(caseKey('c1')))!);
+    expect(stored.items).toHaveLength(1);
+    expect(stored.items[0].offerRef).toBe(staged.offerRef);
+    expect(Object.keys(stored._offers).sort()).toEqual(['ofr_new', 'ofr_staged']);
   });
 });
 
