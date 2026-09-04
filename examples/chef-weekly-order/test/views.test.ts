@@ -20,6 +20,37 @@ describe('guest menu provenance projection', () => {
     const items = view.sections.flatMap((s) => s.items);
     expect(items).toHaveLength(1);
     expect(renderGuestMenuLine(items[0], confirmedCase)).toBe('Local shrimp (Gulf Coast, LA)');
+    // GUEST_MENU_PRESET.showCompensation is false — the guest view must never carry
+    // the advisor-side compensation figure, even though the farm offer has one.
+    expect(items[0].stamp.economics.compensation).toBeNull();
+  });
+
+  it('labels a SECOND managed-source vendor as "Local" too — the claim tracks the actionable class, not one vendor id', () => {
+    // Hand-construct a confirmed item stamped 'managed' under a DIFFERENT source
+    // string than localFarmSource.source ('gulf-coast-shrimp-co'). If the gate were
+    // still keyed off that one coincidental source string, this item would wrongly
+    // lose the "Local" claim.
+    const baseCase = buildInitialCase('case_weekly_2026w36');
+    const secondManagedVendorItem: Item = {
+      id: 'item_second_farm_1',
+      offerRef: 'ofr_second_farm_1',
+      productType: 'commodity-price',
+      section: 'ingredients',
+      state: 'confirmed',
+      stamp: {
+        source: 'bayou-oyster-farm',
+        actionable: 'managed',
+        economics: { compensation: null, endUserPrice: 9.0 },
+        price: { total: 9.0, currency: 'USD' },
+      },
+      facts: { commodity: 'oysters', region: 'Bayou La Batre, AL' },
+    };
+    const caseState: Case = { ...baseCase, items: [secondManagedVendorItem] };
+
+    const view = renderView(caseState, GUEST_MENU_PRESET);
+    const items = view.sections.flatMap((s) => s.items);
+    expect(items).toHaveLength(1);
+    expect(renderGuestMenuLine(items[0], caseState)).toBe('Local oysters (Bayou La Batre, AL)');
   });
 
   it('never surfaces the "local" claim for a still-recommended spot-market line', () => {

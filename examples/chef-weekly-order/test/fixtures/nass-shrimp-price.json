@@ -5,10 +5,10 @@
       "statisticcat_desc": "PRICE RECEIVED",
       "unit_desc": "$ / LB",
       "Value": "4.85",
-      "year": "__NASS_FIXTURE_YEAR__",
+      "year": "2024",
       "state_name": "LOUISIANA",
       "freq_desc": "MONTHLY",
-      "reference_period_desc": "__NASS_FIXTURE_PERIOD__"
+      "reference_period_desc": "JUN"
     }
   ]
 }
