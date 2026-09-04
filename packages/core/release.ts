@@ -1,7 +1,7 @@
 import type { Case, Item } from './gate.js';
 import { projectItems } from './project.js';
 import type { KVStore } from './storage.js';
-import { randomId, releaseIndexPrefix } from './storage.js';
+import { parseReleaseKey, randomId, releaseIndexPrefix } from './storage.js';
 
 export interface QuoteSnapshot {
   offerRef?: string;
@@ -24,7 +24,11 @@ export interface Release {
 function maskItemCompensation(item: Item): Item {
   return {
     ...item,
-    facts: item.facts ? { ...item.facts } : item.facts,
+    // structuredClone rather than a shallow `{...item.facts}` — facts is unconstrained and
+    // may hold nested objects; a shallow copy still aliases those nested values to the live
+    // Case, so mutating them after freezing would silently change the "immutable" Release
+    // while contentHash stays fixed.
+    facts: item.facts ? structuredClone(item.facts) : item.facts,
     stamp: {
       ...item.stamp,
       economics: { compensation: null, endUserPrice: item.stamp.economics.endUserPrice },
@@ -70,7 +74,9 @@ export function freezeRelease(
     itemSet,
     observedQuotes,
     render,
-    versions,
+    // Copy rather than alias the caller's versions object — otherwise mutating it after
+    // freezeRelease returns changes the "immutable" Release while contentHash stays fixed.
+    versions: { ...versions },
     contentHash,
   };
 }
@@ -79,6 +85,13 @@ export async function listReleases(store: KVStore, caseId: string): Promise<Rele
   const keys = await store.list(releaseIndexPrefix(caseId));
   const releases: Release[] = [];
   for (const key of keys) {
+    // Defense-in-depth: the prefix scan above should already be exact (releaseIndexPrefix
+    // percent-encodes caseId so it can't be a loose prefix of another caseId's keys), but
+    // parse+compare the caseId segment explicitly so a cross-case leak can never slip
+    // through even if the store's prefix matching is looser than expected (bug: cross-case
+    // release disclosure).
+    const parsed = parseReleaseKey(key);
+    if (!parsed || parsed.caseId !== caseId) continue;
     const raw = await store.get(key);
     if (raw) releases.push(JSON.parse(raw));
   }

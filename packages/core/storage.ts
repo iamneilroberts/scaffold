@@ -43,20 +43,46 @@ export function randomId(prefix: string): string {
   return `${prefix}_${rand}`;
 }
 
+// caseId is caller-supplied and unconstrained (may itself contain ':'). Every key below
+// uses ':' as a segment delimiter, so a raw caseId could alias another caseId's keys
+// (e.g. caseId 'case' vs 'case:child' both producing keys prefixed 'release:case:...').
+// percent-encoding the caseId segment removes the delimiter from the caseId itself,
+// so two distinct caseIds can never collide or prefix-match one another.
+function encodeCaseId(caseId: string): string {
+  return encodeURIComponent(caseId);
+}
+
 export function caseKey(caseId: string): string {
-  return `case:${caseId}`;
+  return `case:${encodeCaseId(caseId)}`;
 }
 
 export function eventsKey(caseId: string): string {
-  return `events:${caseId}`;
+  return `events:${encodeCaseId(caseId)}`;
 }
 
 export function releaseKey(caseId: string, publicationId: string): string {
-  return `release:${caseId}:${publicationId}`;
+  return `release:${encodeCaseId(caseId)}:${publicationId}`;
 }
 
 export function releaseIndexPrefix(caseId: string): string {
-  return `release:${caseId}:`;
+  return `release:${encodeCaseId(caseId)}:`;
+}
+
+// Parses a key produced by releaseKey back into its caseId/publicationId parts, decoding
+// the caseId segment. Used by listReleases as a defense-in-depth exact-match check on top
+// of the prefix scan, so a store whose list() prefix-matching is looser than expected
+// still can't return another case's release.
+export function parseReleaseKey(key: string): { caseId: string; publicationId: string } | null {
+  const prefix = 'release:';
+  if (!key.startsWith(prefix)) return null;
+  const rest = key.slice(prefix.length);
+  const sep = rest.indexOf(':');
+  if (sep === -1) return null;
+  try {
+    return { caseId: decodeURIComponent(rest.slice(0, sep)), publicationId: rest.slice(sep + 1) };
+  } catch {
+    return null;
+  }
 }
 
 export function newCase(id: string): Case {

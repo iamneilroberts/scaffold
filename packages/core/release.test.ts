@@ -87,6 +87,22 @@ describe('freezeRelease', () => {
     expect(release.contentHash).toBe(contentHashBefore);
   });
 
+  it('deep-copies nested facts and does not alias the caller\'s versions object (#2 followup)', () => {
+    const caseState = caseWithItems();
+    caseState.items[0].facts = { detail: { note: 'original' } };
+    const versions = { schema: 'v1', rubric: 'v1' };
+
+    const release = freezeRelease(caseState, '<html>rendered</html>', versions);
+
+    // mutate a NESTED fact on the live Case, and the caller's versions object, after freezing
+    (caseState.items[0].facts as { detail: { note: string } }).detail.note = 'MUTATED';
+    versions.schema = 'MUTATED';
+
+    expect((release.itemSet[0].facts as { detail: { note: string } }).detail.note).toBe('original');
+    expect(release.versions.schema).toBe('v1');
+    expect(release.versions).not.toBe(versions);
+  });
+
   it('produces a deterministic contentHash for unquoted items across separate freezes (#6)', () => {
     const versions = { schema: 'v1', rubric: 'v1' };
     const unquotedCase = (): Case => ({
@@ -147,5 +163,20 @@ describe('listReleases', () => {
   it('returns an empty array when the case has no releases', async () => {
     const store = createMemoryStore();
     expect(await listReleases(store, 'no-releases')).toEqual([]);
+  });
+
+  it('does not leak a release for a caseId that is only a delimiter-ambiguous prefix (cross-case disclosure)', async () => {
+    const store = createMemoryStore();
+    const versions = { schema: 'v1', rubric: 'v1' };
+
+    const childRelease = freezeRelease({ ...caseWithItems(), id: 'case:child' }, '<html>child</html>', versions);
+    await store.put(releaseKey('case:child', childRelease.publicationId), JSON.stringify(childRelease));
+
+    const parentRelease = freezeRelease({ ...caseWithItems(), id: 'case' }, '<html>parent</html>', versions);
+    await store.put(releaseKey('case', parentRelease.publicationId), JSON.stringify(parentRelease));
+
+    const found = await listReleases(store, 'case');
+    expect(found.map((r) => r.publicationId)).toEqual([parentRelease.publicationId]);
+    expect(found.some((r) => r.caseId === 'case:child')).toBe(false);
   });
 });

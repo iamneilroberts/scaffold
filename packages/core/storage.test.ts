@@ -57,6 +57,15 @@ describe('key helpers', () => {
     expect(releaseKey('c1', 'rel_x')).toBe('release:c1:rel_x');
     expect(releaseIndexPrefix('c1')).toBe('release:c1:');
   });
+
+  it('percent-encodes a delimiter inside caseId so distinct caseIds can never alias (cross-case disclosure)', () => {
+    expect(caseKey('case:child')).toBe('case:case%3Achild');
+    expect(eventsKey('case:child')).toBe('events:case%3Achild');
+    expect(releaseKey('case:child', 'rel_x')).toBe('release:case%3Achild:rel_x');
+    expect(releaseIndexPrefix('case:child')).toBe('release:case%3Achild:');
+    // The encoded form for 'case:child' must not share a prefix boundary with plain 'case'.
+    expect(releaseIndexPrefix('case:child').startsWith(releaseIndexPrefix('case'))).toBe(false);
+  });
 });
 
 describe('newCase', () => {
