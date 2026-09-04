@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { deskPayload, setDeskSummary, setDeskMetrics, deskShellHtml } from './desk.js';
-import { createMemoryStore } from './storage.js';
-import { caseKey, eventsKey } from './storage.js';
+import { createMemoryStore, caseKey } from './storage.js';
+import { commitAction } from './gate.js';
 import type { Offer } from './offer.js';
 
 describe('deskPayload', () => {
@@ -37,13 +37,12 @@ describe('deskPayload against a populated case', () => {
         deskSummary: { headline: 'Case c1', updatedAt: new Date().toISOString() },
         deskMetrics: { quoted: 100 },
       },
+      events: [
+        { seq: 1, at: new Date().toISOString(), kind: 'add_item', detail: { offerRef: 'ofr_1' } },
+        { seq: 2, at: new Date().toISOString(), kind: 'publish' },
+      ],
     };
     await store.put(caseKey('c1'), JSON.stringify(caseState));
-    const events = [
-      { seq: 1, at: new Date().toISOString(), kind: 'add_item', detail: { offerRef: 'ofr_1' } },
-      { seq: 2, at: new Date().toISOString(), kind: 'publish' },
-    ];
-    await store.put(eventsKey('c1'), JSON.stringify(events));
   }
 
   it('returns offers/metrics/summary in full and events since the given seq', async () => {
@@ -109,6 +108,39 @@ describe('setDeskSummary / setDeskMetrics', () => {
     const payload = await deskPayload(store, 'c1', 0);
     expect(payload.summary.headline).toBe('Both survive');
     expect(payload.metrics.total).toBe(300);
+  });
+});
+
+describe('setDeskMetrics vs a concurrent commitAction (bug #4a)', () => {
+  it('RED (pre-fix) would erase a concurrent commitAction; casPut+retry means the final case has BOTH the committed item and the metrics', async () => {
+    const store = createMemoryStore();
+    const offer: Offer = {
+      offerRef: 'ofr_concurrent',
+      product: { title: 'Test' },
+      source: 'sourceA',
+      productType: 'widget',
+      actionable: 'managed',
+      price: { total: 100, currency: 'USD' },
+      economics: { compensation: { kind: 'flat', amount: 10 }, endUserPrice: 100 },
+      section: 'main',
+    };
+    const seeded = {
+      id: 'c1', facts: {}, items: [], lifecycle: 'active' as const,
+      _offers: { [offer.offerRef]: offer }, rev: 0,
+    };
+    await store.put(caseKey('c1'), JSON.stringify(seeded));
+
+    const [commitResult] = await Promise.all([
+      commitAction(store, 'c1', { type: 'add_item', offerRef: offer.offerRef }),
+      setDeskMetrics(store, 'c1', { total: 500 }),
+    ]);
+
+    expect(commitResult.ok).toBe(true);
+
+    const stored = JSON.parse((await store.get(caseKey('c1')))!);
+    expect(stored.items).toHaveLength(1);
+    expect(stored.items[0].offerRef).toBe(offer.offerRef);
+    expect(stored.meta.deskMetrics).toEqual({ total: 500 });
   });
 });
 

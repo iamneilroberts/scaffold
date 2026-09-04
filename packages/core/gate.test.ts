@@ -2,7 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { ACTION_TYPES, INVALIDATIONS, FUNNEL_STATE_ORDER, applyAction, commitAction } from './gate.js';
 import type { Case, OfferResolver } from './gate.js';
 import type { Offer } from './offer.js';
-import { createMemoryStore, caseKey, eventsKey } from './storage.js';
+import { createMemoryStore, caseKey } from './storage.js';
+import { deskPayload } from './desk.js';
 
 function baseCase(): Case {
   return { id: 'c1', facts: {}, items: [], lifecycle: 'planning' };
@@ -365,13 +366,14 @@ describe('commitAction', () => {
     expect(result.invalidate).toContain('item_registry');
 
     const storedRaw = await store.get(caseKey('c1'));
-    expect(JSON.parse(storedRaw!).items).toHaveLength(1);
+    const stored = JSON.parse(storedRaw!);
+    expect(stored.items).toHaveLength(1);
 
-    const eventsRaw = await store.get(eventsKey('c1'));
-    const events = JSON.parse(eventsRaw!);
-    expect(events).toHaveLength(1);
-    expect(events[0].kind).toBe('add_item');
-    expect(events[0].seq).toBe(1);
+    // Bug #4b: the event lives ON the Case (case.events), appended atomically
+    // in the same casPut as the Case mutation — not a separate events:<caseId> key.
+    expect(stored.events).toHaveLength(1);
+    expect(stored.events[0].kind).toBe('add_item');
+    expect(stored.events[0].seq).toBe(1);
   });
 
   it('does not persist or append an event when the action is rejected', async () => {
@@ -382,7 +384,8 @@ describe('commitAction', () => {
     const result = await commitAction(store, 'c1', { type: 'add_item', offerRef: 'ofr_missing' });
 
     expect(result.ok).toBe(false);
-    expect(await store.get(eventsKey('c1'))).toBeNull();
+    const stored = JSON.parse((await store.get(caseKey('c1')))!);
+    expect(stored.events).toBeUndefined();
   });
 
   it('two concurrent commits reading the same rev: exactly one wins, the other reports a conflict, no silent loss (bug #4)', async () => {
@@ -407,5 +410,58 @@ describe('commitAction', () => {
     const storedRaw = await store.get(caseKey('c1'));
     const stored: Case = JSON.parse(storedRaw!);
     expect(stored.facts.winner).toBe(oks[0].case?.facts.winner);
+  });
+
+  it('two concurrent accepted commits: exactly one event is persisted, seq=1, no dup/lost event (bug #4b)', async () => {
+    const store = createMemoryStore();
+    const offerA = baseOffer({ offerRef: 'ofr_a' });
+    const offerB = baseOffer({ offerRef: 'ofr_b' });
+    const seeded: Case = {
+      id: 'c1', facts: {}, items: [], lifecycle: 'planning',
+      _offers: { [offerA.offerRef]: offerA, [offerB.offerRef]: offerB },
+      rev: 0,
+    };
+    await store.put(caseKey('c1'), JSON.stringify(seeded));
+
+    const [resultA, resultB] = await Promise.all([
+      commitAction(store, 'c1', { type: 'add_item', offerRef: offerA.offerRef }),
+      commitAction(store, 'c1', { type: 'add_item', offerRef: offerB.offerRef }),
+    ]);
+
+    const oks = [resultA, resultB].filter((r) => r.ok);
+    const conflicts = [resultA, resultB].filter((r) => !r.ok);
+    expect(oks).toHaveLength(1);
+    expect(conflicts).toHaveLength(1);
+    expect(conflicts[0].error).toBe('conflict');
+
+    const stored: Case = JSON.parse((await store.get(caseKey('c1')))!);
+    expect(stored.items).toHaveLength(1); // the loser's item never landed
+    expect(stored.events).toHaveLength(1); // no lost event, no duplicate seq=1
+    expect(stored.events![0].seq).toBe(1);
+    expect(stored.events![0].kind).toBe('add_item');
+  });
+
+  it('two sequential commits produce monotonic seq 1 then 2, readable via deskPayload', async () => {
+    const store = createMemoryStore();
+    const offerA = baseOffer({ offerRef: 'ofr_a' });
+    const seeded: Case = {
+      id: 'c1', facts: {}, items: [], lifecycle: 'planning',
+      _offers: { [offerA.offerRef]: offerA }, rev: 0,
+    };
+    await store.put(caseKey('c1'), JSON.stringify(seeded));
+
+    const first = await commitAction(store, 'c1', { type: 'add_item', offerRef: offerA.offerRef });
+    expect(first.ok).toBe(true);
+    const second = await commitAction(store, 'c1', { type: 'patch_facts', patch: { done: true } });
+    expect(second.ok).toBe(true);
+
+    const stored: Case = JSON.parse((await store.get(caseKey('c1')))!);
+    expect(stored.events).toHaveLength(2);
+    expect(stored.events![0].seq).toBe(1);
+    expect(stored.events![1].seq).toBe(2);
+
+    const payload = await deskPayload(store, 'c1', 0);
+    expect(payload.events.map((e) => e.seq)).toEqual([1, 2]);
+    expect(payload.maxSeq).toBe(2);
   });
 });

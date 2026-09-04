@@ -86,7 +86,7 @@ export function parseReleaseKey(key: string): { caseId: string; publicationId: s
 }
 
 export function newCase(id: string): Case {
-  return { id, facts: {}, items: [], lifecycle: 'planning', _offers: {}, rev: 0 };
+  return { id, facts: {}, items: [], lifecycle: 'planning', _offers: {}, rev: 0, events: [] };
 }
 
 export async function getCase(store: KVStore, caseId: string): Promise<Case | undefined> {

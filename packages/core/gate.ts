@@ -1,6 +1,6 @@
 import type { Actionable, Compensation, Offer } from './offer.js';
 import type { KVStore } from './storage.js';
-import { caseKey, eventsKey, randomId } from './storage.js';
+import { caseKey, randomId } from './storage.js';
 
 export type FunnelState = 'recommended' | 'selected' | 'confirmed' | 'booked';
 export type LifecycleState = 'planning' | 'active' | 'published' | 'archived';
@@ -40,6 +40,13 @@ export interface Case {
   // Optimistic-concurrency counter (Contract Patch v1 §2d). Optional so existing
   // fixtures/state without it still work — treat a missing rev as 0.
   rev?: number;
+  // Event log (bug #4b). Lives ON the Case so commitAction can append the new
+  // event in the SAME casPut as the Case mutation — one atomic write, instead
+  // of a separate `events:<caseId>` key with its own unguarded read-modify-write
+  // (which could durably commit the Case while losing the event, or interleave
+  // two concurrent appends onto the same seq). Optional so existing
+  // fixtures/state without it still work — treat a missing events as [].
+  events?: CaseEvent[];
 }
 
 export const ACTION_TYPES = [
@@ -237,7 +244,7 @@ export function applyAction(
   }
 }
 
-interface GateEvent {
+export interface CaseEvent {
   seq: number;
   at: string;
   kind: string;
@@ -259,17 +266,6 @@ function eventDetailFor(action: Action): Record<string, unknown> | undefined {
   }
 }
 
-async function appendEvent(store: KVStore, caseId: string, kind: string, detail?: Record<string, unknown>): Promise<GateEvent> {
-  const key = eventsKey(caseId);
-  const raw = await store.get(key);
-  const events: GateEvent[] = raw ? JSON.parse(raw) : [];
-  const seq = events.length > 0 ? events[events.length - 1].seq + 1 : 1;
-  const event: GateEvent = { seq, at: new Date().toISOString(), kind, detail };
-  events.push(event);
-  await store.put(key, JSON.stringify(events));
-  return event;
-}
-
 // Optimistic concurrency (Contract Patch v1 §2d / bug #4): commitAction is a
 // read-modify-write. Two concurrent commits can both read the same Case, both
 // apply cleanly, and the later write silently clobbers the earlier one's item +
@@ -284,6 +280,13 @@ async function appendEvent(store: KVStore, caseId: string, kind: string, detail?
 // A host KVStore without casPut (e.g. an eventually-consistent backend) falls
 // back to a best-effort read-recheck-write below; that only closes the window
 // for the common (non-fully-concurrent) case, not a hard guarantee.
+//
+// The new event (bug #4b) is appended to `case.events` and persisted in this
+// SAME casPut, not via a separate `events:<caseId>` key with its own write —
+// so the Case mutation and its event are one atomic unit: a failed casPut
+// leaves neither durable, a successful one leaves both, and two concurrent
+// commits can never both compute seq=N and both "win" (the loser's casPut
+// fails outright and reports conflict, same as it does for the Case body).
 export async function commitAction(store: KVStore, caseId: string, action: Action): Promise<CommitResult> {
   const raw = await store.get(caseKey(caseId));
   if (!raw) {
@@ -297,7 +300,11 @@ export async function commitAction(store: KVStore, caseId: string, action: Actio
     return { ok: false, error: 'action_not_applied', case: result.case };
   }
 
-  const nextCase: Case = { ...result.case, rev: readRev + 1 };
+  const existingEvents = caseState.events ?? [];
+  const nextSeq = existingEvents.length > 0 ? existingEvents[existingEvents.length - 1].seq + 1 : 1;
+  const event: CaseEvent = { seq: nextSeq, at: new Date().toISOString(), kind: action.type, detail: eventDetailFor(action) };
+
+  const nextCase: Case = { ...result.case, rev: readRev + 1, events: [...existingEvents, event] };
   const nextRaw = JSON.stringify(nextCase);
 
   if (store.casPut) {
@@ -313,6 +320,5 @@ export async function commitAction(store: KVStore, caseId: string, action: Actio
     await store.put(caseKey(caseId), nextRaw);
   }
 
-  await appendEvent(store, caseId, action.type, eventDetailFor(action));
   return { ok: true, case: nextCase, invalidate: result.invalidate };
 }
