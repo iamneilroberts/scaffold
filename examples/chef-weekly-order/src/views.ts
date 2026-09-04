@@ -1,4 +1,5 @@
 import type { Case, Item, ViewPreset } from '@scaffold/core';
+import { localFarmSource } from './sources/local-farm-source.js';
 
 export const GUEST_MENU_PRESET: ViewPreset = {
   name: 'guest-menu-provenance',
@@ -9,15 +10,17 @@ export const GUEST_MENU_PRESET: ViewPreset = {
 };
 
 // The guest-facing "local" claim is computed at render time from the item's real
-// provenance (its Offer's attributes + state) — never stored as static copy. Only an
-// item that reached 'confirmed'/'booked' earns the claim; the Gate's state cap means
-// a non-managed (e.g. reference/spot-market) source can never get there, so the claim
-// can't be faked for it.
+// provenance — never stored as static copy. It is gated on the item's ACTUAL stamped
+// source matching the approved local-farm source (not on funnel state alone): a
+// referral/other-source item can also reach 'confirmed' (it just caps there too, per
+// the Gate's state cap for non-'managed' actionables), so state by itself doesn't
+// prove locality — the source check is what does.
 export function renderGuestMenuLine(item: Item, caseState: Case): string {
   const offer = item.offerRef ? caseState._offers?.[item.offerRef] : undefined;
-  const commodity = (offer?.attributes?.commodity as string) ?? offer?.product.title ?? 'ingredient';
-  if (item.state === 'confirmed' || item.state === 'booked') {
-    const region = (offer?.attributes?.region as string) ?? item.stamp.source;
+  const commodity = (item.facts?.commodity as string) ?? (offer?.attributes?.commodity as string) ?? offer?.product.title ?? 'ingredient';
+  const isApprovedLocalSource = item.stamp.source === localFarmSource.source;
+  if (isApprovedLocalSource && (item.state === 'confirmed' || item.state === 'booked')) {
+    const region = (item.facts?.region as string) ?? (offer?.attributes?.region as string) ?? item.stamp.source;
     return `Local ${commodity} (${region})`;
   }
   return `${commodity} (source pending)`;

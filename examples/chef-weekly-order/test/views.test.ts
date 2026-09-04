@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import type { Case, Item } from '@scaffold/core';
 import { renderView } from '@scaffold/core';
 import { localFarmSource } from '../src/sources/local-farm-source.js';
 import { nassSource } from '../src/sources/nass-source.js';
@@ -34,5 +35,34 @@ describe('guest menu provenance projection', () => {
     const view = renderView(caseState, GUEST_MENU_PRESET);
     const items = view.sections.flatMap((s) => s.items);
     expect(items).toHaveLength(0);
+  });
+
+  it('does not label a confirmed item from a non-local source as "Local" — claim tracks source, not funnel state', () => {
+    // Hand-construct a CONFIRMED item stamped with a source that is NOT the approved
+    // local farm — bypassing the Gate on purpose. This is the case the Gate's state cap
+    // does not itself prevent: a 'referral'-class source also caps at 'confirmed', so
+    // funnel state alone can't distinguish it from the real local-farm item. Only the
+    // stamped source can.
+    const baseCase = buildInitialCase('case_weekly_2026w36');
+    const nonLocalConfirmedItem: Item = {
+      id: 'item_referral_1',
+      offerRef: 'ofr_referral_1',
+      productType: 'commodity-price',
+      section: 'ingredients',
+      state: 'confirmed',
+      stamp: {
+        source: 'some-other-referral-vendor',
+        actionable: 'referral',
+        economics: { compensation: null, endUserPrice: 5.5 },
+        price: { total: 5.5, currency: 'USD' },
+      },
+      facts: { commodity: 'shrimp', region: 'Some Other Region' },
+    };
+    const caseState: Case = { ...baseCase, items: [nonLocalConfirmedItem] };
+
+    const view = renderView(caseState, GUEST_MENU_PRESET);
+    const items = view.sections.flatMap((s) => s.items);
+    expect(items).toHaveLength(1);
+    expect(renderGuestMenuLine(items[0], caseState)).not.toContain('Local');
   });
 });
