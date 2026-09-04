@@ -7,16 +7,5 @@ export const HOMEOWNER_VIEW: ViewPreset = { name: 'homeowner', priceDisplayMode:
 export const CONTRACTOR_VIEW: ViewPreset = { name: 'contractor', priceDisplayMode: 'full', showCompensation: true };
 
 export function renderClaimView(caseState: Case, preset: ViewPreset): ViewData {
-  const data = renderView(caseState, preset);
-  if (preset.showCompensation) return data;
-  return {
-    ...data,
-    sections: data.sections.map((s) => ({
-      section: s.section,
-      items: s.items.map((i) => ({
-        ...i,
-        stamp: { ...i.stamp, economics: { ...i.stamp.economics, compensation: null } },
-      })),
-    })),
-  };
+  return renderView(caseState, preset);
 }
