@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { freezeRelease, listReleases } from './release.js';
+import { freezeRelease, listReleases, sha256Hex } from './release.js';
 import { createMemoryStore, releaseKey } from './storage.js';
 import type { Case } from './gate.js';
 
@@ -30,6 +30,14 @@ function caseWithItems(): Case {
   };
 }
 
+describe('sha256Hex', () => {
+  it('matches the canonical known-answer digest for "abc"', () => {
+    expect(sha256Hex('abc')).toBe(
+      'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad',
+    );
+  });
+});
+
 describe('freezeRelease', () => {
   it('captures the item set with compensation masked', () => {
     const versions = { schema: 'v1', rubric: 'v1' };
@@ -57,6 +65,15 @@ describe('freezeRelease', () => {
     const versions = { schema: 'v1', rubric: 'v1' };
     const a = freezeRelease(caseWithItems(), '<html>rendered</html>', versions);
     const b = freezeRelease(caseWithItems(), '<html>different</html>', { schema: 'v2', rubric: 'v1' });
+    expect(a.contentHash).not.toBe(b.contentHash);
+  });
+
+  it('produces a different contentHash when only the rendered deliverable differs (#3)', () => {
+    // Same itemSet + same versions, DIFFERENT render string -- a contentHash meant to
+    // attest "this exact deliverable was published" must cover the deliverable itself.
+    const versions = { schema: 'v1', rubric: 'v1' };
+    const a = freezeRelease(caseWithItems(), '<html>rendered A</html>', versions);
+    const b = freezeRelease(caseWithItems(), '<html>rendered B</html>', versions);
     expect(a.contentHash).not.toBe(b.contentHash);
   });
 
