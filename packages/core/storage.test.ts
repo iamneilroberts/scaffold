@@ -76,12 +76,12 @@ describe('getCase / putCase', () => {
     expect(await getCase(store, 'missing')).toBeUndefined();
   });
 
-  it('round-trips a Case through putCase/getCase', async () => {
+  it('round-trips a Case through putCase/getCase, advancing rev (bug #4 optimistic concurrency)', async () => {
     const store = createMemoryStore();
     const c = newCase('c1');
     await putCase(store, 'c1', c);
     const back = await getCase(store, 'c1');
-    expect(back).toEqual(c);
+    expect(back).toEqual({ ...c, rev: 1 });
   });
 });
 

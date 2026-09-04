@@ -97,6 +97,14 @@ describe('applyAction: add_item', () => {
     expect(result.case.items[0].stamp.economics.compensation).not.toBe(offer.economics.compensation);
     expect(result.case.items[0].facts).not.toBe(offer.attributes);
   });
+
+  it('carries price.unit and price.incomplete from the Offer into the stamp (bug #7)', () => {
+    const offer = baseOffer({ price: { total: 6.25, unit: '$/lb', currency: 'USD', incomplete: true } });
+    const resolve: OfferResolver = (ref) => (ref === offer.offerRef ? offer : undefined);
+    const result = applyAction(baseCase(), { type: 'add_item', offerRef: offer.offerRef }, resolve);
+    expect(result.case.items[0].stamp.price.unit).toBe('$/lb');
+    expect(result.case.items[0].stamp.price.incomplete).toBe(true);
+  });
 });
 
 describe('applyAction: add_item_unverified', () => {
@@ -151,6 +159,36 @@ describe('applyAction: add_item_unverified', () => {
     );
 
     expect(result.case.items[0].state).toBe('recommended');
+  });
+
+  it('never lets a hostile caller self-authorize past the safe floor (bug #3)', () => {
+    const noop: OfferResolver = () => undefined;
+    const result = applyAction(
+      baseCase(),
+      {
+        type: 'add_item_unverified',
+        item: {
+          id: 'item_hostile',
+          productType: 'widget',
+          section: 'main',
+          state: 'booked',
+          stamp: {
+            source: 'hand-entry',
+            actionable: 'managed',
+            economics: { compensation: { kind: 'flat', amount: 500 }, endUserPrice: 500 },
+            price: { total: 500, currency: 'USD' },
+          },
+        },
+      },
+      noop,
+    );
+
+    expect(result.persist).toBe(true);
+    const item = result.case.items[0];
+    expect(item.stamp.actionable).toBe('none');
+    expect(item.state).toBe('recommended');
+    expect(item.stamp.economics.compensation).toBeNull();
+    expect(item.stamp.unverified).toBe(true);
   });
 });
 
@@ -345,5 +383,29 @@ describe('commitAction', () => {
 
     expect(result.ok).toBe(false);
     expect(await store.get(eventsKey('c1'))).toBeNull();
+  });
+
+  it('two concurrent commits reading the same rev: exactly one wins, the other reports a conflict, no silent loss (bug #4)', async () => {
+    const store = createMemoryStore();
+    const seeded: Case = { id: 'c1', facts: {}, items: [], lifecycle: 'planning', rev: 0 };
+    await store.put(caseKey('c1'), JSON.stringify(seeded));
+
+    const [resultA, resultB] = await Promise.all([
+      commitAction(store, 'c1', { type: 'patch_facts', patch: { winner: 'A' } }),
+      commitAction(store, 'c1', { type: 'patch_facts', patch: { winner: 'B' } }),
+    ]);
+
+    const results = [resultA, resultB];
+    const oks = results.filter((r) => r.ok);
+    const conflicts = results.filter((r) => !r.ok);
+
+    expect(oks).toHaveLength(1);
+    expect(conflicts).toHaveLength(1);
+    expect(conflicts[0].error).toBe('conflict');
+
+    // The loser must not have silently overwritten the winner's mutation.
+    const storedRaw = await store.get(caseKey('c1'));
+    const stored: Case = JSON.parse(storedRaw!);
+    expect(stored.facts.winner).toBe(oks[0].case?.facts.winner);
   });
 });

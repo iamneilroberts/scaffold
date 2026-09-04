@@ -9,7 +9,7 @@ export interface ItemStamp {
   source: string;
   actionable: Actionable;
   economics: { compensation: Compensation | null; endUserPrice: number | null };
-  price: { total: number | null; currency: string };
+  price: { total: number | null; currency: string; unit?: string; incomplete?: boolean };
   quotedAt?: string;
   unverified?: boolean;
 }
@@ -37,6 +37,9 @@ export interface Case {
   lifecycle: LifecycleState;
   _offers?: Record<string, Offer>;
   meta?: Record<string, unknown>;
+  // Optimistic-concurrency counter (Contract Patch v1 §2d). Optional so existing
+  // fixtures/state without it still work — treat a missing rev as 0.
+  rev?: number;
 }
 
 export const ACTION_TYPES = [
@@ -103,7 +106,7 @@ function stampFromOffer(offer: Offer): ItemStamp {
       compensation: offer.economics.compensation ? { ...offer.economics.compensation } : null,
       endUserPrice: offer.economics.endUserPrice,
     },
-    price: { total: offer.price.total, currency: offer.price.currency },
+    price: { total: offer.price.total, currency: offer.price.currency, unit: offer.price.unit, incomplete: offer.price.incomplete },
     quotedAt: offer.quotedAt,
   };
 }
@@ -142,13 +145,17 @@ export function applyAction(
       };
     }
     case 'add_item_unverified': {
-      const cap = CAP_FOR_ACTIONABLE[action.item.stamp.actionable];
+      // Escape hatch = hand-entered, no compensation, flagged — NEVER caller-authorized.
+      // Ignore the caller-supplied actionable/state/compensation entirely; float to the
+      // safe floor ('none') and clamp the state to what that floor allows.
+      const cap = CAP_FOR_ACTIONABLE.none;
       const state = funnelIndex(action.item.state) > funnelIndex(cap) ? cap : action.item.state;
       const item: Item = {
         ...action.item,
         state,
         stamp: {
           ...action.item.stamp,
+          actionable: 'none',
           economics: { compensation: null, endUserPrice: action.item.stamp.economics.endUserPrice },
           unverified: true,
         },
@@ -263,18 +270,49 @@ async function appendEvent(store: KVStore, caseId: string, kind: string, detail?
   return event;
 }
 
+// Optimistic concurrency (Contract Patch v1 §2d / bug #4): commitAction is a
+// read-modify-write. Two concurrent commits can both read the same Case, both
+// apply cleanly, and the later write silently clobbers the earlier one's item +
+// event. We close the window with a rev counter, persisted via store.casPut
+// (compare-and-swap on the exact raw string we read) when the host store
+// supports it — that's a genuine atomic guarantee: only one of two concurrent
+// callers can win the swap. Note this needs a REAL atomic primitive, not a
+// separate get()-then-recheck()-then-put(): a plain read-modify-write always
+// has a window between the recheck read and the write that two truly
+// concurrent callers can both pass, so both mutations report ok:true and the
+// loser's write silently clobbers the winner's — exactly the bug this closes.
+// A host KVStore without casPut (e.g. an eventually-consistent backend) falls
+// back to a best-effort read-recheck-write below; that only closes the window
+// for the common (non-fully-concurrent) case, not a hard guarantee.
 export async function commitAction(store: KVStore, caseId: string, action: Action): Promise<CommitResult> {
   const raw = await store.get(caseKey(caseId));
   if (!raw) {
     return { ok: false, error: 'case_not_found' };
   }
   const caseState: Case = JSON.parse(raw);
+  const readRev = caseState.rev ?? 0;
   const resolve: OfferResolver = (offerRef) => caseState._offers?.[offerRef];
   const result = applyAction(caseState, action, resolve);
   if (!result.persist) {
     return { ok: false, error: 'action_not_applied', case: result.case };
   }
-  await store.put(caseKey(caseId), JSON.stringify(result.case));
+
+  const nextCase: Case = { ...result.case, rev: readRev + 1 };
+  const nextRaw = JSON.stringify(nextCase);
+
+  if (store.casPut) {
+    const applied = await store.casPut(caseKey(caseId), raw, nextRaw);
+    if (!applied) {
+      return { ok: false, error: 'conflict' };
+    }
+  } else {
+    const recheckRaw = await store.get(caseKey(caseId));
+    if (recheckRaw !== raw) {
+      return { ok: false, error: 'conflict' };
+    }
+    await store.put(caseKey(caseId), nextRaw);
+  }
+
   await appendEvent(store, caseId, action.type, eventDetailFor(action));
-  return { ok: true, case: result.case, invalidate: result.invalidate };
+  return { ok: true, case: nextCase, invalidate: result.invalidate };
 }

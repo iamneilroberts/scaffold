@@ -61,7 +61,9 @@ export async function setDeskMetrics(store: KVStore, caseId: string, metrics: De
   if (!raw) return;
   const caseState: Case = JSON.parse(raw);
   const meta = { ...(caseState.meta ?? {}), deskMetrics: metrics };
-  await store.put(caseKey(caseId), JSON.stringify({ ...caseState, meta }));
+  // Advance rev — this is a Case mutation and must be visible to commitAction's
+  // optimistic-concurrency check (bug #4).
+  await store.put(caseKey(caseId), JSON.stringify({ ...caseState, meta, rev: (caseState.rev ?? 0) + 1 }));
 }
 
 function escapeHtml(value: string): string {
