@@ -134,7 +134,7 @@ interface Release {
   caseId: string;
   createdAt: string;
   itemSet: Item[];                // exact items at publish time, compensation masked
-  observedQuotes: Record<string, QuoteSnapshot>;   // per-item price + basis as observed (pre-mask)
+  observedQuotes: Record<string, QuoteSnapshot>;   // per-item price/currency/quotedAt; compensation fully masked (no fee basis)
   render: string;
   versions: { schema: string; rubric: string };
   contentHash: string;            // over itemSet + observedQuotes + versions (excludes id/timestamp)
@@ -142,8 +142,9 @@ interface Release {
 ```
 
 `freezeRelease(caseState, render, versions)` is pure and masks compensation in the frozen `itemSet`;
-`observedQuotes` preserves each line's observed basis (read before masking). A `KVStore`-backed
-`putRelease`/`listReleases` pair persists and lists them. Because `contentHash` excludes the id and
+`observedQuotes` records each line's observed price (`total`, `currency`, `quotedAt`) — compensation,
+**including its fee basis, is fully masked**, so a published Release never reveals the expert's cut.
+A `KVStore`-backed `putRelease`/`listReleases` pair persists and lists them. Because `contentHash` excludes the id and
 timestamp, two freezes of genuinely different content hash differently while two freezes of identical
 content do not — so "this is a different submission" is a real content claim. The `insurance` example
 is built on this: a submitted claim freezes a `Release`; a supplemental claim is a **new** one.
